@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 import type { SkillDefinition } from "../../types/skill";
 
@@ -16,20 +16,99 @@ interface WriteFileOutput {
   bytes: number;
 }
 
-function resolvePath(inputPath: string, rootDir: string): string {
+const DENY_DIRECTORIES = new Set(["governance", "specs", ".git"]);
+const DENY_ROOT_FILES = new Set([
+  "package.json",
+  "tsconfig.json",
+  "jarvis.config.json",
+  "README.md"
+]);
+
+const realpathSync =
+  typeof fs.realpathSync.native === "function"
+    ? fs.realpathSync.native
+    : fs.realpathSync;
+
+function resolveRelativePath(inputPath: string, rootDir: string): string {
   if (!inputPath || typeof inputPath !== "string") {
     throw new Error("Input path is required.");
   }
-  return path.isAbsolute(inputPath)
-    ? inputPath
-    : path.resolve(rootDir, inputPath);
+  if (path.isAbsolute(inputPath)) {
+    throw new Error("Absolute paths are not allowed.");
+  }
+  const resolved = path.resolve(rootDir, inputPath);
+  const relative = path.relative(rootDir, resolved);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("Path traversal is not allowed.");
+  }
+  return resolved;
 }
 
-function isPathAllowed(targetPath: string, allowlist: string[]): boolean {
-  const normalized = path.resolve(targetPath);
-  return allowlist.some((root) => {
-    const resolvedRoot = path.resolve(root);
-    return normalized === resolvedRoot || normalized.startsWith(resolvedRoot + path.sep);
+function findNearestExistingParentDir(
+  targetPath: string,
+  rootDir: string
+): string {
+  let current = targetPath;
+  while (true) {
+    if (fs.existsSync(current)) {
+      const stats = fs.statSync(current);
+      if (stats.isDirectory()) {
+        return current;
+      }
+    }
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return rootDir;
+    }
+    current = parent;
+  }
+}
+
+function toCanonicalPath(targetPath: string, rootDir: string): {
+  canonicalTarget: string;
+  canonicalRoot: string;
+} {
+  const canonicalRoot = realpathSync(rootDir);
+  const parentDir = findNearestExistingParentDir(targetPath, rootDir);
+  const parentReal = realpathSync(parentDir);
+  const relativeFromParent = path.relative(parentDir, targetPath);
+  const canonicalTarget = path.resolve(parentReal, relativeFromParent);
+  const relativeToRoot = path.relative(canonicalRoot, canonicalTarget);
+  if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot)) {
+    throw new Error("Path escapes root directory.");
+  }
+  return { canonicalTarget, canonicalRoot };
+}
+
+function isDeniedPath(relativePath: string): boolean {
+  const normalized = relativePath.split(path.sep).filter(Boolean);
+  if (normalized.length === 0) {
+    return false;
+  }
+  if (DENY_DIRECTORIES.has(normalized[0])) {
+    return true;
+  }
+  if (normalized.length === 1 && DENY_ROOT_FILES.has(normalized[0])) {
+    return true;
+  }
+  return false;
+}
+
+function isPathAllowed(
+  canonicalTarget: string,
+  allowlist: string[],
+  rootDir: string
+): boolean {
+  const canonicalAllowlist = allowlist.map((entry) => {
+    const resolved = path.isAbsolute(entry)
+      ? entry
+      : path.resolve(rootDir, entry);
+    return toCanonicalPath(resolved, rootDir).canonicalTarget;
+  });
+  return canonicalAllowlist.some((root) => {
+    return (
+      canonicalTarget === root || canonicalTarget.startsWith(root + path.sep)
+    );
   });
 }
 
@@ -62,30 +141,45 @@ export const writeFileSkill: SkillDefinition<WriteFileInput, WriteFileOutput> = 
     target: (input) => input.path
   },
   handler: (input, context) => {
-    const resolvedPath = resolvePath(input.path, context.config.rootDir);
+    const resolvedPath = resolveRelativePath(input.path, context.config.rootDir);
     if (typeof input.content !== "string") {
       throw new Error("Content must be a string.");
     }
-    if (!isPathAllowed(resolvedPath, context.config.permissions.writeAllowlist)) {
+    const { canonicalTarget, canonicalRoot } = toCanonicalPath(
+      resolvedPath,
+      context.config.rootDir
+    );
+    const relativeInput = path.relative(context.config.rootDir, resolvedPath);
+    const relativeCanonical = path.relative(canonicalRoot, canonicalTarget);
+    if (isDeniedPath(relativeInput) || isDeniedPath(relativeCanonical)) {
+      throw new Error("Write target is in a protected path.");
+    }
+    if (
+      !isPathAllowed(
+        canonicalTarget,
+        context.config.permissions.writeAllowlist,
+        context.config.rootDir
+      )
+    ) {
       throw new Error("Write path is not allowlisted.");
     }
     const encoding = input.encoding ?? "utf8";
     const overwrite = input.overwrite ?? false;
     const createDirs = input.createDirs ?? false;
 
-    if (fs.existsSync(resolvedPath) && !overwrite) {
+    if (fs.existsSync(canonicalTarget) && !overwrite) {
       throw new Error("Target file exists. Set overwrite to true to replace.");
     }
 
     if (createDirs) {
-      const dir = path.dirname(resolvedPath);
+      const dir = path.dirname(canonicalTarget);
       fs.mkdirSync(dir, { recursive: true });
     }
 
-    fs.writeFileSync(resolvedPath, input.content, { encoding });
+    fs.writeFileSync(canonicalTarget, input.content, { encoding });
     return {
-      path: resolvedPath,
-      bytes: fs.statSync(resolvedPath).size
+      path: canonicalTarget,
+      bytes: fs.statSync(canonicalTarget).size
     };
   }
 };

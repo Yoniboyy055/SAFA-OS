@@ -9,6 +9,9 @@
   "killSwitch": {
     "enabled": true
   },
+  "governance": {
+    "strictApprovalMode": true
+  },
   "audit": {
     "logPath": "logs/audit.log",
     "redactKeys": [
@@ -21,6 +24,7 @@
     ]
   },
   "permissions": {
-    "writeAllowlist": ["./data"]
+    "writeAllowlist": ["./data"],
+    "readAllowlist": ["./"]
   }
 }

@@ -6,8 +6,9 @@ const baseConfig = {
   network: { enabled: false, allowlist: [] },
   telemetry: { enabled: false },
   killSwitch: { enabled: false },
+  governance: { strictApprovalMode: false },
   audit: { logPath: "/tmp/audit.log", redactKeys: [] },
-  permissions: { writeAllowlist: [] },
+  permissions: { writeAllowlist: [], readAllowlist: [] },
   rootDir: "/tmp",
   configPath: "/tmp/jarvis.config.json"
 };
@@ -60,4 +61,21 @@ test("governor allows low-risk local actions", () => {
     { actor: "tester", approved: false }
   );
   assert.equal(decision.allowed, true);
+});
+
+test("strict approval mode requires approval for low risk", () => {
+  const governor = new Governor();
+  const decision = governor.evaluate(
+    {
+      type: "list_files",
+      category: "local",
+      riskLevel: "LOW",
+      requiresApproval: false,
+      allowWhenNetworkOff: true
+    },
+    { ...baseConfig, governance: { strictApprovalMode: true } },
+    { actor: "tester", approved: false }
+  );
+  assert.equal(decision.allowed, false);
+  assert.match(decision.reason, /strict approval/i);
 });

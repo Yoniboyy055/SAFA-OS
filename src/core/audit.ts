@@ -10,6 +10,11 @@ export interface AuditEvent {
   result: string;
 }
 
+export interface RedactionOptions {
+  redactKeys?: string[];
+  maxFieldLength?: number;
+}
+
 const DEFAULT_REDACT_KEYS = [
   "password",
   "secret",
@@ -21,31 +26,109 @@ const DEFAULT_REDACT_KEYS = [
   "key"
 ];
 
+function normalizeRedaction(options: RedactionOptions): {
+  redactKeys: Set<string>;
+  sensitiveMarkers: string[];
+  maxFieldLength: number;
+} {
+  const keys =
+    options.redactKeys && options.redactKeys.length > 0
+      ? options.redactKeys
+      : DEFAULT_REDACT_KEYS;
+  const redactKeys = new Set(keys.map((key) => key.toLowerCase()));
+  return {
+    redactKeys,
+    sensitiveMarkers: Array.from(redactKeys),
+    maxFieldLength: options.maxFieldLength ?? 1000
+  };
+}
+
+function redactString(
+  value: string,
+  sensitiveMarkers: string[],
+  maxFieldLength: number
+): string {
+  const trimmed =
+    value.length > maxFieldLength
+      ? `${value.slice(0, maxFieldLength)}...[TRUNCATED]`
+      : value;
+  const lowered = trimmed.toLowerCase();
+  if (sensitiveMarkers.some((marker) => lowered.includes(marker))) {
+    return "[REDACTED]";
+  }
+  return trimmed;
+}
+
+function redactValue(
+  value: unknown,
+  redactKeys: Set<string>,
+  sensitiveMarkers: string[],
+  maxFieldLength: number
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) =>
+      redactValue(entry, redactKeys, sensitiveMarkers, maxFieldLength)
+    );
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const output: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(record)) {
+      if (redactKeys.has(key.toLowerCase())) {
+        output[key] = "[REDACTED]";
+      } else {
+        output[key] = redactValue(
+          entry,
+          redactKeys,
+          sensitiveMarkers,
+          maxFieldLength
+        );
+      }
+    }
+    return output;
+  }
+  if (typeof value === "string") {
+    return redactString(value, sensitiveMarkers, maxFieldLength);
+  }
+  return value;
+}
+
+export function redactSensitive(
+  value: unknown,
+  options: RedactionOptions = {}
+): unknown {
+  const { redactKeys, sensitiveMarkers, maxFieldLength } =
+    normalizeRedaction(options);
+  return redactValue(value, redactKeys, sensitiveMarkers, maxFieldLength);
+}
+
 export class AuditLogger {
   private readonly logPath: string;
   private readonly redactKeys: Set<string>;
   private readonly sensitiveMarkers: string[];
   private readonly maxFieldLength: number;
 
-  constructor(options: {
-    logPath: string;
-    redactKeys?: string[];
-    maxFieldLength?: number;
-  }) {
+  constructor(options: { logPath: string } & RedactionOptions) {
     this.logPath = options.logPath;
-    const keys = options.redactKeys && options.redactKeys.length > 0
-      ? options.redactKeys
-      : DEFAULT_REDACT_KEYS;
-    this.redactKeys = new Set(keys.map((key) => key.toLowerCase()));
-    this.sensitiveMarkers = Array.from(this.redactKeys);
-    this.maxFieldLength = options.maxFieldLength ?? 1000;
+    const normalized = normalizeRedaction(options);
+    this.redactKeys = normalized.redactKeys;
+    this.sensitiveMarkers = normalized.sensitiveMarkers;
+    this.maxFieldLength = normalized.maxFieldLength;
   }
 
   log(event: AuditEvent): void {
-    const redacted = this.redactValue(event) as AuditEvent;
+    const redacted = redactValue(
+      event,
+      this.redactKeys,
+      this.sensitiveMarkers,
+      this.maxFieldLength
+    ) as AuditEvent;
     this.ensureLogDir();
     const line = JSON.stringify(redacted);
-    fs.appendFileSync(this.logPath, `${line}\n`, { encoding: "utf8" });
+    fs.appendFileSync(this.logPath, `${line}\n`, {
+      encoding: "utf8",
+      flag: "a"
+    });
   }
 
   private ensureLogDir(): void {
@@ -56,35 +139,11 @@ export class AuditLogger {
   }
 
   private redactValue(value: unknown): unknown {
-    if (Array.isArray(value)) {
-      return value.map((entry) => this.redactValue(entry));
-    }
-    if (value && typeof value === "object") {
-      const record = value as Record<string, unknown>;
-      const output: Record<string, unknown> = {};
-      for (const [key, entry] of Object.entries(record)) {
-        if (this.redactKeys.has(key.toLowerCase())) {
-          output[key] = "[REDACTED]";
-        } else {
-          output[key] = this.redactValue(entry);
-        }
-      }
-      return output;
-    }
-    if (typeof value === "string") {
-      return this.redactString(value);
-    }
-    return value;
-  }
-
-  private redactString(value: string): string {
-    const trimmed = value.length > this.maxFieldLength
-      ? `${value.slice(0, this.maxFieldLength)}...[TRUNCATED]`
-      : value;
-    const lowered = trimmed.toLowerCase();
-    if (this.sensitiveMarkers.some((marker) => lowered.includes(marker))) {
-      return "[REDACTED]";
-    }
-    return trimmed;
+    return redactValue(
+      value,
+      this.redactKeys,
+      this.sensitiveMarkers,
+      this.maxFieldLength
+    );
   }
 }

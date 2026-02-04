@@ -51,6 +51,13 @@ export class Governor {
       };
     }
 
+    if (config.governance.strictApprovalMode && !context.approved) {
+      return {
+        allowed: false,
+        reason: "Strict approval mode requires explicit approval."
+      };
+    }
+
     const approvalRequired =
       action.requiresApproval || action.riskLevel !== "LOW";
     if (approvalRequired && !context.approved) {

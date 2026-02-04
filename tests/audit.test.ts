@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { AuditLogger } = require("../src/core/audit");
+const { AuditLogger, redactSensitive } = require("../src/core/audit");
 
 test("audit logger appends and redacts sensitive fields", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-audit-"));
@@ -34,5 +34,11 @@ test("audit logger appends and redacts sensitive fields", () => {
   const lines = fs.readFileSync(logPath, "utf8").trim().split("\n");
   assert.equal(lines.length, 2);
   const first = JSON.parse(lines[0]);
+  const second = JSON.parse(lines[1]);
   assert.equal(first.result, "[REDACTED]");
+  assert.equal(second.result, "OK");
+  assert.equal(first.timestamp, "2026-02-04T00:00:00.000Z");
+  const redacted = redactSensitive({ token: "abc", secret: "xyz" });
+  assert.equal(redacted.token, "[REDACTED]");
+  assert.equal(redacted.secret, "[REDACTED]");
 });

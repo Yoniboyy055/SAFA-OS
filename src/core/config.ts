@@ -19,14 +19,20 @@ export interface AuditConfig {
   redactKeys: string[];
 }
 
+export interface GovernanceConfig {
+  strictApprovalMode: boolean;
+}
+
 export interface PermissionsConfig {
   writeAllowlist: string[];
+  readAllowlist: string[];
 }
 
 export interface JarvisConfig {
   network: NetworkConfig;
   telemetry: TelemetryConfig;
   killSwitch: KillSwitchConfig;
+  governance: GovernanceConfig;
   audit: AuditConfig;
   permissions: PermissionsConfig;
 }
@@ -47,6 +53,9 @@ const DEFAULT_CONFIG: JarvisConfig = {
   killSwitch: {
     enabled: true
   },
+  governance: {
+    strictApprovalMode: true
+  },
   audit: {
     logPath: "logs/audit.log",
     redactKeys: [
@@ -59,7 +68,8 @@ const DEFAULT_CONFIG: JarvisConfig = {
     ]
   },
   permissions: {
-    writeAllowlist: ["./data"]
+    writeAllowlist: ["./data"],
+    readAllowlist: ["./"]
   }
 };
 
@@ -90,6 +100,10 @@ function mergeConfig(
       ...base.killSwitch,
       ...overrides.killSwitch
     },
+    governance: {
+      ...base.governance,
+      ...overrides.governance
+    },
     audit: {
       ...base.audit,
       ...overrides.audit,
@@ -102,6 +116,9 @@ function mergeConfig(
       ...overrides.permissions,
       writeAllowlist: normalizeStringArray(
         overrides.permissions?.writeAllowlist ?? base.permissions.writeAllowlist
+      ),
+      readAllowlist: normalizeStringArray(
+        overrides.permissions?.readAllowlist ?? base.permissions.readAllowlist
       )
     }
   };
@@ -136,6 +153,9 @@ export function loadConfig(configPath?: string): ResolvedConfig {
     permissions: {
       ...merged.permissions,
       writeAllowlist: merged.permissions.writeAllowlist.map((entry) =>
+        path.resolve(rootDir, entry)
+      ),
+      readAllowlist: merged.permissions.readAllowlist.map((entry) =>
         path.resolve(rootDir, entry)
       )
     },
