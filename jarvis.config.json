@@ -1,0 +1,26 @@
+{
+  "network": {
+    "enabled": false,
+    "allowlist": []
+  },
+  "telemetry": {
+    "enabled": false
+  },
+  "killSwitch": {
+    "enabled": true
+  },
+  "audit": {
+    "logPath": "logs/audit.log",
+    "redactKeys": [
+      "password",
+      "secret",
+      "token",
+      "api_key",
+      "apikey",
+      "authorization"
+    ]
+  },
+  "permissions": {
+    "writeAllowlist": ["./data"]
+  }
+}
