@@ -2,6 +2,9 @@
 import { loadConfig } from "../core/config";
 import { AuditLogger } from "../core/audit";
 import { Governor } from "../core/governor";
+import { Planner } from "../core/planner";
+import { Manager } from "../core/manager";
+import { Operator } from "../core/operator";
 import { SkillRegistry } from "../skills/registry";
 import { readFileSkill } from "../skills/local/read_file";
 import { writeFileSkill } from "../skills/local/write_file";
@@ -25,6 +28,8 @@ function printUsage(): void {
 
 Usage:
   jarvis skills [--config <path>] [--actor <name>]
+  jarvis plan "<task>" [--config <path>] [--actor <name>]
+  jarvis exec "<task>" [--approve] [--config <path>] [--actor <name>]
   jarvis run <skill> --input <json> [--approve] [--config <path>] [--actor <name>]
   jarvis help
 
@@ -71,6 +76,108 @@ async function main(): Promise<void> {
       result: "SUCCESS"
     });
     console.log(JSON.stringify(skills, null, 2));
+    return;
+  }
+
+  if (command === "plan") {
+    const task = args[1];
+    if (!task) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "plan",
+        approved,
+        target: "task",
+        result: "ERROR: Missing task."
+      });
+      console.error("Task is required for planning.");
+      process.exit(1);
+      return;
+    }
+    const planner = new Planner();
+    const plan = planner.createPlan(task);
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "plan",
+      approved,
+      target: "task",
+      result: "SUCCESS"
+    });
+    console.log(JSON.stringify(plan, null, 2));
+    return;
+  }
+
+  if (command === "exec") {
+    const task = args[1];
+    if (!task) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "exec",
+        approved,
+        target: "task",
+        result: "ERROR: Missing task."
+      });
+      console.error("Task is required to execute.");
+      process.exit(1);
+      return;
+    }
+    const planner = new Planner();
+    const plan = planner.createPlan(task);
+    const manager = new Manager(registry);
+    const review = manager.reviewPlan(plan, config, approved);
+
+    if (!review.valid) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "exec",
+        approved,
+        target: "task",
+        result: `DENIED: ${review.reason ?? "Invalid plan."}`
+      });
+      console.error(review.reason ?? "Plan validation failed.");
+      console.log(JSON.stringify(plan, null, 2));
+      process.exit(1);
+      return;
+    }
+
+    if (review.approvalRequired && !approved) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "exec",
+        approved,
+        target: "task",
+        result: "DENIED: Approval required."
+      });
+      console.log(JSON.stringify(plan, null, 2));
+      console.error("Approval required. Re-run with --approve to execute.");
+      process.exit(1);
+      return;
+    }
+
+    const operator = new Operator(registry, audit, governor);
+    const execution = await operator.executePlan(review, {
+      actor,
+      approved,
+      config
+    });
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "exec",
+      approved,
+      target: "task",
+      result: execution.success ? "SUCCESS" : "ERROR: Execution failed."
+    });
+    console.log(
+      JSON.stringify({ plan, results: execution.results }, null, 2)
+    );
+    if (!execution.success) {
+      process.exit(1);
+    }
     return;
   }
 

@@ -32,6 +32,11 @@ Jarvis OS is a single-core assistant system with modular capabilities, governed 
 3. Build: `npm run build`
 4. Run:
    - List skills: `node dist/cli/index.js skills`
+   - Create a plan: `node dist/cli/index.js plan "summarize audit logging rules"`
+   - Attempt execution without approval (refused): \
+     `node dist/cli/index.js exec "summarize audit logging rules"`
+   - Execute with approval: \
+     `node dist/cli/index.js exec "summarize audit logging rules" --approve`
    - Read a file: `node dist/cli/index.js run read_file --input '{"path":"README.md"}'`
    - Write a file (requires approval + allowlist): \
      `node dist/cli/index.js run write_file --approve --input '{"path":"data/example.txt","content":"hello"}'`
