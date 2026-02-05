@@ -28,4 +28,14 @@ node dist/cli/index.js call:make --approve --input '{"toNumber":"+15550002222","
 
 ## Notes
 - No auto-speech is permitted without explicit approval.
-- Call requests are stubbed until Phase 4 provider integration.
+
+## Go Live Checklist (Phase 4)
+1) Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` in `.env`
+2) Set `calls.enabled=true`
+3) Set `network.enabled=true`
+4) Add `api.twilio.com` to `network.allowlistDomains`
+5) Set `calls.twimlUrl` and add it to `permissions.callTemplateAllowlist`
+6) Populate allowlists:
+   - `calls.fromNumberAllowlist`
+   - `calls.toNumberAllowlist`
+   - `calls.countryAllowlist`

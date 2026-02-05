@@ -67,3 +67,7 @@ node dist/cli/index.js payment:request --approve --input '{"priceId":"price_basi
 node dist/cli/index.js call:preview --input '{"toNumber":"+15550002222","intent":"sales","dryRun":true}'
 node dist/cli/index.js call:make --approve --input '{"toNumber":"+15550002222","intent":"sales","dryRun":false}'
 ```
+
+## Phase 4 Live Outbound (Stripe/Twilio)
+- Network is OFF by default; enable explicitly.
+- See `docs/PHASE4_GO_LIVE_CHECKLIST.md` before enabling live execution.

@@ -30,4 +30,14 @@ node dist/cli/index.js payment:request --approve --input '{"priceId":"price_basi
 
 ## Notes
 - Real outbound requests require: approval + allowlists + network enabled.
-- Payment URLs are placeholders until Phase 4 real API enablement.
+
+## Go Live Checklist (Phase 4)
+1) Set `STRIPE_SECRET_KEY` in `.env`
+2) Set `stripe.enabled=true`
+3) Set `network.enabled=true`
+4) Add `api.stripe.com` to `network.allowlistDomains`
+5) Populate allowlists:
+   - `stripePriceAllowlist`
+   - `stripeAmountAllowlist`
+   - `stripeCurrencyAllowlist`
+   - `stripeCustomerEmailAllowlist`

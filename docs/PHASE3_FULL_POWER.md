@@ -33,7 +33,7 @@ Send for real (requires approval + allowlists):
 node dist/cli/index.js email:send --approve --input '{"to":"a@allow.com","subject":"Hello","body":"Live body","dryRun":false}'
 ```
 
-## Stripe Payment Requests (Implemented)
+## Stripe Payment Requests (Implemented, Live in Phase 4)
 Preview:
 ```
 node dist/cli/index.js payment:preview --input '{"priceId":"price_basic","currency":"usd","customerEmail":"user@allow.com"}'
@@ -43,9 +43,9 @@ Request (approval required):
 ```
 node dist/cli/index.js payment:request --approve --input '{"priceId":"price_basic","currency":"usd","customerEmail":"user@allow.com","dryRun":false}'
 ```
-Note: real Stripe API calls remain stubbed until Phase 4 enablement.
+Note: real Stripe API calls are enabled in Phase 4 with strict gates.
 
-## Phone Calls (Implemented, Request-Only)
+## Phone Calls (Implemented, Live in Phase 4)
 Preview:
 ```
 node dist/cli/index.js call:preview --input '{"toNumber":"+15550002222","intent":"sales","dryRun":true}'
@@ -55,7 +55,7 @@ Request (approval required):
 ```
 node dist/cli/index.js call:make --approve --input '{"toNumber":"+15550002222","intent":"sales","dryRun":false}'
 ```
-Note: provider integration is stubbed until Phase 4 enablement.
+Note: provider integration is enabled in Phase 4 with strict gates.
 
 ## Future Command Shapes (Not Implemented Yet)
 These are **spec-only** and must not be enabled without allowlists, kill switch,
