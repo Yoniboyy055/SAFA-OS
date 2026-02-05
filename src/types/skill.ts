@@ -1,4 +1,6 @@
 import type { ResolvedConfig } from "../core/config";
+import type { AuditLogger } from "../core/audit";
+import type { Governor } from "../core/governor";
 
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH";
 export type ActionCategory = "local" | "network" | "outbound_message" | "external_tool";
@@ -15,8 +17,11 @@ export interface AuditTemplate<I> {
 }
 
 export interface SkillExecutionContext {
-  config: ResolvedConfig;
   actor: string;
+  approved: boolean;
+  config: ResolvedConfig;
+  audit: AuditLogger;
+  governor: Governor;
 }
 
 export interface SkillDefinition<I = unknown, O = unknown> {
@@ -36,3 +41,4 @@ export interface SkillExecutionResult<O = unknown> {
   output?: O;
   error?: string;
 }
+
