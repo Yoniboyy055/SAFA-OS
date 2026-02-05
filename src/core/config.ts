@@ -49,6 +49,7 @@ export interface CallsConfig {
   fromNumberAllowlist: string[];
   toNumberAllowlist: string[];
   countryAllowlist: string[];
+  twimlUrl: string;
   recordCalls: boolean;
   dryRunDefault: boolean;
 }
@@ -74,6 +75,7 @@ export interface PermissionsConfig {
   emailSubjectAllowlist: string[];
   emailTemplateAllowlist: string[];
   callIntentAllowlist: string[];
+  callTemplateAllowlist: string[];
 }
 
 export interface JarvisConfig {
@@ -135,6 +137,7 @@ const DEFAULT_CONFIG: JarvisConfig = {
     fromNumberAllowlist: [],
     toNumberAllowlist: [],
     countryAllowlist: [],
+    twimlUrl: "",
     recordCalls: false,
     dryRunDefault: true
   },
@@ -172,7 +175,8 @@ const DEFAULT_CONFIG: JarvisConfig = {
     stripeCustomerEmailAllowlist: [],
     emailSubjectAllowlist: [],
     emailTemplateAllowlist: [],
-    callIntentAllowlist: ["sales", "support", "follow_up", "payment"]
+    callIntentAllowlist: ["sales", "support", "follow_up", "payment"],
+    callTemplateAllowlist: []
   }
 };
 
@@ -290,6 +294,10 @@ function mergeConfig(
       callIntentAllowlist: normalizeStringArray(
         overrides.permissions?.callIntentAllowlist ??
           base.permissions.callIntentAllowlist
+      ),
+      callTemplateAllowlist: normalizeStringArray(
+        overrides.permissions?.callTemplateAllowlist ??
+          base.permissions.callTemplateAllowlist
       )
     }
   };

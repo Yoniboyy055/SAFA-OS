@@ -40,6 +40,7 @@
     "fromNumberAllowlist": [],
     "toNumberAllowlist": [],
     "countryAllowlist": [],
+    "twimlUrl": "",
     "recordCalls": false,
     "dryRunDefault": true
   },
@@ -77,6 +78,7 @@
     "stripeCustomerEmailAllowlist": [],
     "emailSubjectAllowlist": [],
     "emailTemplateAllowlist": [],
-    "callIntentAllowlist": ["sales", "support", "follow_up", "payment"]
+    "callIntentAllowlist": ["sales", "support", "follow_up", "payment"],
+    "callTemplateAllowlist": []
   }
 }
