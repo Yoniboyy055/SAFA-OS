@@ -1,3 +1,4 @@
+export {};
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { Governor } = require("../src/core/governor");
@@ -61,3 +62,4 @@ test("governor allows low-risk local actions", () => {
   );
   assert.equal(decision.allowed, true);
 });
+

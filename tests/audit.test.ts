@@ -1,3 +1,4 @@
+export {};
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("fs");
@@ -36,3 +37,4 @@ test("audit logger appends and redacts sensitive fields", () => {
   const first = JSON.parse(lines[0]);
   assert.equal(first.result, "[REDACTED]");
 });
+
