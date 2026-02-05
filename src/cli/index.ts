@@ -11,6 +11,7 @@ import { readFileSkill } from "../skills/local/read_file";
 import { writeFileSkill } from "../skills/local/write_file";
 import { listFilesSkill } from "../skills/local/list_files";
 import { searchTextSkill } from "../skills/local/search_text";
+import { runTestsSkill } from "../skills/local/run_tests";
 
 function getFlagValue(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
@@ -60,6 +61,7 @@ async function main(): Promise<void> {
   registry.register(writeFileSkill);
   registry.register(listFilesSkill);
   registry.register(searchTextSkill);
+  registry.register(runTestsSkill);
 
   if (command === "skills") {
     const skills = registry.list().map((skill) => ({
