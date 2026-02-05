@@ -5,6 +5,7 @@ import { Governor } from "../core/governor";
 import { Planner } from "../core/planner";
 import { Manager } from "../core/manager";
 import { Operator } from "../core/operator";
+import { validatePayloadSize, validateUrl } from "../core/network/types";
 import { SkillRegistry } from "../skills/registry";
 import { readFileSkill } from "../skills/local/read_file";
 import { writeFileSkill } from "../skills/local/write_file";
@@ -30,6 +31,7 @@ Usage:
   jarvis skills [--config <path>] [--actor <name>]
   jarvis plan "<task>" [--config <path>] [--actor <name>]
   jarvis exec "<task>" [--approve] [--config <path>] [--actor <name>]
+  jarvis net:preview --method GET --url https://example.com --purpose "..." [--body "..."] [--approve] [--config <path>] [--actor <name>]
   jarvis run <skill> --input <json> [--approve] [--config <path>] [--actor <name>]
   jarvis help
 
@@ -234,6 +236,98 @@ async function main(): Promise<void> {
     }
     console.error(result.error ?? "Skill failed.");
     process.exit(1);
+    return;
+  }
+
+  if (command === "net:preview") {
+    const method = getFlagValue(args, "--method") ?? "GET";
+    const url = getFlagValue(args, "--url");
+    const purpose = getFlagValue(args, "--purpose") ?? "unspecified";
+    const body = getFlagValue(args, "--body") ?? "";
+
+    if (!url) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "net.preview",
+        approved,
+        target: "network",
+        result: "ERROR: Missing URL."
+      });
+      console.error("URL is required.");
+      process.exit(1);
+      return;
+    }
+
+    const urlDecision = validateUrl(url, {
+      allowlistDomains: config.network.allowlistDomains,
+      allowlistUrls: config.network.allowlistUrls,
+      allowHttp: false,
+      maxPayloadBytes: config.governance.maxNetworkPayloadBytes
+    });
+    const payloadDecision = validatePayloadSize(
+      body,
+      config.governance.maxNetworkPayloadBytes
+    );
+
+    const governorDecision = governor.evaluate(
+      {
+        type: "network_preview",
+        category: "network",
+        riskLevel: "MEDIUM",
+        requiresApproval: true,
+        allowWhenNetworkOff: false
+      },
+      config,
+      { actor, approved },
+      {
+        id: "preview",
+        purpose,
+        method,
+        url,
+        headers: {},
+        bodySummary: body.slice(0, 256),
+        bodyHash: "preview",
+        riskLevel: "MEDIUM",
+        requiresApproval: true
+      }
+    );
+
+    const allowed =
+      urlDecision.allowed && payloadDecision.allowed && governorDecision.allowed;
+    const reason =
+      !urlDecision.allowed
+        ? urlDecision.reason
+        : !payloadDecision.allowed
+          ? payloadDecision.reason
+          : governorDecision.reason;
+
+    const preview = {
+      allowed,
+      reason,
+      wouldLog: {
+        url: urlDecision.normalizedUrl || url,
+        domain: urlDecision.hostname || "",
+        method,
+        purpose,
+        approved,
+        bodySummary: body.slice(0, 256),
+        bodyHash: "preview"
+      }
+    };
+
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "net.preview",
+      approved,
+      target: url,
+      result: allowed ? "SUCCESS" : `DENIED: ${reason}`
+    });
+    console.log(JSON.stringify(preview, null, 2));
+    if (!allowed) {
+      process.exit(1);
+    }
     return;
   }
 

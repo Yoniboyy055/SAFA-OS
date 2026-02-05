@@ -1,7 +1,9 @@
 {
   "network": {
     "enabled": false,
-    "allowlist": []
+    "allowlist": [],
+    "allowlistDomains": [],
+    "allowlistUrls": []
   },
   "telemetry": {
     "enabled": false
@@ -10,7 +12,9 @@
     "enabled": true
   },
   "governance": {
-    "strictApprovalMode": true
+    "strictApprovalMode": true,
+    "networkApprovalMode": "per_request",
+    "maxNetworkPayloadBytes": 16384
   },
   "audit": {
     "logPath": "logs/audit.log",

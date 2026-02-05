@@ -4,6 +4,8 @@ const path = require("path");
 export interface NetworkConfig {
   enabled: boolean;
   allowlist: string[];
+  allowlistDomains: string[];
+  allowlistUrls: string[];
 }
 
 export interface TelemetryConfig {
@@ -21,6 +23,8 @@ export interface AuditConfig {
 
 export interface GovernanceConfig {
   strictApprovalMode: boolean;
+  networkApprovalMode: "per_request" | "plan_hash";
+  maxNetworkPayloadBytes: number;
 }
 
 export interface PermissionsConfig {
@@ -45,7 +49,9 @@ export interface ResolvedConfig extends JarvisConfig {
 const DEFAULT_CONFIG: JarvisConfig = {
   network: {
     enabled: false,
-    allowlist: []
+    allowlist: [],
+    allowlistDomains: [],
+    allowlistUrls: []
   },
   telemetry: {
     enabled: false
@@ -54,7 +60,9 @@ const DEFAULT_CONFIG: JarvisConfig = {
     enabled: true
   },
   governance: {
-    strictApprovalMode: true
+    strictApprovalMode: true,
+    networkApprovalMode: "per_request",
+    maxNetworkPayloadBytes: 16384
   },
   audit: {
     logPath: "logs/audit.log",
@@ -90,6 +98,12 @@ function mergeConfig(
       ...overrides.network,
       allowlist: normalizeStringArray(
         overrides.network?.allowlist ?? base.network.allowlist
+      ),
+      allowlistDomains: normalizeStringArray(
+        overrides.network?.allowlistDomains ?? base.network.allowlistDomains
+      ),
+      allowlistUrls: normalizeStringArray(
+        overrides.network?.allowlistUrls ?? base.network.allowlistUrls
       )
     },
     telemetry: {

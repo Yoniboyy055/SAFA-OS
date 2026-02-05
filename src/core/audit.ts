@@ -10,6 +10,24 @@ export interface AuditEvent {
   result: string;
 }
 
+export interface NetworkRequestAudit {
+  url: string;
+  domain: string;
+  method: string;
+  purpose: string;
+  approved: boolean;
+  bodyHash: string;
+  bodySummary: string;
+  headers?: Record<string, string>;
+}
+
+export interface NetworkResultAudit {
+  status: number;
+  bytes: number;
+  durationMs: number;
+  responseHash: string;
+}
+
 export interface RedactionOptions {
   redactKeys?: string[];
   maxFieldLength?: number;
@@ -23,7 +41,9 @@ const DEFAULT_REDACT_KEYS = [
   "apikey",
   "authorization",
   "bearer",
-  "key"
+  "key",
+  "cookie",
+  "set-cookie"
 ];
 
 function normalizeRedaction(options: RedactionOptions): {
@@ -100,6 +120,71 @@ export function redactSensitive(
   const { redactKeys, sensitiveMarkers, maxFieldLength } =
     normalizeRedaction(options);
   return redactValue(value, redactKeys, sensitiveMarkers, maxFieldLength);
+}
+
+function redactHeaderValue(
+  key: string,
+  value: string,
+  redactKeys: Set<string>
+): string {
+  if (redactKeys.has(key.toLowerCase())) {
+    return "[REDACTED]";
+  }
+  return value;
+}
+
+export function redactHeaders(
+  headers: Record<string, string>,
+  options: RedactionOptions = {}
+): Record<string, string> {
+  const { redactKeys } = normalizeRedaction(options);
+  const output: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    output[key] = redactHeaderValue(key, value, redactKeys);
+  }
+  return output;
+}
+
+export function auditNetworkRequest(
+  logger: AuditLogger,
+  meta: NetworkRequestAudit,
+  actor: string
+): void {
+  const payload: Record<string, unknown> = {
+    domain: meta.domain,
+    method: meta.method,
+    purpose: meta.purpose,
+    bodyHash: meta.bodyHash,
+    bodySummary: meta.bodySummary
+  };
+  if (meta.headers) {
+    payload.headers = redactHeaders(meta.headers);
+  }
+  logger.log({
+    timestamp: new Date().toISOString(),
+    actor,
+    action: "network.request",
+    approved: meta.approved,
+    target: meta.url,
+    result: JSON.stringify(payload)
+  });
+}
+
+export function auditNetworkResult(
+  logger: AuditLogger,
+  meta: NetworkResultAudit,
+  actor: string,
+  approved: boolean,
+  url: string
+): void {
+  logger.log({
+    timestamp: new Date().toISOString(),
+    actor,
+    action: "network.result",
+    approved,
+    target: url,
+    result: JSON.stringify(meta)
+  });
 }
 
 export class AuditLogger {
