@@ -16,7 +16,12 @@ interface WriteFileOutput {
   bytes: number;
 }
 
-const DENY_DIRECTORIES = new Set(["governance", "specs", ".git"]);
+const DENY_DIRECTORIES = new Set([
+  "governance",
+  "specs",
+  ".git",
+  "node_modules"
+]);
 const DENY_ROOT_FILES = new Set([
   "package.json",
   "tsconfig.json",
@@ -85,7 +90,14 @@ function isDeniedPath(relativePath: string): boolean {
   if (normalized.length === 0) {
     return false;
   }
-  if (DENY_DIRECTORIES.has(normalized[0])) {
+  if (normalized.some((segment) => DENY_DIRECTORIES.has(segment))) {
+    return true;
+  }
+  if (
+    normalized.some(
+      (segment) => segment === ".env" || segment.startsWith(".env.")
+    )
+  ) {
     return true;
   }
   if (normalized.length === 1 && DENY_ROOT_FILES.has(normalized[0])) {

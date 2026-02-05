@@ -68,8 +68,8 @@ const DEFAULT_CONFIG: JarvisConfig = {
     ]
   },
   permissions: {
-    writeAllowlist: ["./data"],
-    readAllowlist: ["./"]
+    writeAllowlist: ["workspace", "data"],
+    readAllowlist: ["data", "workspace", "docs"]
   }
 };
 

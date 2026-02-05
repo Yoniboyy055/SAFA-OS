@@ -19,6 +19,13 @@ const realpathSync =
     ? fs.realpathSync.native
     : fs.realpathSync;
 
+const DENY_DIRECTORIES = new Set([
+  "governance",
+  "specs",
+  ".git",
+  "node_modules"
+]);
+
 function resolveRelativePath(inputPath: string, rootDir: string): string {
   if (!inputPath || typeof inputPath !== "string") {
     throw new Error("Input path is required.");
@@ -70,16 +77,19 @@ function toCanonicalPath(targetPath: string, rootDir: string): {
   return { canonicalTarget, canonicalRoot };
 }
 
-function isDeniedEnv(relativePath: string): boolean {
+function isDeniedPath(relativePath: string): boolean {
   const normalized = relativePath.split(path.sep).filter(Boolean);
   if (normalized.length === 0) {
     return false;
   }
-  if (normalized.includes(".git")) {
+  if (normalized.some((segment) => DENY_DIRECTORIES.has(segment))) {
     return true;
   }
-  const base = normalized[normalized.length - 1];
-  if (base === ".env" || base.startsWith(".env.")) {
+  if (
+    normalized.some(
+      (segment) => segment === ".env" || segment.startsWith(".env.")
+    )
+  ) {
     return true;
   }
   return false;
@@ -133,8 +143,10 @@ export const readFileSkill: SkillDefinition<ReadFileInput, ReadFileOutput> = {
     );
     const relativeInput = path.relative(context.config.rootDir, resolvedPath);
     const relativeCanonical = path.relative(canonicalRoot, canonicalTarget);
-    if (isDeniedEnv(relativeInput) || isDeniedEnv(relativeCanonical)) {
-      throw new Error("Reading from .env or .git paths is not allowed.");
+    if (isDeniedPath(relativeInput) || isDeniedPath(relativeCanonical)) {
+      throw new Error(
+        "Reading from protected paths (.env, .git, governance, specs, node_modules) is not allowed."
+      );
     }
     if (
       !isPathAllowed(
