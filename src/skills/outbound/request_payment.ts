@@ -14,10 +14,16 @@ interface RequestPaymentInput {
 }
 
 interface RequestPaymentOutput {
-  mode: "DRY_RUN" | "REQUESTED";
+  mode: "DRY_RUN" | "REQUESTED" | "CREATED";
   previewHash: string;
   paymentUrl?: string;
   requestId?: string;
+  stripeId?: string;
+  plan?: {
+    method: "POST";
+    url: string;
+    body: string;
+  };
 }
 
 function hashValue(value: string): string {
