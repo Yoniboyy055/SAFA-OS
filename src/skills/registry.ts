@@ -54,13 +54,20 @@ export class SkillRegistry {
       };
     }
 
+    const allowWhenNetworkOff =
+      skill.allowWhenNetworkOff ||
+      (skill.name === "send_email" &&
+        typeof input === "object" &&
+        input !== null &&
+        (input as { dryRun?: boolean }).dryRun === true);
+
     const decision = context.governor.evaluate(
       {
         type: skill.name,
         category: skill.category,
         riskLevel: skill.riskLevel,
         requiresApproval: skill.requiresApproval,
-        allowWhenNetworkOff: skill.allowWhenNetworkOff
+        allowWhenNetworkOff
       },
       context.config,
       { actor: context.actor, approved: context.approved }
