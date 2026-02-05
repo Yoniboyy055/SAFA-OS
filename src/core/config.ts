@@ -24,9 +24,33 @@ export interface EmailSmtpConfig {
 
 export interface EmailConfig {
   enabled: boolean;
+  provider: "smtp" | "gmail" | "sendgrid";
+  fromAllowlist: string[];
+  toAllowlist: string[];
+  domainAllowlist: string[];
   dryRunDefault: boolean;
   from: string;
   smtp: EmailSmtpConfig;
+}
+
+export interface StripeConfig {
+  enabled: boolean;
+  dryRunDefault: boolean;
+  apiBase: string;
+  mode: "production" | "test";
+  statementDescriptor: string;
+  successUrl: string;
+  cancelUrl: string;
+}
+
+export interface CallsConfig {
+  enabled: boolean;
+  provider: "twilio";
+  fromNumberAllowlist: string[];
+  toNumberAllowlist: string[];
+  countryAllowlist: string[];
+  recordCalls: boolean;
+  dryRunDefault: boolean;
 }
 
 export interface AuditConfig {
@@ -43,8 +67,13 @@ export interface GovernanceConfig {
 export interface PermissionsConfig {
   writeAllowlist: string[];
   readAllowlist: string[];
-  emailRecipientAllowlist: string[];
-  emailRecipientDenylist: string[];
+  stripePriceAllowlist: string[];
+  stripeAmountAllowlist: string[];
+  stripeCurrencyAllowlist: string[];
+  stripeCustomerEmailAllowlist: string[];
+  emailSubjectAllowlist: string[];
+  emailTemplateAllowlist: string[];
+  callIntentAllowlist: string[];
 }
 
 export interface JarvisConfig {
@@ -53,6 +82,8 @@ export interface JarvisConfig {
   killSwitch: KillSwitchConfig;
   governance: GovernanceConfig;
   email: EmailConfig;
+  stripe: StripeConfig;
+  calls: CallsConfig;
   audit: AuditConfig;
   permissions: PermissionsConfig;
 }
@@ -77,6 +108,10 @@ const DEFAULT_CONFIG: JarvisConfig = {
   },
   email: {
     enabled: false,
+    provider: "smtp",
+    fromAllowlist: [],
+    toAllowlist: [],
+    domainAllowlist: [],
     dryRunDefault: true,
     from: "",
     smtp: {
@@ -84,6 +119,24 @@ const DEFAULT_CONFIG: JarvisConfig = {
       port: 587,
       secure: false
     }
+  },
+  stripe: {
+    enabled: false,
+    dryRunDefault: true,
+    apiBase: "https://api.stripe.com",
+    mode: "production",
+    statementDescriptor: "SIGNALCRYPT",
+    successUrl: "",
+    cancelUrl: ""
+  },
+  calls: {
+    enabled: false,
+    provider: "twilio",
+    fromNumberAllowlist: [],
+    toNumberAllowlist: [],
+    countryAllowlist: [],
+    recordCalls: false,
+    dryRunDefault: true
   },
   governance: {
     strictApprovalMode: true,
@@ -100,8 +153,12 @@ const DEFAULT_CONFIG: JarvisConfig = {
       "api_key",
       "apikey",
       "authorization",
+      "bearer",
       "smtpPass",
       "smtpPassword",
+      "stripe",
+      "twilio",
+      "smtp",
       "cookie",
       "set-cookie"
     ]
@@ -109,8 +166,13 @@ const DEFAULT_CONFIG: JarvisConfig = {
   permissions: {
     writeAllowlist: ["workspace", "data"],
     readAllowlist: ["data", "workspace", "docs"],
-    emailRecipientAllowlist: [],
-    emailRecipientDenylist: []
+    stripePriceAllowlist: [],
+    stripeAmountAllowlist: [],
+    stripeCurrencyAllowlist: ["usd"],
+    stripeCustomerEmailAllowlist: [],
+    emailSubjectAllowlist: [],
+    emailTemplateAllowlist: [],
+    callIntentAllowlist: ["sales", "support", "follow_up", "payment"]
   }
 };
 
@@ -150,10 +212,36 @@ function mergeConfig(
     email: {
       ...base.email,
       ...overrides.email,
+      fromAllowlist: normalizeStringArray(
+        overrides.email?.fromAllowlist ?? base.email.fromAllowlist
+      ),
+      toAllowlist: normalizeStringArray(
+        overrides.email?.toAllowlist ?? base.email.toAllowlist
+      ),
+      domainAllowlist: normalizeStringArray(
+        overrides.email?.domainAllowlist ?? base.email.domainAllowlist
+      ),
       smtp: {
         ...base.email.smtp,
         ...overrides.email?.smtp
       }
+    },
+    stripe: {
+      ...base.stripe,
+      ...overrides.stripe
+    },
+    calls: {
+      ...base.calls,
+      ...overrides.calls,
+      fromNumberAllowlist: normalizeStringArray(
+        overrides.calls?.fromNumberAllowlist ?? base.calls.fromNumberAllowlist
+      ),
+      toNumberAllowlist: normalizeStringArray(
+        overrides.calls?.toNumberAllowlist ?? base.calls.toNumberAllowlist
+      ),
+      countryAllowlist: normalizeStringArray(
+        overrides.calls?.countryAllowlist ?? base.calls.countryAllowlist
+      )
     },
     governance: {
       ...base.governance,
@@ -175,13 +263,33 @@ function mergeConfig(
       readAllowlist: normalizeStringArray(
         overrides.permissions?.readAllowlist ?? base.permissions.readAllowlist
       ),
-      emailRecipientAllowlist: normalizeStringArray(
-        overrides.permissions?.emailRecipientAllowlist ??
-          base.permissions.emailRecipientAllowlist
+      stripePriceAllowlist: normalizeStringArray(
+        overrides.permissions?.stripePriceAllowlist ??
+          base.permissions.stripePriceAllowlist
       ),
-      emailRecipientDenylist: normalizeStringArray(
-        overrides.permissions?.emailRecipientDenylist ??
-          base.permissions.emailRecipientDenylist
+      stripeAmountAllowlist: normalizeStringArray(
+        overrides.permissions?.stripeAmountAllowlist ??
+          base.permissions.stripeAmountAllowlist
+      ),
+      stripeCurrencyAllowlist: normalizeStringArray(
+        overrides.permissions?.stripeCurrencyAllowlist ??
+          base.permissions.stripeCurrencyAllowlist
+      ),
+      stripeCustomerEmailAllowlist: normalizeStringArray(
+        overrides.permissions?.stripeCustomerEmailAllowlist ??
+          base.permissions.stripeCustomerEmailAllowlist
+      ),
+      emailSubjectAllowlist: normalizeStringArray(
+        overrides.permissions?.emailSubjectAllowlist ??
+          base.permissions.emailSubjectAllowlist
+      ),
+      emailTemplateAllowlist: normalizeStringArray(
+        overrides.permissions?.emailTemplateAllowlist ??
+          base.permissions.emailTemplateAllowlist
+      ),
+      callIntentAllowlist: normalizeStringArray(
+        overrides.permissions?.callIntentAllowlist ??
+          base.permissions.callIntentAllowlist
       )
     }
   };

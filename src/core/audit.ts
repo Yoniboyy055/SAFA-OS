@@ -34,19 +34,20 @@ export interface RedactionOptions {
 }
 
 const DEFAULT_REDACT_KEYS = [
-  "pass",
-  "password",
-  "secret",
-  "token",
-  "api_key",
-  "apikey",
   "authorization",
   "bearer",
-  "smtpPass",
-  "smtpPassword",
-  "key",
+  "token",
+  "secret",
+  "stripe",
+  "twilio",
+  "smtp",
+  "password",
+  "pass",
   "cookie",
-  "set-cookie"
+  "set-cookie",
+  "key",
+  "api_key",
+  "apikey"
 ];
 
 function normalizeRedaction(options: RedactionOptions): {

@@ -13,6 +13,10 @@
   },
   "email": {
     "enabled": false,
+    "provider": "smtp",
+    "fromAllowlist": [],
+    "toAllowlist": [],
+    "domainAllowlist": [],
     "dryRunDefault": true,
     "from": "",
     "smtp": {
@@ -20,6 +24,24 @@
       "port": 587,
       "secure": false
     }
+  },
+  "stripe": {
+    "enabled": false,
+    "dryRunDefault": true,
+    "apiBase": "https://api.stripe.com",
+    "mode": "production",
+    "statementDescriptor": "SIGNALCRYPT",
+    "successUrl": "",
+    "cancelUrl": ""
+  },
+  "calls": {
+    "enabled": false,
+    "provider": "twilio",
+    "fromNumberAllowlist": [],
+    "toNumberAllowlist": [],
+    "countryAllowlist": [],
+    "recordCalls": false,
+    "dryRunDefault": true
   },
   "governance": {
     "strictApprovalMode": true,
@@ -36,8 +58,12 @@
       "api_key",
       "apikey",
       "authorization",
+      "bearer",
       "smtpPass",
       "smtpPassword",
+      "stripe",
+      "twilio",
+      "smtp",
       "cookie",
       "set-cookie"
     ]
@@ -45,7 +71,12 @@
   "permissions": {
     "writeAllowlist": ["workspace", "data"],
     "readAllowlist": ["data", "workspace", "docs"],
-    "emailRecipientAllowlist": [],
-    "emailRecipientDenylist": []
+    "stripePriceAllowlist": [],
+    "stripeAmountAllowlist": [],
+    "stripeCurrencyAllowlist": ["usd"],
+    "stripeCustomerEmailAllowlist": [],
+    "emailSubjectAllowlist": [],
+    "emailTemplateAllowlist": [],
+    "callIntentAllowlist": ["sales", "support", "follow_up", "payment"]
   }
 }
