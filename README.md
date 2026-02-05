@@ -52,6 +52,18 @@ Jarvis OS is a single-core assistant system with modular capabilities, governed 
 ```
 npm install
 npm run build
-node dist/cli/index.js email:queue --input '{"to":["a@allow.com"],"subject":"Hello","text":"Draft body"}'
-node dist/cli/index.js email:send --approve --input '{"to":"a@allow.com","subject":"Hello","text":"Live body","dryRun":false}'
+node dist/cli/index.js email:preview --input '{"to":"a@allow.com","subject":"Hello","body":"Draft body"}'
+node dist/cli/index.js email:send --approve --input '{"to":"a@allow.com","subject":"Hello","body":"Live body","dryRun":false}'
+```
+
+## Phase 3 Payments (Stripe Request-Only)
+```
+node dist/cli/index.js payment:preview --input '{"priceId":"price_basic","currency":"usd","customerEmail":"user@allow.com"}'
+node dist/cli/index.js payment:request --approve --input '{"priceId":"price_basic","currency":"usd","customerEmail":"user@allow.com","dryRun":false}'
+```
+
+## Phase 3 Calls (Request-Only)
+```
+node dist/cli/index.js call:preview --input '{"toNumber":"+15550002222","intent":"sales","dryRun":true}'
+node dist/cli/index.js call:make --approve --input '{"toNumber":"+15550002222","intent":"sales","dryRun":false}'
 ```
