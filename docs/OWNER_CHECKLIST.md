@@ -2,6 +2,8 @@
 
 When back at laptop:
 1) Install deps: `npm install`
+   - A lockfile will appear after this step.
+   - After a lockfile exists, prefer `npm ci`.
 2) Build: `npm run build`
 3) Test: `npm test`
 
