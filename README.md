@@ -27,10 +27,12 @@ Jarvis OS is a single-core assistant system with modular capabilities, governed 
 - Governance files are treated as source-of-truth
 
 ## How to run
-1. Ensure Node.js 18+ and the TypeScript compiler (`tsc`) are available.
+1. Ensure Node.js 18+ is available.
 2. Review or edit `jarvis.config.json` (network stays OFF by default).
-3. Build: `npm run build`
-4. Run:
+3. Install dependencies: `npm install`
+4. Build: `npm run build`
+5. Test: `npm test`
+6. Run:
    - List skills: `node dist/cli/index.js skills`
    - Create a plan: `node dist/cli/index.js plan "summarize audit logging rules"`
    - Attempt execution without approval (refused): \
