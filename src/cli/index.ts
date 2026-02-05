@@ -12,6 +12,7 @@ import { writeFileSkill } from "../skills/local/write_file";
 import { listFilesSkill } from "../skills/local/list_files";
 import { searchTextSkill } from "../skills/local/search_text";
 import { runTestsSkill } from "../skills/local/run_tests";
+import { sendEmailSkill } from "../skills/outbound/send_email";
 
 function getFlagValue(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
@@ -32,6 +33,8 @@ Usage:
   jarvis skills [--config <path>] [--actor <name>]
   jarvis plan "<task>" [--config <path>] [--actor <name>]
   jarvis exec "<task>" [--approve] [--config <path>] [--actor <name>]
+  jarvis email:queue --input <json> [--approve] [--config <path>] [--actor <name>]
+  jarvis email:send --approve --input <json> [--config <path>] [--actor <name>]
   jarvis net:preview --method GET --url https://example.com --purpose "..." [--body "..."] [--approve] [--config <path>] [--actor <name>]
   jarvis run <skill> --input <json> [--approve] [--config <path>] [--actor <name>]
   jarvis help
@@ -62,6 +65,7 @@ async function main(): Promise<void> {
   registry.register(listFilesSkill);
   registry.register(searchTextSkill);
   registry.register(runTestsSkill);
+  registry.register(sendEmailSkill);
 
   if (command === "skills") {
     const skills = registry.list().map((skill) => ({
@@ -330,6 +334,162 @@ async function main(): Promise<void> {
     if (!allowed) {
       process.exit(1);
     }
+    return;
+  }
+
+  if (command === "email:queue") {
+    const inputRaw = getFlagValue(args, "--input");
+    if (!inputRaw) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "email.queue",
+        approved,
+        target: "email",
+        result: "ERROR: Missing input."
+      });
+      console.error("Input JSON is required.");
+      process.exit(1);
+      return;
+    }
+    let input: Record<string, unknown>;
+    try {
+      input = JSON.parse(inputRaw) as Record<string, unknown>;
+    } catch (error) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "email.queue",
+        approved,
+        target: "email",
+        result: "ERROR: Invalid JSON input."
+      });
+      console.error(`Invalid JSON input: ${String(error)}`);
+      process.exit(1);
+      return;
+    }
+    input.dryRun = true;
+    const result = await registry.execute("send_email", input, {
+      actor,
+      approved,
+      config,
+      audit,
+      governor
+    });
+    if (!result.success) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "email.queue",
+        approved,
+        target: "email",
+        result: `DENIED: ${result.error ?? "Queue failed."}`
+      });
+      console.error(result.error ?? "Queue failed.");
+      process.exit(1);
+      return;
+    }
+    const output = result.output as {
+      outboxPath?: string;
+      messageId?: string;
+    };
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "email.queue",
+      approved,
+      target: output?.outboxPath ?? "outbox",
+      result: "SUCCESS"
+    });
+    console.log(
+      JSON.stringify(
+        {
+          outboxPath: output?.outboxPath ?? null,
+          draftId: output?.messageId ?? null
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  if (command === "email:send") {
+    if (!approved) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "email.send",
+        approved,
+        target: "email",
+        result: "DENIED: Approval required."
+      });
+      console.error("Approval required. Re-run with --approve to send.");
+      process.exit(1);
+      return;
+    }
+    const inputRaw = getFlagValue(args, "--input");
+    if (!inputRaw) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "email.send",
+        approved,
+        target: "email",
+        result: "ERROR: Missing input."
+      });
+      console.error("Input JSON is required.");
+      process.exit(1);
+      return;
+    }
+    let input: Record<string, unknown>;
+    try {
+      input = JSON.parse(inputRaw) as Record<string, unknown>;
+    } catch (error) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "email.send",
+        approved,
+        target: "email",
+        result: "ERROR: Invalid JSON input."
+      });
+      console.error(`Invalid JSON input: ${String(error)}`);
+      process.exit(1);
+      return;
+    }
+    if (typeof input.dryRun !== "boolean") {
+      input.dryRun = false;
+    }
+    const result = await registry.execute("send_email", input, {
+      actor,
+      approved,
+      config,
+      audit,
+      governor
+    });
+    if (!result.success) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "email.send",
+        approved,
+        target: "email",
+        result: `DENIED: ${result.error ?? "Send failed."}`
+      });
+      console.error(result.error ?? "Send failed.");
+      process.exit(1);
+      return;
+    }
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "email.send",
+      approved,
+      target: "email",
+      result: "SUCCESS"
+    });
+    console.log(JSON.stringify(result.output ?? null, null, 2));
     return;
   }
 
