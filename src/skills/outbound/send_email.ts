@@ -150,7 +150,9 @@ export const sendEmailSkill: SkillDefinition<SendEmailInput, SendEmailOutput> = 
         subjectHash,
         bodyHash,
         bodySize,
-        dryRun
+        dryRun,
+        outboxPath: result.outboxPath ?? null,
+        messageId: result.messageId ?? null
       })
     });
 

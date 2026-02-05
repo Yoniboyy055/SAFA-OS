@@ -15,6 +15,13 @@ export interface EmailClientContext {
   config: ResolvedConfig;
   audit: AuditLogger;
   governor: Governor;
+  transportOverride?: {
+    sendMail: (options: Record<string, unknown>) => Promise<{
+      messageId?: string;
+      accepted?: string[];
+      rejected?: string[];
+    }>;
+  };
 }
 
 interface RecipientValidation {
@@ -221,34 +228,40 @@ export async function sendEmail(
       ? message.dryRun
       : context.config.email.dryRunDefault;
 
-  if (context.config.killSwitch.enabled) {
-    throw new Error("Kill switch enabled for outbound actions.");
-  }
-
-  if (context.config.governance.strictApprovalMode && !context.approved) {
-    throw new Error("Strict approval mode requires explicit approval.");
-  }
-
-  if (!dryRun && !context.approved) {
-    throw new Error("Approval required for email send.");
+  const governorDecision = context.governor.evaluate(
+    {
+      type: "send_email",
+      category: "outbound_message",
+      riskLevel: "HIGH",
+      requiresApproval: true,
+      allowWhenNetworkOff: dryRun
+    },
+    context.config,
+    { actor: context.actor, approved: context.approved }
+  );
+  if (!governorDecision.allowed) {
+    throw new Error(governorDecision.reason);
   }
 
   const smtpConfig = getSmtpConfig(context.config);
-  if (!isHostAllowlisted(
-    smtpConfig.host,
-    smtpConfig.port,
-    context.config.network.allowlistDomains,
-    context.config.network.allowlistUrls
-  )) {
-    throw new Error("SMTP host is not allowlisted.");
-  }
-
   if (!dryRun && !context.config.email.enabled) {
     throw new Error("Email is disabled by configuration.");
   }
 
   if (!dryRun && !context.config.network.enabled) {
     throw new Error("Network disabled");
+  }
+
+  if (
+    !dryRun &&
+    !isHostAllowlisted(
+      smtpConfig.host,
+      smtpConfig.port,
+      context.config.network.allowlistDomains,
+      context.config.network.allowlistUrls
+    )
+  ) {
+    throw new Error("SMTP host is not allowlisted.");
   }
 
   const from = message.from ?? resolveFrom(context.config);
@@ -284,15 +297,17 @@ export async function sendEmail(
     throw new Error("SMTP credentials are required.");
   }
 
-  const transport = nodemailer.createTransport({
-    host: smtpConfig.host,
-    port: smtpConfig.port,
-    secure: smtpConfig.secure,
-    auth: {
-      user: smtpConfig.user,
-      pass: smtpConfig.pass
-    }
-  });
+  const transport =
+    context.transportOverride ??
+    nodemailer.createTransport({
+      host: smtpConfig.host,
+      port: smtpConfig.port,
+      secure: smtpConfig.secure,
+      auth: {
+        user: smtpConfig.user,
+        pass: smtpConfig.pass
+      }
+    });
 
   const sendResult = await transport.sendMail({
     from,

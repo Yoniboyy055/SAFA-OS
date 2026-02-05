@@ -110,7 +110,7 @@ const DEFAULT_CONFIG: JarvisConfig = {
     writeAllowlist: ["workspace", "data"],
     readAllowlist: ["data", "workspace", "docs"],
     emailRecipientAllowlist: [],
-    emailRecipientDenylist: ["*@*.ru"]
+    emailRecipientDenylist: []
   }
 };
 

@@ -46,6 +46,6 @@
     "writeAllowlist": ["workspace", "data"],
     "readAllowlist": ["data", "workspace", "docs"],
     "emailRecipientAllowlist": [],
-    "emailRecipientDenylist": ["*@*.ru"]
+    "emailRecipientDenylist": []
   }
 }
