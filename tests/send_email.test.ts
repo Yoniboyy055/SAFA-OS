@@ -49,6 +49,7 @@ function buildConfig(rootDir, overrides = {}) {
       fromNumberAllowlist: [],
       toNumberAllowlist: [],
       countryAllowlist: [],
+      twimlUrl: "",
       recordCalls: false,
       dryRunDefault: true
     },
@@ -62,7 +63,8 @@ function buildConfig(rootDir, overrides = {}) {
       stripeCustomerEmailAllowlist: [],
       emailSubjectAllowlist: ["Hello", "Subject"],
       emailTemplateAllowlist: ["template-1"],
-      callIntentAllowlist: ["sales", "support", "follow_up", "payment"]
+      callIntentAllowlist: ["sales", "support", "follow_up", "payment"],
+      callTemplateAllowlist: []
     },
     rootDir,
     configPath: path.join(rootDir, "jarvis.config.json"),

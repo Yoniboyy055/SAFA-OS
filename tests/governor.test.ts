@@ -37,6 +37,7 @@ const baseConfig = {
     fromNumberAllowlist: [],
     toNumberAllowlist: [],
     countryAllowlist: [],
+    twimlUrl: "",
     recordCalls: false,
     dryRunDefault: true
   },
@@ -50,7 +51,8 @@ const baseConfig = {
     stripeCustomerEmailAllowlist: [],
     emailSubjectAllowlist: [],
     emailTemplateAllowlist: [],
-    callIntentAllowlist: ["sales", "support", "follow_up", "payment"]
+    callIntentAllowlist: ["sales", "support", "follow_up", "payment"],
+    callTemplateAllowlist: []
   },
   rootDir: "/tmp",
   configPath: "/tmp/jarvis.config.json"

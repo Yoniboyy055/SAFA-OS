@@ -42,6 +42,7 @@ function buildContext(rootDir) {
         fromNumberAllowlist: [],
         toNumberAllowlist: [],
         countryAllowlist: [],
+        twimlUrl: "",
         recordCalls: false,
         dryRunDefault: true
       },
@@ -55,7 +56,8 @@ function buildContext(rootDir) {
         stripeCustomerEmailAllowlist: [],
         emailSubjectAllowlist: [],
         emailTemplateAllowlist: [],
-        callIntentAllowlist: ["sales", "support", "follow_up", "payment"]
+        callIntentAllowlist: ["sales", "support", "follow_up", "payment"],
+        callTemplateAllowlist: []
       },
       rootDir,
       configPath: path.join(rootDir, "jarvis.config.json")
