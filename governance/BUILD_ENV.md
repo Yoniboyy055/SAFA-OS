@@ -12,6 +12,7 @@ approval per GOVERNOR.md.
 ## Build Environment Policy
 - Dependency installation is allowed **only** by a human in a controlled build
   environment.
+- CI builds are permitted in a controlled environment for validation.
 - Preferred method: `npm ci` (requires a lockfile).
 - Postinstall scripts are not allowed unless explicitly reviewed and approved.
 - Build actions should be logged manually (or via a separate build log file).
