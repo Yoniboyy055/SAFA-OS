@@ -68,3 +68,10 @@ jarvis review:request --to "user@allow.com" --template "..." --approve
 ```
 jarvis post:publish --channel "x.com" --content "..." --approve
 ```
+
+### store_product_upsert
+- Category: external_tool (HIGH)
+- Requires: allowlisted stores + approval + audit + dry-run
+```
+jarvis store:product_upsert --store "shop123" --sku "SKU-1" --title "..." --approve
+```
