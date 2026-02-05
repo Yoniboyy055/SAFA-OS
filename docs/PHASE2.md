@@ -8,6 +8,10 @@ Purpose: Enable a strictly governed, allowlist-only network gate with explicit
 approvals and audit coverage. This is a proposal only; no network code is added
 in Phase 2 unless explicitly approved and implemented under governance rules.
 
+Scaffold status:
+- See `docs/NETWORK_CORRIDOR.md` for the off-by-default corridor interface and
+  policy scaffold. No real network I/O is implemented.
+
 What it would contain (if approved later):
 - Allowlist-only networking with domain restrictions.
 - Explicit approval for each request (purpose + endpoint + method + payload
