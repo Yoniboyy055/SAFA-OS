@@ -13,5 +13,8 @@
   },
   "devDependencies": {
     "typescript": "latest"
+  },
+  "dependencies": {
+    "nodemailer": "latest"
   }
 }

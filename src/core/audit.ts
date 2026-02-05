@@ -34,6 +34,7 @@ export interface RedactionOptions {
 }
 
 const DEFAULT_REDACT_KEYS = [
+  "pass",
   "password",
   "secret",
   "token",
@@ -41,6 +42,8 @@ const DEFAULT_REDACT_KEYS = [
   "apikey",
   "authorization",
   "bearer",
+  "smtpPass",
+  "smtpPassword",
   "key",
   "cookie",
   "set-cookie"

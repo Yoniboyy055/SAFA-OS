@@ -16,6 +16,19 @@ export interface KillSwitchConfig {
   enabled: boolean;
 }
 
+export interface EmailSmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+}
+
+export interface EmailConfig {
+  enabled: boolean;
+  dryRunDefault: boolean;
+  from: string;
+  smtp: EmailSmtpConfig;
+}
+
 export interface AuditConfig {
   logPath: string;
   redactKeys: string[];
@@ -30,6 +43,8 @@ export interface GovernanceConfig {
 export interface PermissionsConfig {
   writeAllowlist: string[];
   readAllowlist: string[];
+  emailRecipientAllowlist: string[];
+  emailRecipientDenylist: string[];
 }
 
 export interface JarvisConfig {
@@ -37,6 +52,7 @@ export interface JarvisConfig {
   telemetry: TelemetryConfig;
   killSwitch: KillSwitchConfig;
   governance: GovernanceConfig;
+  email: EmailConfig;
   audit: AuditConfig;
   permissions: PermissionsConfig;
 }
@@ -59,6 +75,16 @@ const DEFAULT_CONFIG: JarvisConfig = {
   killSwitch: {
     enabled: true
   },
+  email: {
+    enabled: false,
+    dryRunDefault: true,
+    from: "",
+    smtp: {
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false
+    }
+  },
   governance: {
     strictApprovalMode: true,
     networkApprovalMode: "per_request",
@@ -67,17 +93,24 @@ const DEFAULT_CONFIG: JarvisConfig = {
   audit: {
     logPath: "logs/audit.log",
     redactKeys: [
+      "pass",
       "password",
       "secret",
       "token",
       "api_key",
       "apikey",
-      "authorization"
+      "authorization",
+      "smtpPass",
+      "smtpPassword",
+      "cookie",
+      "set-cookie"
     ]
   },
   permissions: {
     writeAllowlist: ["workspace", "data"],
-    readAllowlist: ["data", "workspace", "docs"]
+    readAllowlist: ["data", "workspace", "docs"],
+    emailRecipientAllowlist: [],
+    emailRecipientDenylist: ["*@*.ru"]
   }
 };
 
@@ -114,6 +147,14 @@ function mergeConfig(
       ...base.killSwitch,
       ...overrides.killSwitch
     },
+    email: {
+      ...base.email,
+      ...overrides.email,
+      smtp: {
+        ...base.email.smtp,
+        ...overrides.email?.smtp
+      }
+    },
     governance: {
       ...base.governance,
       ...overrides.governance
@@ -133,6 +174,14 @@ function mergeConfig(
       ),
       readAllowlist: normalizeStringArray(
         overrides.permissions?.readAllowlist ?? base.permissions.readAllowlist
+      ),
+      emailRecipientAllowlist: normalizeStringArray(
+        overrides.permissions?.emailRecipientAllowlist ??
+          base.permissions.emailRecipientAllowlist
+      ),
+      emailRecipientDenylist: normalizeStringArray(
+        overrides.permissions?.emailRecipientDenylist ??
+          base.permissions.emailRecipientDenylist
       )
     }
   };

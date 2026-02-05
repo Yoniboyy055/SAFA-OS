@@ -11,6 +11,16 @@
   "killSwitch": {
     "enabled": true
   },
+  "email": {
+    "enabled": false,
+    "dryRunDefault": true,
+    "from": "",
+    "smtp": {
+      "host": "smtp.gmail.com",
+      "port": 587,
+      "secure": false
+    }
+  },
   "governance": {
     "strictApprovalMode": true,
     "networkApprovalMode": "per_request",
@@ -19,16 +29,23 @@
   "audit": {
     "logPath": "logs/audit.log",
     "redactKeys": [
+      "pass",
       "password",
       "secret",
       "token",
       "api_key",
       "apikey",
-      "authorization"
+      "authorization",
+      "smtpPass",
+      "smtpPassword",
+      "cookie",
+      "set-cookie"
     ]
   },
   "permissions": {
     "writeAllowlist": ["workspace", "data"],
-    "readAllowlist": ["data", "workspace", "docs"]
+    "readAllowlist": ["data", "workspace", "docs"],
+    "emailRecipientAllowlist": [],
+    "emailRecipientDenylist": ["*@*.ru"]
   }
 }
