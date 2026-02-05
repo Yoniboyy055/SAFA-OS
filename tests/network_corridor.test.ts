@@ -24,8 +24,19 @@ function buildConfig(rootDir, overrides = {}) {
       networkApprovalMode: "per_request",
       maxNetworkPayloadBytes: 16384
     },
+    email: {
+      enabled: false,
+      dryRunDefault: true,
+      from: "",
+      smtp: { host: "smtp.gmail.com", port: 587, secure: false }
+    },
     audit: { logPath: path.join(rootDir, "audit.log"), redactKeys: [] },
-    permissions: { writeAllowlist: [], readAllowlist: [] },
+    permissions: {
+      writeAllowlist: [],
+      readAllowlist: [],
+      emailRecipientAllowlist: [],
+      emailRecipientDenylist: []
+    },
     rootDir,
     configPath: path.join(rootDir, "jarvis.config.json"),
     ...overrides
@@ -112,6 +123,60 @@ test("validator denies non-https URL", () => {
   });
   assert.equal(decision.allowed, false);
   assert.match(decision.reason, /https/i);
+});
+
+test("allowlist domains allow exact and subdomain matches", () => {
+  const exact = validateUrl("https://example.com/path", {
+    allowlistDomains: ["example.com"],
+    allowlistUrls: [],
+    allowHttp: false,
+    maxPayloadBytes: 16384
+  });
+  assert.equal(exact.allowed, true);
+
+  const subdomain = validateUrl("https://api.example.com", {
+    allowlistDomains: ["example.com"],
+    allowlistUrls: [],
+    allowHttp: false,
+    maxPayloadBytes: 16384
+  });
+  assert.equal(subdomain.allowed, true);
+});
+
+test("allowlist urls require exact match", () => {
+  const decision = validateUrl("https://example.com/path", {
+    allowlistDomains: ["example.com"],
+    allowlistUrls: ["https://example.com/path"],
+    allowHttp: false,
+    maxPayloadBytes: 16384
+  });
+  assert.equal(decision.allowed, true);
+
+  const denied = validateUrl("https://example.com/other", {
+    allowlistDomains: ["example.com"],
+    allowlistUrls: ["https://example.com/path"],
+    allowHttp: false,
+    maxPayloadBytes: 16384
+  });
+  assert.equal(denied.allowed, false);
+});
+
+test("network client remains stub-only when allowed", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const config = buildConfig(rootDir, {
+    network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] }
+  });
+  const governor = new Governor();
+  const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
+  const response = await requestNetwork(buildRequest(), {
+    actor: "tester",
+    approved: true,
+    config,
+    audit,
+    governor
+  });
+  assert.equal(response.status, 0);
+  assert.equal(response.responseHash, "stub");
 });
 
 test("audit redaction prevents authorization/cookie leakage", () => {
