@@ -42,3 +42,16 @@ Jarvis OS is a single-core assistant system with modular capabilities, governed 
    - Read a file: `node dist/cli/index.js run read_file --input '{"path":"README.md"}'`
    - Write a file (requires approval + allowlist): \
      `node dist/cli/index.js run write_file --approve --input '{"path":"data/example.txt","content":"hello"}'`
+
+## Phase 3 Email (Gmail SMTP)
+### Setup Gmail App Password
+- Google Account → Security → App Passwords
+- Store the app password in `.env` (never commit).
+
+### Commands
+```
+npm install
+npm run build
+node dist/cli/index.js email:queue --input '{"to":["a@allow.com"],"subject":"Hello","text":"Draft body"}'
+node dist/cli/index.js email:send --approve --input '{"to":"a@allow.com","subject":"Hello","text":"Live body","dryRun":false}'
+```
