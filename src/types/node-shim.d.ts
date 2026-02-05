@@ -8,13 +8,13 @@ declare module "node:path" {
   const path: any;
   export = path;
 }
-declare module "node:child_process" {
-  const childProcess: any;
-  export = childProcess;
-}
 declare module "node:crypto" {
   const crypto: any;
   export = crypto;
+}
+declare module "node:url" {
+  const url: any;
+  export = url;
 }
 declare const process: {
   argv: string[];

@@ -1,109 +1,77 @@
-import * as childProcess from "node:child_process";
-import * as crypto from "node:crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import type { SkillDefinition } from "../../types/skill";
 
 interface RunTestsInput {
-  command: string;
-  timeoutMs?: number;
+  path?: string;
 }
 
 interface RunTestsOutput {
-  exitCode: number | null;
-  signal: string | null;
-  durationMs: number;
-  stdoutPreview: string;
-  stderrPreview: string;
-  stdoutHash: string;
-  stderrHash: string;
+  files: string[];
+  loaded: number;
+  note?: string;
 }
 
-const ALLOWED_COMMANDS = new Set(["npm test", "npm run build"]);
-const DEFAULT_TIMEOUT_MS = 600_000;
-const MAX_BUFFER_BYTES = 1_024 * 1_024;
-const PREVIEW_LIMIT = 2_000;
-
-function truncatePreview(text: string): string {
-  if (text.length <= PREVIEW_LIMIT) {
-    return text;
+function listTestFiles(rootDir: string): string[] {
+  if (!fs.existsSync(rootDir)) {
+    return [];
   }
-  return `${text.slice(0, PREVIEW_LIMIT)}...[TRUNCATED]`;
-}
-
-function hashOutput(text: string): string {
-  return crypto.createHash("sha256").update(text).digest("hex");
-}
-
-function parseCommand(command: string): { cmd: string; args: string[] } {
-  const parts = command.trim().split(/\s+/);
-  return { cmd: parts[0], args: parts.slice(1) };
+  const entries = fs.readdirSync(rootDir, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    if (entry.isFile() && entry.name.endsWith(".test.js")) {
+      files.push(path.join(rootDir, entry.name));
+    }
+  }
+  return files;
 }
 
 export const runTestsSkill: SkillDefinition<RunTestsInput, RunTestsOutput> = {
   name: "run_tests",
-  description: "Run local test commands in a controlled manner.",
+  description: "Load compiled test modules from dist/tests.",
   inputSchema: {
     type: "object",
-    required: ["command"],
+    required: [],
     properties: {
-      command: {
+      path: {
         type: "string",
-        description: "Allowed commands: npm test, npm run build."
-      },
-      timeoutMs: {
-        type: "number",
-        description: "Timeout in milliseconds (default 600000)."
+        description: "Optional relative path to dist/tests."
       }
     }
   },
-  riskLevel: "HIGH",
+  riskLevel: "MEDIUM",
   requiresApproval: true,
   allowWhenNetworkOff: true,
-  category: "external_tool",
+  category: "local",
   auditTemplate: {
     action: "run_tests",
-    target: (input) => input.command
+    target: (input) => input.path ?? "dist/tests"
   },
-  handler: (input, context) => {
-    if (!input.command || typeof input.command !== "string") {
-      throw new Error("Command is required.");
+  handler: async (input, context) => {
+    const relativePath =
+      typeof input.path === "string" && input.path.trim().length > 0
+        ? input.path.trim()
+        : path.join("dist", "tests");
+    const testsPath = path.resolve(context.config.rootDir, relativePath);
+    const files = listTestFiles(testsPath);
+    let loaded = 0;
+    for (const file of files) {
+      const fileUrl = pathToFileURL(file);
+      await import(fileUrl.href);
+      loaded += 1;
     }
-    const command = input.command.trim();
-    if (!ALLOWED_COMMANDS.has(command)) {
-      throw new Error("Command is not allowlisted.");
+    if (files.length === 0) {
+      return {
+        files: [],
+        loaded: 0,
+        note: "No test files found in dist/tests."
+      };
     }
-
-    const timeoutMs =
-      typeof input.timeoutMs === "number" && Number.isFinite(input.timeoutMs)
-        ? input.timeoutMs
-        : DEFAULT_TIMEOUT_MS;
-
-    const { cmd, args } = parseCommand(command);
-    const startTime = Date.now();
-    const result = childProcess.spawnSync(cmd, args, {
-      cwd: context.config.rootDir,
-      shell: false,
-      timeout: timeoutMs,
-      maxBuffer: MAX_BUFFER_BYTES,
-      encoding: "utf8"
-    });
-    const durationMs = Date.now() - startTime;
-
-    if (result.error && result.status === null && !result.signal) {
-      throw new Error(`Command failed to start: ${result.error.message}`);
-    }
-
-    const stdout = typeof result.stdout === "string" ? result.stdout : "";
-    const stderr = typeof result.stderr === "string" ? result.stderr : "";
-
     return {
-      exitCode: result.status,
-      signal: result.signal ?? null,
-      durationMs,
-      stdoutPreview: truncatePreview(stdout),
-      stderrPreview: truncatePreview(stderr),
-      stdoutHash: hashOutput(stdout),
-      stderrHash: hashOutput(stderr)
+      files,
+      loaded
     };
   }
 };
