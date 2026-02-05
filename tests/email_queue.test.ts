@@ -14,9 +14,46 @@ function buildContext(rootDir, overrides = {}) {
     telemetry: { enabled: false },
     killSwitch: { enabled: false },
     governance: { strictApprovalMode: false, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 },
-    email: { enabled: false, dryRunDefault: true, from: "Test <test@example.com>", smtp: { host: "smtp.gmail.com", port: 587, secure: false } },
+    email: {
+      enabled: false,
+      provider: "smtp",
+      fromAllowlist: ["*@example.com"],
+      toAllowlist: ["*@allow.com"],
+      domainAllowlist: [],
+      dryRunDefault: true,
+      from: "Test <test@example.com>",
+      smtp: { host: "smtp.gmail.com", port: 587, secure: false }
+    },
+    stripe: {
+      enabled: false,
+      dryRunDefault: true,
+      apiBase: "https://api.stripe.com",
+      mode: "production",
+      statementDescriptor: "SIGNALCRYPT",
+      successUrl: "",
+      cancelUrl: ""
+    },
+    calls: {
+      enabled: false,
+      provider: "twilio",
+      fromNumberAllowlist: [],
+      toNumberAllowlist: [],
+      countryAllowlist: [],
+      recordCalls: false,
+      dryRunDefault: true
+    },
     audit: { logPath: path.join(rootDir, "audit.log"), redactKeys: [] },
-    permissions: { writeAllowlist: [], readAllowlist: [], emailRecipientAllowlist: ["*@allow.com"], emailRecipientDenylist: [] },
+    permissions: {
+      writeAllowlist: [],
+      readAllowlist: [],
+      stripePriceAllowlist: [],
+      stripeAmountAllowlist: [],
+      stripeCurrencyAllowlist: ["usd"],
+      stripeCustomerEmailAllowlist: [],
+      emailSubjectAllowlist: ["Queued"],
+      emailTemplateAllowlist: [],
+      callIntentAllowlist: ["sales", "support", "follow_up", "payment"]
+    },
     rootDir,
     configPath: path.join(rootDir, "jarvis.config.json"),
     ...overrides
@@ -37,7 +74,7 @@ test("email queue dry-run writes outbox file", async () => {
     {
       to: "user@allow.com",
       subject: "Queued",
-      text: "Draft body",
+      body: "Draft body",
       dryRun: true
     },
     context

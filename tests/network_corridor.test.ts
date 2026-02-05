@@ -26,16 +26,43 @@ function buildConfig(rootDir, overrides = {}) {
     },
     email: {
       enabled: false,
+      provider: "smtp",
+      fromAllowlist: [],
+      toAllowlist: [],
+      domainAllowlist: [],
       dryRunDefault: true,
       from: "",
       smtp: { host: "smtp.gmail.com", port: 587, secure: false }
+    },
+    stripe: {
+      enabled: false,
+      dryRunDefault: true,
+      apiBase: "https://api.stripe.com",
+      mode: "production",
+      statementDescriptor: "SIGNALCRYPT",
+      successUrl: "",
+      cancelUrl: ""
+    },
+    calls: {
+      enabled: false,
+      provider: "twilio",
+      fromNumberAllowlist: [],
+      toNumberAllowlist: [],
+      countryAllowlist: [],
+      recordCalls: false,
+      dryRunDefault: true
     },
     audit: { logPath: path.join(rootDir, "audit.log"), redactKeys: [] },
     permissions: {
       writeAllowlist: [],
       readAllowlist: [],
-      emailRecipientAllowlist: [],
-      emailRecipientDenylist: []
+      stripePriceAllowlist: [],
+      stripeAmountAllowlist: [],
+      stripeCurrencyAllowlist: ["usd"],
+      stripeCustomerEmailAllowlist: [],
+      emailSubjectAllowlist: [],
+      emailTemplateAllowlist: [],
+      callIntentAllowlist: ["sales", "support", "follow_up", "payment"]
     },
     rootDir,
     configPath: path.join(rootDir, "jarvis.config.json"),

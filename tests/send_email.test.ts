@@ -26,16 +26,43 @@ function buildConfig(rootDir, overrides = {}) {
     },
     email: {
       enabled: false,
+      provider: "smtp",
+      fromAllowlist: ["*@example.com"],
+      toAllowlist: ["*@allow.com"],
+      domainAllowlist: [],
       dryRunDefault: true,
       from: "Test <test@example.com>",
       smtp: { host: "smtp.gmail.com", port: 587, secure: false }
+    },
+    stripe: {
+      enabled: false,
+      dryRunDefault: true,
+      apiBase: "https://api.stripe.com",
+      mode: "production",
+      statementDescriptor: "SIGNALCRYPT",
+      successUrl: "",
+      cancelUrl: ""
+    },
+    calls: {
+      enabled: false,
+      provider: "twilio",
+      fromNumberAllowlist: [],
+      toNumberAllowlist: [],
+      countryAllowlist: [],
+      recordCalls: false,
+      dryRunDefault: true
     },
     audit: { logPath: path.join(rootDir, "audit.log"), redactKeys: [] },
     permissions: {
       writeAllowlist: [],
       readAllowlist: [],
-      emailRecipientAllowlist: ["*@allow.com"],
-      emailRecipientDenylist: []
+      stripePriceAllowlist: [],
+      stripeAmountAllowlist: [],
+      stripeCurrencyAllowlist: ["usd"],
+      stripeCustomerEmailAllowlist: [],
+      emailSubjectAllowlist: ["Hello", "Subject"],
+      emailTemplateAllowlist: ["template-1"],
+      callIntentAllowlist: ["sales", "support", "follow_up", "payment"]
     },
     rootDir,
     configPath: path.join(rootDir, "jarvis.config.json"),
@@ -66,7 +93,7 @@ test("deny real send when network is disabled", async () => {
         {
           to: ["user@allow.com"],
           subject: "Hello",
-          text: "Test",
+          body: "Test",
           dryRun: false
         },
         context
@@ -85,7 +112,7 @@ test("allow dry-run when network is off (writes outbox)", async () => {
     {
       to: ["user@allow.com"],
       subject: "Hello",
-      text: "Test",
+      body: "Test",
       dryRun: true
     },
     context
@@ -98,11 +125,15 @@ test("allow dry-run when network is off (writes outbox)", async () => {
 test("deny when recipient not allowlisted", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
   const context = buildContext(rootDir, {
-    permissions: {
-      writeAllowlist: [],
-      readAllowlist: [],
-      emailRecipientAllowlist: ["*@allow.com"],
-      emailRecipientDenylist: []
+    email: {
+      enabled: false,
+      provider: "smtp",
+      fromAllowlist: ["*@example.com"],
+      toAllowlist: ["*@allow.com"],
+      domainAllowlist: [],
+      dryRunDefault: true,
+      from: "Test <test@example.com>",
+      smtp: { host: "smtp.gmail.com", port: 587, secure: false }
     }
   });
   await assert.rejects(
@@ -111,7 +142,7 @@ test("deny when recipient not allowlisted", async () => {
         {
           to: ["user@blocked.com"],
           subject: "Hello",
-          text: "Test",
+          body: "Test",
           dryRun: true
         },
         context
@@ -131,7 +162,7 @@ test("deny when kill switch enabled", async () => {
         {
           to: ["user@allow.com"],
           subject: "Hello",
-          text: "Test",
+          body: "Test",
           dryRun: true
         },
         context
@@ -145,6 +176,10 @@ test("real send requires approval + enabled flags", async () => {
   const context = buildContext(rootDir, {
     email: {
       enabled: true,
+      provider: "smtp",
+      fromAllowlist: ["*@example.com"],
+      toAllowlist: ["*@allow.com"],
+      domainAllowlist: [],
       dryRunDefault: false,
       from: "Test <test@example.com>",
       smtp: { host: "smtp.gmail.com", port: 587, secure: false }
@@ -158,7 +193,7 @@ test("real send requires approval + enabled flags", async () => {
         {
           to: ["user@allow.com"],
           subject: "Hello",
-          text: "Test",
+          body: "Test",
           dryRun: false
         },
         { ...context, approved: false }
@@ -172,6 +207,10 @@ test("real send uses transport override without network", async () => {
   const context = buildContext(rootDir, {
     email: {
       enabled: true,
+      provider: "smtp",
+      fromAllowlist: ["*@example.com"],
+      toAllowlist: ["*@allow.com"],
+      domainAllowlist: [],
       dryRunDefault: false,
       from: "Test <test@example.com>",
       smtp: { host: "smtp.gmail.com", port: 587, secure: false }
@@ -182,7 +221,7 @@ test("real send uses transport override without network", async () => {
     {
       to: ["user@allow.com"],
       subject: "Hello",
-      text: "Test",
+      body: "Test",
       dryRun: false
     },
     {
@@ -210,7 +249,7 @@ test("audit does not log smtp pass or full body", async () => {
     {
       to: "user@allow.com",
       subject: "Subject",
-      text: "BODY_SHOULD_NOT_APPEAR",
+      body: "BODY_SHOULD_NOT_APPEAR",
       dryRun: true
     },
     {

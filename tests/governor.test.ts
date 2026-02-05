@@ -4,12 +4,54 @@ const assert = require("node:assert/strict");
 const { Governor } = require("../src/core/governor");
 
 const baseConfig = {
-  network: { enabled: false, allowlist: [] },
+  network: { enabled: false, allowlist: [], allowlistDomains: [], allowlistUrls: [] },
   telemetry: { enabled: false },
   killSwitch: { enabled: false },
-  governance: { strictApprovalMode: false },
+  governance: {
+    strictApprovalMode: false,
+    networkApprovalMode: "per_request",
+    maxNetworkPayloadBytes: 16384
+  },
+  email: {
+    enabled: false,
+    provider: "smtp",
+    fromAllowlist: [],
+    toAllowlist: [],
+    domainAllowlist: [],
+    dryRunDefault: true,
+    from: "",
+    smtp: { host: "smtp.gmail.com", port: 587, secure: false }
+  },
+  stripe: {
+    enabled: false,
+    dryRunDefault: true,
+    apiBase: "https://api.stripe.com",
+    mode: "production",
+    statementDescriptor: "SIGNALCRYPT",
+    successUrl: "",
+    cancelUrl: ""
+  },
+  calls: {
+    enabled: false,
+    provider: "twilio",
+    fromNumberAllowlist: [],
+    toNumberAllowlist: [],
+    countryAllowlist: [],
+    recordCalls: false,
+    dryRunDefault: true
+  },
   audit: { logPath: "/tmp/audit.log", redactKeys: [] },
-  permissions: { writeAllowlist: [], readAllowlist: [] },
+  permissions: {
+    writeAllowlist: [],
+    readAllowlist: [],
+    stripePriceAllowlist: [],
+    stripeAmountAllowlist: [],
+    stripeCurrencyAllowlist: ["usd"],
+    stripeCustomerEmailAllowlist: [],
+    emailSubjectAllowlist: [],
+    emailTemplateAllowlist: [],
+    callIntentAllowlist: ["sales", "support", "follow_up", "payment"]
+  },
   rootDir: "/tmp",
   configPath: "/tmp/jarvis.config.json"
 };
