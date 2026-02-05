@@ -16,20 +16,20 @@ export interface SkillRunContext {
 }
 
 export class SkillRegistry {
-  private readonly skills = new Map<string, SkillDefinition>();
+  private readonly skills = new Map<string, SkillDefinition<any, any>>();
 
-  register(skill: SkillDefinition): void {
+  register(skill: SkillDefinition<any, any>): void {
     if (this.skills.has(skill.name)) {
       throw new Error(`Skill already registered: ${skill.name}`);
     }
     this.skills.set(skill.name, skill);
   }
 
-  list(): SkillDefinition[] {
+  list(): SkillDefinition<any, any>[] {
     return Array.from(this.skills.values());
   }
 
-  get(name: string): SkillDefinition | undefined {
+  get(name: string): SkillDefinition<any, any> | undefined {
     return this.skills.get(name);
   }
 

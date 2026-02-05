@@ -1,3 +1,4 @@
+export {};
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { Governor } = require("../src/core/governor");
