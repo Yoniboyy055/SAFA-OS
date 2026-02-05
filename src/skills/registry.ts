@@ -84,7 +84,10 @@ export class SkillRegistry {
 
     const skillContext: SkillExecutionContext = {
       config: context.config,
-      actor: context.actor
+      actor: context.actor,
+      approved: context.approved,
+      audit: context.audit,
+      governor: context.governor
     };
 
     try {
