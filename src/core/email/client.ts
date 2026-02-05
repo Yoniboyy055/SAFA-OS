@@ -32,33 +32,24 @@ interface RecipientValidation {
 const OUTBOX_DIR = path.join("data", "outbox");
 const PREVIEW_BODY_LIMIT = 10_000;
 
-function normalizeAddress(address: string): string {
-  return address.trim().toLowerCase();
+function extractEmail(address: string): string {
+  const match = address.match(/<([^>]+)>/);
+  return match ? match[1] : address;
 }
 
-function normalizeRecipients(
-  recipients?: string[] | string
-): string[] {
-  if (!recipients) {
-    return [];
-  }
-  if (Array.isArray(recipients)) {
-    return recipients
-      .filter((entry) => typeof entry === "string")
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0);
-  }
-  if (typeof recipients === "string") {
-    return recipients
-      .split(",")
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0);
-  }
-  return [];
+function normalizeAddress(address: string): string {
+  return extractEmail(address).trim().toLowerCase();
+}
+
+function normalizeRecipients(recipients: string[]): string[] {
+  return recipients
+    .filter((entry) => typeof entry === "string")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 }
 
 function getDomain(address: string): string {
-  const parts = address.split("@");
+  const parts = normalizeAddress(address).split("@");
   return parts.length > 1 ? parts[1].toLowerCase() : "";
 }
 
@@ -83,12 +74,14 @@ function matchesPattern(address: string, pattern: string): boolean {
 function ensureRecipientsAllowlisted(
   recipients: string[],
   allowlist: string[],
-  denylist: string[]
+  domainAllowlist: string[]
 ): RecipientValidation {
   if (recipients.length === 0) {
     throw new Error("At least one recipient is required.");
   }
-  if (!allowlist || allowlist.length === 0) {
+  const hasAllowlist = allowlist && allowlist.length > 0;
+  const hasDomainAllowlist = domainAllowlist && domainAllowlist.length > 0;
+  if (!hasAllowlist && !hasDomainAllowlist) {
     throw new Error("Recipient allowlist is empty.");
   }
   const normalized: string[] = [];
@@ -96,18 +89,27 @@ function ensureRecipientsAllowlisted(
 
   for (const recipient of recipients) {
     const trimmed = recipient.trim();
-    if (!trimmed.includes("@")) {
+    const normalizedAddress = normalizeAddress(trimmed);
+    if (!normalizedAddress.includes("@")) {
       throw new Error(`Invalid recipient address: ${recipient}`);
     }
-    if (denylist.some((pattern) => matchesPattern(trimmed, pattern))) {
-      throw new Error(`Recipient denied: ${recipient}`);
-    }
-    const allowed = allowlist.some((pattern) => matchesPattern(trimmed, pattern));
+    const allowed =
+      (hasAllowlist &&
+        allowlist.some((pattern) => matchesPattern(normalizedAddress, pattern))) ||
+      (hasDomainAllowlist &&
+        domainAllowlist.some((domain) => {
+          const normalizedDomain = domain.toLowerCase();
+          const recipientDomain = getDomain(normalizedAddress);
+          return (
+            recipientDomain === normalizedDomain ||
+            recipientDomain.endsWith(`.${normalizedDomain}`)
+          );
+        }));
     if (!allowed) {
       throw new Error(`Recipient not allowlisted: ${recipient}`);
     }
-    normalized.push(trimmed);
-    const domain = getDomain(trimmed);
+    normalized.push(normalizedAddress);
+    const domain = getDomain(normalizedAddress);
     if (domain) {
       domains.add(domain);
     }
@@ -117,6 +119,16 @@ function ensureRecipientsAllowlisted(
     normalized,
     domains: Array.from(domains.values())
   };
+}
+
+function ensureFromAllowlisted(from: string, allowlist: string[]): void {
+  if (!allowlist || allowlist.length === 0) {
+    throw new Error("From allowlist is empty.");
+  }
+  const allowed = allowlist.some((pattern) => matchesPattern(from, pattern));
+  if (!allowed) {
+    throw new Error("From address not allowlisted.");
+  }
 }
 
 function parseBoolean(value?: string): boolean | undefined {
@@ -169,20 +181,10 @@ function buildEml(message: EmailMessage): string {
     lines.push(`From: ${message.from}`);
   }
   lines.push(`To: ${message.to.join(", ")}`);
-  if (message.cc && message.cc.length > 0) {
-    lines.push(`Cc: ${message.cc.join(", ")}`);
-  }
-  if (message.bcc && message.bcc.length > 0) {
-    lines.push(`Bcc: ${message.bcc.join(", ")}`);
-  }
   lines.push(`Subject: ${message.subject}`);
   lines.push(`Date: ${new Date().toUTCString()}`);
   lines.push("");
-  if (message.text) {
-    lines.push(message.text.slice(0, PREVIEW_BODY_LIMIT));
-  } else if (message.html) {
-    lines.push(message.html.slice(0, PREVIEW_BODY_LIMIT));
-  }
+  lines.push(message.body.slice(0, PREVIEW_BODY_LIMIT));
   return lines.join("\n");
 }
 
@@ -215,18 +217,41 @@ export async function sendEmail(
   message: EmailMessage,
   context: EmailClientContext
 ): Promise<EmailSendResult> {
+  const deny = (reason: string): never => {
+    context.audit.log({
+      timestamp: new Date().toISOString(),
+      actor: context.actor,
+      action: "request.denied",
+      approved: context.approved,
+      target: "email",
+      result: reason
+    });
+    throw new Error(reason);
+  };
+
   const to = normalizeRecipients(message.to);
-  const cc = normalizeRecipients(message.cc);
-  const bcc = normalizeRecipients(message.bcc);
-  const allRecipients = [...to, ...cc, ...bcc];
-  const allowlist = context.config.permissions.emailRecipientAllowlist;
-  const denylist = context.config.permissions.emailRecipientDenylist;
-  const validation = ensureRecipientsAllowlisted(allRecipients, allowlist, denylist);
+  let validation: RecipientValidation;
+  try {
+    validation = ensureRecipientsAllowlisted(
+      to,
+      context.config.email.toAllowlist,
+      context.config.email.domainAllowlist
+    );
+  } catch (error) {
+    deny(error instanceof Error ? error.message : String(error));
+  }
 
   const dryRun =
     typeof message.dryRun === "boolean"
       ? message.dryRun
       : context.config.email.dryRunDefault;
+
+  if (
+    context.config.email.provider !== "smtp" &&
+    context.config.email.provider !== "gmail"
+  ) {
+    deny("Email provider is not supported.");
+  }
 
   const governorDecision = context.governor.evaluate(
     {
@@ -240,16 +265,16 @@ export async function sendEmail(
     { actor: context.actor, approved: context.approved }
   );
   if (!governorDecision.allowed) {
-    throw new Error(governorDecision.reason);
+    deny(governorDecision.reason);
   }
 
   const smtpConfig = getSmtpConfig(context.config);
   if (!dryRun && !context.config.email.enabled) {
-    throw new Error("Email is disabled by configuration.");
+    deny("Email is disabled by configuration.");
   }
 
   if (!dryRun && !context.config.network.enabled) {
-    throw new Error("Network disabled");
+    deny("Network disabled");
   }
 
   if (
@@ -261,12 +286,17 @@ export async function sendEmail(
       context.config.network.allowlistUrls
     )
   ) {
-    throw new Error("SMTP host is not allowlisted.");
+    deny("SMTP host is not allowlisted.");
   }
 
   const from = message.from ?? resolveFrom(context.config);
   if (!from) {
-    throw new Error("Email 'from' address is required.");
+    deny("Email 'from' address is required.");
+  }
+  try {
+    ensureFromAllowlisted(from, context.config.email.fromAllowlist);
+  } catch (error) {
+    deny(error instanceof Error ? error.message : String(error));
   }
 
   if (dryRun) {
@@ -274,8 +304,6 @@ export async function sendEmail(
     const content = buildEml({
       ...message,
       to,
-      cc,
-      bcc,
       from
     });
     const hash = hashContent(`${timestamp}:${content}`);
@@ -284,6 +312,17 @@ export async function sendEmail(
     const outboxPath = path.join(outboxDir, fileName);
     fs.mkdirSync(outboxDir, { recursive: true });
     fs.writeFileSync(outboxPath, content, { encoding: "utf8" });
+    context.audit.log({
+      timestamp: new Date().toISOString(),
+      actor: context.actor,
+      action: "request.preview",
+      approved: context.approved,
+      target: "email",
+      result: JSON.stringify({
+        messageId: `dryrun-${hash.slice(0, 12)}`,
+        outboxPath
+      })
+    });
     return {
       mode: "DRY_RUN",
       outboxPath,
@@ -294,8 +333,17 @@ export async function sendEmail(
   }
 
   if (!smtpConfig.user || !smtpConfig.pass) {
-    throw new Error("SMTP credentials are required.");
+    deny("SMTP credentials are required.");
   }
+
+  context.audit.log({
+    timestamp: new Date().toISOString(),
+    actor: context.actor,
+    action: "request.created",
+    approved: context.approved,
+    target: "email",
+    result: "SMTP_SEND"
+  });
 
   const transport =
     context.transportOverride ??
@@ -312,11 +360,8 @@ export async function sendEmail(
   const sendResult = await transport.sendMail({
     from,
     to,
-    cc: cc.length > 0 ? cc : undefined,
-    bcc: bcc.length > 0 ? bcc : undefined,
     subject: message.subject,
-    text: message.text,
-    html: message.html
+    text: message.body
   });
 
   return {

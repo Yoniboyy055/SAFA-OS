@@ -1,13 +1,11 @@
 export interface EmailMessage {
   from?: string;
   to: string[];
-  cc?: string[];
-  bcc?: string[];
   subject: string;
-  text?: string;
-  html?: string;
+  body: string;
+  templateId?: string;
+  metadata?: Record<string, unknown>;
   dryRun?: boolean;
-  tags?: string[];
 }
 
 export interface EmailSendResult {
