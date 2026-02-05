@@ -11,9 +11,15 @@ interface MakeCallInput {
 }
 
 interface MakeCallOutput {
-  mode: "DRY_RUN" | "REQUESTED";
+  mode: "DRY_RUN" | "REQUESTED" | "CREATED";
   previewHash: string;
   requestId?: string;
+  callSid?: string;
+  plan?: {
+    method: "POST";
+    url: string;
+    body: string;
+  };
 }
 
 function hashValue(value: string): string {

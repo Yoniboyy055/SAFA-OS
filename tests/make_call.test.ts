@@ -39,6 +39,7 @@ function buildContext(rootDir, overrides = {}) {
       fromNumberAllowlist: ["+15550001111"],
       toNumberAllowlist: ["+15550002222"],
       countryAllowlist: ["+1"],
+      twimlUrl: "https://example.com/twiml",
       recordCalls: false,
       dryRunDefault: true
     },
@@ -52,7 +53,8 @@ function buildContext(rootDir, overrides = {}) {
       stripeCustomerEmailAllowlist: [],
       emailSubjectAllowlist: [],
       emailTemplateAllowlist: [],
-      callIntentAllowlist: ["sales", "support", "follow_up", "payment"]
+      callIntentAllowlist: ["sales", "support", "follow_up", "payment"],
+      callTemplateAllowlist: ["https://example.com/twiml"]
     },
     rootDir,
     configPath: path.join(rootDir, "jarvis.config.json"),
@@ -70,7 +72,7 @@ function buildContext(rootDir, overrides = {}) {
 test("deny when network OFF for real call", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
   const context = buildContext(rootDir, {
-    calls: { enabled: true, provider: "twilio", fromNumberAllowlist: ["+15550001111"], toNumberAllowlist: ["+15550002222"], countryAllowlist: ["+1"], recordCalls: false, dryRunDefault: false },
+    calls: { enabled: true, provider: "twilio", fromNumberAllowlist: ["+15550001111"], toNumberAllowlist: ["+15550002222"], countryAllowlist: ["+1"], twimlUrl: "https://example.com/twiml", recordCalls: false, dryRunDefault: false },
     network: { enabled: false, allowlist: [], allowlistDomains: [], allowlistUrls: [] }
   });
   await assert.rejects(
@@ -96,6 +98,42 @@ test("deny when allowlists fail", async () => {
   );
 });
 
+test("deny when twimlUrl missing or not allowlisted", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
+  const context = buildContext(rootDir, {
+    calls: {
+      enabled: false,
+      provider: "twilio",
+      fromNumberAllowlist: ["+15550001111"],
+      toNumberAllowlist: ["+15550002222"],
+      countryAllowlist: ["+1"],
+      twimlUrl: "",
+      recordCalls: false,
+      dryRunDefault: true
+    },
+    permissions: {
+      writeAllowlist: [],
+      readAllowlist: [],
+      stripePriceAllowlist: [],
+      stripeAmountAllowlist: [],
+      stripeCurrencyAllowlist: ["usd"],
+      stripeCustomerEmailAllowlist: [],
+      emailSubjectAllowlist: [],
+      emailTemplateAllowlist: [],
+      callIntentAllowlist: ["sales", "support", "follow_up", "payment"],
+      callTemplateAllowlist: []
+    }
+  });
+  await assert.rejects(
+    () =>
+      makeCallSkill.handler(
+        { toNumber: "+15550002222", intent: "sales", dryRun: true },
+        context
+      ),
+    /twiml/i
+  );
+});
+
 test("dryRun returns preview", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
   const context = buildContext(rootDir);
@@ -110,7 +148,7 @@ test("dryRun returns preview", async () => {
 test("approval required for real actions", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
   const context = buildContext(rootDir, {
-    calls: { enabled: true, provider: "twilio", fromNumberAllowlist: ["+15550001111"], toNumberAllowlist: ["+15550002222"], countryAllowlist: ["+1"], recordCalls: false, dryRunDefault: false },
+    calls: { enabled: true, provider: "twilio", fromNumberAllowlist: ["+15550001111"], toNumberAllowlist: ["+15550002222"], countryAllowlist: ["+1"], twimlUrl: "https://example.com/twiml", recordCalls: false, dryRunDefault: false },
     network: { enabled: true, allowlist: [], allowlistDomains: ["twilio.com"], allowlistUrls: [] }
   });
   await assert.rejects(

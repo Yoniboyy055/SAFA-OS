@@ -16,6 +16,10 @@ declare module "node:url" {
   const url: any;
   export = url;
 }
+declare module "node:buffer" {
+  const buffer: any;
+  export = buffer;
+}
 declare const process: {
   argv: string[];
   cwd(): string;
