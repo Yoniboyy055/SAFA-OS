@@ -13,6 +13,8 @@ import { listFilesSkill } from "../skills/local/list_files";
 import { searchTextSkill } from "../skills/local/search_text";
 import { runTestsSkill } from "../skills/local/run_tests";
 import { sendEmailSkill } from "../skills/outbound/send_email";
+import { requestPaymentSkill } from "../skills/outbound/request_payment";
+import { makeCallSkill } from "../skills/outbound/make_call";
 
 function getFlagValue(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
@@ -33,8 +35,12 @@ Usage:
   jarvis skills [--config <path>] [--actor <name>]
   jarvis plan "<task>" [--config <path>] [--actor <name>]
   jarvis exec "<task>" [--approve] [--config <path>] [--actor <name>]
-  jarvis email:queue --input <json> [--approve] [--config <path>] [--actor <name>]
+  jarvis payment:preview --input <json> [--config <path>] [--actor <name>]
+  jarvis payment:request --approve --input <json> [--config <path>] [--actor <name>]
+  jarvis email:preview --input <json> [--config <path>] [--actor <name>]
   jarvis email:send --approve --input <json> [--config <path>] [--actor <name>]
+  jarvis call:preview --input <json> [--config <path>] [--actor <name>]
+  jarvis call:make --approve --input <json> [--config <path>] [--actor <name>]
   jarvis net:preview --method GET --url https://example.com --purpose "..." [--body "..."] [--approve] [--config <path>] [--actor <name>]
   jarvis run <skill> --input <json> [--approve] [--config <path>] [--actor <name>]
   jarvis help
@@ -66,6 +72,8 @@ async function main(): Promise<void> {
   registry.register(searchTextSkill);
   registry.register(runTestsSkill);
   registry.register(sendEmailSkill);
+  registry.register(requestPaymentSkill);
+  registry.register(makeCallSkill);
 
   if (command === "skills") {
     const skills = registry.list().map((skill) => ({
@@ -337,13 +345,154 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (command === "email:queue") {
+  if (command === "payment:preview") {
     const inputRaw = getFlagValue(args, "--input");
     if (!inputRaw) {
       audit.log({
         timestamp: new Date().toISOString(),
         actor,
-        action: "email.queue",
+        action: "payment.preview",
+        approved,
+        target: "stripe",
+        result: "ERROR: Missing input."
+      });
+      console.error("Input JSON is required.");
+      process.exit(1);
+      return;
+    }
+    let input: Record<string, unknown>;
+    try {
+      input = JSON.parse(inputRaw) as Record<string, unknown>;
+    } catch (error) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "payment.preview",
+        approved,
+        target: "stripe",
+        result: "ERROR: Invalid JSON input."
+      });
+      console.error(`Invalid JSON input: ${String(error)}`);
+      process.exit(1);
+      return;
+    }
+    input.dryRun = true;
+    const result = await registry.execute("request_payment", input, {
+      actor,
+      approved,
+      config,
+      audit,
+      governor
+    });
+    if (!result.success) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "payment.preview",
+        approved,
+        target: "stripe",
+        result: `DENIED: ${result.error ?? "Preview failed."}`
+      });
+      console.error(result.error ?? "Preview failed.");
+      process.exit(1);
+      return;
+    }
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "payment.preview",
+      approved,
+      target: "stripe",
+      result: "SUCCESS"
+    });
+    console.log(JSON.stringify(result.output ?? null, null, 2));
+    return;
+  }
+
+  if (command === "payment:request") {
+    if (!approved) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "payment.request",
+        approved,
+        target: "stripe",
+        result: "DENIED: Approval required."
+      });
+      console.error("Approval required. Re-run with --approve to request.");
+      process.exit(1);
+      return;
+    }
+    const inputRaw = getFlagValue(args, "--input");
+    if (!inputRaw) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "payment.request",
+        approved,
+        target: "stripe",
+        result: "ERROR: Missing input."
+      });
+      console.error("Input JSON is required.");
+      process.exit(1);
+      return;
+    }
+    let input: Record<string, unknown>;
+    try {
+      input = JSON.parse(inputRaw) as Record<string, unknown>;
+    } catch (error) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "payment.request",
+        approved,
+        target: "stripe",
+        result: "ERROR: Invalid JSON input."
+      });
+      console.error(`Invalid JSON input: ${String(error)}`);
+      process.exit(1);
+      return;
+    }
+    input.dryRun = false;
+    const result = await registry.execute("request_payment", input, {
+      actor,
+      approved,
+      config,
+      audit,
+      governor
+    });
+    if (!result.success) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "payment.request",
+        approved,
+        target: "stripe",
+        result: `DENIED: ${result.error ?? "Request failed."}`
+      });
+      console.error(result.error ?? "Request failed.");
+      process.exit(1);
+      return;
+    }
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "payment.request",
+      approved,
+      target: "stripe",
+      result: "SUCCESS"
+    });
+    console.log(JSON.stringify(result.output ?? null, null, 2));
+    return;
+  }
+
+  if (command === "email:preview") {
+    const inputRaw = getFlagValue(args, "--input");
+    if (!inputRaw) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "email.preview",
         approved,
         target: "email",
         result: "ERROR: Missing input."
@@ -359,7 +508,7 @@ async function main(): Promise<void> {
       audit.log({
         timestamp: new Date().toISOString(),
         actor,
-        action: "email.queue",
+        action: "email.preview",
         approved,
         target: "email",
         result: "ERROR: Invalid JSON input."
@@ -380,37 +529,24 @@ async function main(): Promise<void> {
       audit.log({
         timestamp: new Date().toISOString(),
         actor,
-        action: "email.queue",
+        action: "email.preview",
         approved,
         target: "email",
-        result: `DENIED: ${result.error ?? "Queue failed."}`
+        result: `DENIED: ${result.error ?? "Preview failed."}`
       });
-      console.error(result.error ?? "Queue failed.");
+      console.error(result.error ?? "Preview failed.");
       process.exit(1);
       return;
     }
-    const output = result.output as {
-      outboxPath?: string;
-      messageId?: string;
-    };
     audit.log({
       timestamp: new Date().toISOString(),
       actor,
-      action: "email.queue",
+      action: "email.preview",
       approved,
-      target: output?.outboxPath ?? "outbox",
+      target: "email",
       result: "SUCCESS"
     });
-    console.log(
-      JSON.stringify(
-        {
-          outboxPath: output?.outboxPath ?? null,
-          draftId: output?.messageId ?? null
-        },
-        null,
-        2
-      )
-    );
+    console.log(JSON.stringify(result.output ?? null, null, 2));
     return;
   }
 
@@ -458,9 +594,7 @@ async function main(): Promise<void> {
       process.exit(1);
       return;
     }
-    if (typeof input.dryRun !== "boolean") {
-      input.dryRun = false;
-    }
+    input.dryRun = false;
     const result = await registry.execute("send_email", input, {
       actor,
       approved,
@@ -487,6 +621,147 @@ async function main(): Promise<void> {
       action: "email.send",
       approved,
       target: "email",
+      result: "SUCCESS"
+    });
+    console.log(JSON.stringify(result.output ?? null, null, 2));
+    return;
+  }
+
+  if (command === "call:preview") {
+    const inputRaw = getFlagValue(args, "--input");
+    if (!inputRaw) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "call.preview",
+        approved,
+        target: "calls",
+        result: "ERROR: Missing input."
+      });
+      console.error("Input JSON is required.");
+      process.exit(1);
+      return;
+    }
+    let input: Record<string, unknown>;
+    try {
+      input = JSON.parse(inputRaw) as Record<string, unknown>;
+    } catch (error) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "call.preview",
+        approved,
+        target: "calls",
+        result: "ERROR: Invalid JSON input."
+      });
+      console.error(`Invalid JSON input: ${String(error)}`);
+      process.exit(1);
+      return;
+    }
+    input.dryRun = true;
+    const result = await registry.execute("make_call", input, {
+      actor,
+      approved,
+      config,
+      audit,
+      governor
+    });
+    if (!result.success) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "call.preview",
+        approved,
+        target: "calls",
+        result: `DENIED: ${result.error ?? "Preview failed."}`
+      });
+      console.error(result.error ?? "Preview failed.");
+      process.exit(1);
+      return;
+    }
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "call.preview",
+      approved,
+      target: "calls",
+      result: "SUCCESS"
+    });
+    console.log(JSON.stringify(result.output ?? null, null, 2));
+    return;
+  }
+
+  if (command === "call:make") {
+    if (!approved) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "call.make",
+        approved,
+        target: "calls",
+        result: "DENIED: Approval required."
+      });
+      console.error("Approval required. Re-run with --approve to make call.");
+      process.exit(1);
+      return;
+    }
+    const inputRaw = getFlagValue(args, "--input");
+    if (!inputRaw) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "call.make",
+        approved,
+        target: "calls",
+        result: "ERROR: Missing input."
+      });
+      console.error("Input JSON is required.");
+      process.exit(1);
+      return;
+    }
+    let input: Record<string, unknown>;
+    try {
+      input = JSON.parse(inputRaw) as Record<string, unknown>;
+    } catch (error) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "call.make",
+        approved,
+        target: "calls",
+        result: "ERROR: Invalid JSON input."
+      });
+      console.error(`Invalid JSON input: ${String(error)}`);
+      process.exit(1);
+      return;
+    }
+    input.dryRun = false;
+    const result = await registry.execute("make_call", input, {
+      actor,
+      approved,
+      config,
+      audit,
+      governor
+    });
+    if (!result.success) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "call.make",
+        approved,
+        target: "calls",
+        result: `DENIED: ${result.error ?? "Call failed."}`
+      });
+      console.error(result.error ?? "Call failed.");
+      process.exit(1);
+      return;
+    }
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "call.make",
+      approved,
+      target: "calls",
       result: "SUCCESS"
     });
     console.log(JSON.stringify(result.output ?? null, null, 2));

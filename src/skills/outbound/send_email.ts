@@ -6,13 +6,11 @@ import { sendEmail } from "../../core/email/client";
 
 interface SendEmailInput {
   to: string | string[];
-  cc?: string | string[];
-  bcc?: string | string[];
   subject: string;
-  text?: string;
-  html?: string;
+  body: string;
   dryRun?: boolean;
-  tags?: string[];
+  templateId?: string;
+  metadata?: Record<string, unknown>;
 }
 
 interface SendEmailOutput extends EmailSendResult {
@@ -71,16 +69,14 @@ export const sendEmailSkill: SkillDefinition<SendEmailInput, SendEmailOutput> = 
   description: "Send an email via governed SMTP (supports dry-run).",
   inputSchema: {
     type: "object",
-    required: ["to", "subject"],
+    required: ["to", "subject", "body"],
     properties: {
       to: { type: "string", description: "Recipient email or list." },
-      cc: { type: "string", description: "CC recipients." },
-      bcc: { type: "string", description: "BCC recipients." },
       subject: { type: "string", description: "Email subject." },
-      text: { type: "string", description: "Plain text body." },
-      html: { type: "string", description: "HTML body." },
+      body: { type: "string", description: "Email body." },
       dryRun: { type: "boolean", description: "Dry run only." },
-      tags: { type: "array", description: "Tags for tracking." }
+      templateId: { type: "string", description: "Template identifier." },
+      metadata: { type: "object", description: "Template metadata." }
     }
   },
   riskLevel: "HIGH",
@@ -96,16 +92,14 @@ export const sendEmailSkill: SkillDefinition<SendEmailInput, SendEmailOutput> = 
   },
   handler: async (input, context) => {
     const to = normalizeRecipients(input.to);
-    const cc = normalizeRecipients(input.cc);
-    const bcc = normalizeRecipients(input.bcc);
     if (to.length === 0) {
       throw new Error("At least one recipient is required.");
     }
     if (!input.subject || typeof input.subject !== "string") {
       throw new Error("Subject is required.");
     }
-    if (!input.text && !input.html) {
-      throw new Error("Either text or html content is required.");
+    if (!input.body || typeof input.body !== "string") {
+      throw new Error("Body is required.");
     }
 
     const dryRun =
@@ -113,22 +107,36 @@ export const sendEmailSkill: SkillDefinition<SendEmailInput, SendEmailOutput> = 
         ? input.dryRun
         : context.config.email.dryRunDefault;
 
-    const bodyContent = input.text ?? input.html ?? "";
+    if (
+      context.config.permissions.emailSubjectAllowlist.length === 0 ||
+      !context.config.permissions.emailSubjectAllowlist.includes(input.subject)
+    ) {
+      throw new Error("Email subject not allowlisted.");
+    }
+
+    if (
+      input.templateId &&
+      (context.config.permissions.emailTemplateAllowlist.length === 0 ||
+        !context.config.permissions.emailTemplateAllowlist.includes(
+          input.templateId
+        ))
+    ) {
+      throw new Error("Email template not allowlisted.");
+    }
+
     const subjectHash = hashValue(input.subject);
-    const bodyHash = hashValue(bodyContent);
-    const bodySize = bodyContent.length;
-    const recipientDomains = getRecipientDomains([...to, ...cc, ...bcc]);
+    const bodyHash = hashValue(input.body);
+    const bodySize = input.body.length;
+    const recipientDomains = getRecipientDomains(to);
 
     const result = await sendEmail(
       {
         to,
-        cc,
-        bcc,
         subject: input.subject,
-        text: input.text,
-        html: input.html,
-        dryRun,
-        tags: input.tags
+        body: input.body,
+        templateId: input.templateId,
+        metadata: input.metadata,
+        dryRun
       },
       {
         actor: context.actor,

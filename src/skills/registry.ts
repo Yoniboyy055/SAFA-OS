@@ -56,7 +56,7 @@ export class SkillRegistry {
 
     const allowWhenNetworkOff =
       skill.allowWhenNetworkOff ||
-      (skill.name === "send_email" &&
+      (["send_email", "request_payment", "make_call"].includes(skill.name) &&
         typeof input === "object" &&
         input !== null &&
         (input as { dryRun?: boolean }).dryRun === true);
