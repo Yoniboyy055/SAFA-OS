@@ -54,7 +54,7 @@ Request (blocked in Phase 3):
 ```
 node dist/cli/index.js payment:request --approve --input '{"priceId":"price_basic","currency":"usd","customerEmail":"user@allow.com","dryRun":false}'
 ```
-Note: real Stripe API calls are **disabled** until Phase 4 with explicit approval.
+Note: real Stripe API calls are **disabled** under current policy.
 
 ## Phone Calls (Implemented, Preview-Only)
 Preview:
@@ -66,7 +66,7 @@ Request (blocked in Phase 3):
 ```
 node dist/cli/index.js call:make --approve --input '{"toNumber":"+15550002222","intent":"sales","dryRun":false}'
 ```
-Note: provider integration is **disabled** until Phase 4 with explicit approval.
+Note: provider integration is **disabled** under current policy.
 
 ## Future Command Shapes (Not Implemented Yet)
 These are **spec-only** and must not be enabled without allowlists, kill switch,

@@ -14,7 +14,8 @@ kill switch, and append-only audit logs. Network remains OFF by default and
 - `email.toAllowlist` or `email.domainAllowlist`
 - `permissions.emailSubjectAllowlist`
 - `permissions.emailTemplateAllowlist` (if using `templateId`)
-- `network.allowlistDomains` must include SMTP host (e.g., `smtp.gmail.com`) for real sends (Phase 4 only).
+- `network.allowlistDomains` must include SMTP host (e.g., `smtp.gmail.com`) for
+  real sends (not permitted under current policy).
 
 ## CLI Examples
 Preview:

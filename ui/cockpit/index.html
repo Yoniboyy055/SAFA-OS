@@ -23,6 +23,57 @@
     </header>
 
     <main class="grid">
+      <section class="card" id="command-input">
+        <div class="card-header">
+          <h2>Command Input</h2>
+          <span class="badge">Owner Only</span>
+        </div>
+        <div class="card-body">
+          <label class="label" for="mode-select">Command Mode</label>
+          <select id="mode-select" class="select">
+            <option>CREATE</option>
+            <option>BUILD</option>
+            <option>DECIDE</option>
+            <option>CLARIFY</option>
+            <option>SCRIPT</option>
+          </select>
+          <label class="label" for="command-text">Command</label>
+          <textarea
+            id="command-text"
+            class="textarea"
+            placeholder="Describe the task to plan. Execution requires approval."
+          ></textarea>
+          <button class="btn btn-primary" disabled>Queue Intent</button>
+        </div>
+      </section>
+
+      <section class="card" id="governance-status">
+        <div class="card-header">
+          <h2>Governance Status</h2>
+          <span class="badge">Locked</span>
+        </div>
+        <div class="card-body">
+          <div class="status-grid">
+            <div>
+              <div class="status-label">Authority</div>
+              <div class="status-value">OWNER</div>
+            </div>
+            <div>
+              <div class="status-label">Identity</div>
+              <div class="status-value">Bounded</div>
+            </div>
+            <div>
+              <div class="status-label">Network</div>
+              <div class="status-value">OFF</div>
+            </div>
+            <div>
+              <div class="status-label">Kill Switch</div>
+              <div class="status-value danger">LOCKDOWN READY</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="card" id="intent-queue">
         <div class="card-header">
           <h2>Intent Queue</h2>
@@ -77,6 +128,7 @@
             <button class="btn btn-outline" disabled>Pause All</button>
             <button class="btn btn-danger" disabled>Engage Kill Switch</button>
           </div>
+          <div class="lockdown">State: LOCKDOWN READY</div>
         </div>
       </section>
     </main>

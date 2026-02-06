@@ -15,7 +15,8 @@ kill switch. Network is OFF by default and **live Stripe is disabled in Phase 3*
 - `permissions.stripeAmountAllowlist`
 - `permissions.stripeCurrencyAllowlist`
 - `permissions.stripeCustomerEmailAllowlist`
-- `network.allowlistDomains` must include `stripe.com` for real requests (Phase 4 only).
+- `network.allowlistDomains` must include `stripe.com` for real requests
+  (not permitted under current policy).
 
 ## CLI Examples
 Preview:
@@ -29,15 +30,7 @@ node dist/cli/index.js payment:request --approve --input '{"priceId":"price_basi
 ```
 
 ## Notes
-- Real outbound requests require Phase 4 enablement.
+- Real outbound requests are disabled under current policy.
 
-## Go Live Checklist (Phase 4)
-1) Set `STRIPE_SECRET_KEY` in `.env`
-2) Set `stripe.enabled=true`
-3) Set `network.enabled=true`
-4) Add `api.stripe.com` to `network.allowlistDomains`
-5) Populate allowlists:
-   - `stripePriceAllowlist`
-   - `stripeAmountAllowlist`
-   - `stripeCurrencyAllowlist`
-   - `stripeCustomerEmailAllowlist`
+## Live Outbound (Not Permitted)
+Live Stripe requests are disabled under the current policy set.

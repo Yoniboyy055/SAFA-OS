@@ -20,6 +20,19 @@ Each approval must log:
 - plan hash or request hash
 - approved: true/false
 
+## Approval States
+- **PENDING**: awaiting owner decision.
+- **APPROVED**: explicitly approved by owner.
+- **DENIED**: rejected by owner (reason required).
+- **EXPIRED**: approval expired (time-bound).
+
+## Corridor Gate States
+- **LOCKED**: kill switch engaged.
+- **DISABLED**: network disabled.
+- **ALLOWLIST_FAIL**: target not allowlisted.
+- **APPROVAL_REQUIRED**: approval missing/invalid.
+- **READY**: all gates pass (still stub-only).
+
 ## Refusal Reasons (Must Be Explicit)
 - Network disabled
 - Kill switch enabled
@@ -32,3 +45,8 @@ Each approval must log:
 - No secrets in audit events.
 - Headers must be redacted before logging.
 - Request/response bodies are never logged.
+
+## Receipt Lifecycle (Local-Only)
+1) Approval decision recorded (audit).
+2) Immutable receipt generated with hashes only.
+3) Receipt is appended to audit timeline (no edits).

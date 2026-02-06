@@ -72,5 +72,5 @@ node dist/cli/index.js call:make --approve --input '{"toNumber":"+15550002222","
 ## Jarvis Cockpit v1 (Local UI)
 Open `ui/cockpit/index.html` in a local browser. This UI is static and local-only.
 
-## Phase 4 Live Outbound
-Not implemented in Phase 3. Network corridor remains stub-only.
+## Live Outbound (Disabled)
+Network corridor remains stub-only and live outbound is disabled by policy.
