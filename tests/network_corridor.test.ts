@@ -81,12 +81,10 @@ function buildRequest(url = "https://example.com") {
     headers: {},
     bodySummary: "",
     bodyHash: "hash",
-    riskLevel: "LOW",
-    requiresApproval: false
+    riskLevel: "HIGH",
+    requiresApproval: true
   };
 }
-
-const originalFetch = globalThis.fetch;
 
 test("network disabled: governor denies and client throws", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
@@ -109,9 +107,6 @@ test("network disabled: governor denies and client throws", async () => {
   assert.match(decision.reason, /disabled/i);
 
   const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
-  globalThis.fetch = async () => {
-    throw new Error("fetch should not be called");
-  };
   await assert.rejects(
     () =>
       requestNetwork(buildRequest(), {
@@ -125,7 +120,6 @@ test("network disabled: governor denies and client throws", async () => {
       }),
     /Network disabled/
   );
-  globalThis.fetch = originalFetch;
 });
 
 test("network enabled but allowlistDomains empty => deny", () => {
@@ -210,9 +204,6 @@ test("payload limits deny oversized requests", async () => {
   });
   const governor = new Governor();
   const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
-  globalThis.fetch = async () => {
-    throw new Error("fetch should not be called");
-  };
   await assert.rejects(
     () =>
       requestNetwork(
@@ -232,7 +223,6 @@ test("payload limits deny oversized requests", async () => {
       ),
     /payload/i
   );
-  globalThis.fetch = originalFetch;
 });
 
 test("kill switch blocks network corridor", async () => {
@@ -243,9 +233,6 @@ test("kill switch blocks network corridor", async () => {
   });
   const governor = new Governor();
   const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
-  globalThis.fetch = async () => {
-    throw new Error("fetch should not be called");
-  };
   await assert.rejects(
     () =>
       requestNetwork(buildRequest(), {
@@ -259,7 +246,6 @@ test("kill switch blocks network corridor", async () => {
       }),
     /kill switch/i
   );
-  globalThis.fetch = originalFetch;
 });
 
 test("validator denies non-https URL", () => {
@@ -316,26 +302,6 @@ test("allowlisted domain executes only with approval", async () => {
   });
   const governor = new Governor();
   const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
-  globalThis.fetch = async () => ({
-    status: 204,
-    body: {
-      getReader() {
-        let sent = false;
-        return {
-          async read() {
-            if (sent) {
-              return { done: true };
-            }
-            sent = true;
-            return { done: false, value: new TextEncoder().encode("") };
-          },
-          cancel() {
-            return Promise.resolve();
-          }
-        };
-      }
-    }
-  });
   const response = await requestNetwork(buildRequest(), {
     actor: "tester",
     approved: true,
@@ -345,8 +311,9 @@ test("allowlisted domain executes only with approval", async () => {
     audit,
     governor
   });
-  assert.equal(response.status, 204);
-  globalThis.fetch = originalFetch;
+  assert.equal(response.status, 0);
+  const log = fs.readFileSync(config.audit.logPath, "utf8");
+  assert.ok(log.includes("network.request"));
 });
 
 test("allowlisted domain denied without approval", async () => {

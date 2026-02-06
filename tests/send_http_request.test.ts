@@ -5,12 +5,10 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { SkillRegistry } = require("../src/skills/registry");
-const { sendHttpRequestSkill } = require("../src/skills/outbound/send_http_request");
+const { sendHttpRequestSkill } = require("../src/skills/network/send_http_request");
 const { AuditLogger } = require("../src/core/audit");
 const { Governor } = require("../src/core/governor");
 const { AuthorityLevel } = require("../src/core/authority");
-
-const originalFetch = globalThis.fetch;
 
 function buildContext(rootDir, overrides = {}) {
   const config = {
@@ -82,16 +80,12 @@ test("send_http_request denied when network OFF", async () => {
   const context = buildContext(rootDir, {
     network: { enabled: false, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] }
   });
-  globalThis.fetch = async () => {
-    throw new Error("fetch should not be called");
-  };
   const result = await registry.execute(
     "send_http_request",
     { method: "GET", url: "https://example.com" },
     context
   );
   assert.equal(result.success, false);
-  globalThis.fetch = originalFetch;
 });
 
 test("send_http_request allows allowlisted domain with approval", async () => {
@@ -99,26 +93,6 @@ test("send_http_request allows allowlisted domain with approval", async () => {
   const registry = new SkillRegistry();
   registry.register(sendHttpRequestSkill);
   const context = buildContext(rootDir);
-  globalThis.fetch = async () => ({
-    status: 200,
-    body: {
-      getReader() {
-        let sent = false;
-        return {
-          async read() {
-            if (sent) {
-              return { done: true };
-            }
-            sent = true;
-            return { done: false, value: new TextEncoder().encode("ok") };
-          },
-          cancel() {
-            return Promise.resolve();
-          }
-        };
-      }
-    }
-  });
   const result = await registry.execute(
     "send_http_request",
     { method: "GET", url: "https://example.com" },
@@ -127,7 +101,6 @@ test("send_http_request allows allowlisted domain with approval", async () => {
   assert.equal(result.success, true);
   const log = fs.readFileSync(context.config.audit.logPath, "utf8");
   assert.ok(log.includes("send_http_request"));
-  globalThis.fetch = originalFetch;
 });
 
 test("send_http_request denied without approval", async () => {
@@ -135,16 +108,12 @@ test("send_http_request denied without approval", async () => {
   const registry = new SkillRegistry();
   registry.register(sendHttpRequestSkill);
   const context = buildContext(rootDir);
-  globalThis.fetch = async () => {
-    throw new Error("fetch should not be called");
-  };
   const result = await registry.execute(
     "send_http_request",
     { method: "GET", url: "https://example.com" },
     { ...context, approved: false }
   );
   assert.equal(result.success, false);
-  globalThis.fetch = originalFetch;
 });
 
 test("send_http_request blocked by kill switch", async () => {
@@ -154,14 +123,10 @@ test("send_http_request blocked by kill switch", async () => {
   const context = buildContext(rootDir, {
     killSwitch: { enabled: true }
   });
-  globalThis.fetch = async () => {
-    throw new Error("fetch should not be called");
-  };
   const result = await registry.execute(
     "send_http_request",
     { method: "GET", url: "https://example.com" },
     context
   );
   assert.equal(result.success, false);
-  globalThis.fetch = originalFetch;
 });

@@ -74,11 +74,18 @@ function buildContext(rootDir, overrides = {}) {
   };
 }
 
-test("send_email_request produces a draft and audit event", async () => {
+test("send_email_request returns draft payload and requires approval", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-stub-"));
   const registry = new SkillRegistry();
   registry.register(sendEmailRequestSkill);
   const context = buildContext(rootDir);
+  const denied = await registry.execute(
+    "send_email_request",
+    { to: "user@example.com", subject: "Hello", body: "Draft body" },
+    { ...context, approved: false }
+  );
+  assert.equal(denied.success, false);
+
   const result = await registry.execute(
     "send_email_request",
     { to: "user@example.com", subject: "Hello", body: "Draft body" },
@@ -90,11 +97,18 @@ test("send_email_request produces a draft and audit event", async () => {
   assert.ok(log.includes("send_email_request"));
 });
 
-test("request_phone_call produces a script and audit event", async () => {
+test("request_phone_call returns script payload and requires approval", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-stub-"));
   const registry = new SkillRegistry();
   registry.register(requestPhoneCallSkill);
   const context = buildContext(rootDir);
+  const denied = await registry.execute(
+    "request_phone_call",
+    { toNumber: "+15550002222", intent: "sales" },
+    { ...context, approved: false }
+  );
+  assert.equal(denied.success, false);
+
   const result = await registry.execute(
     "request_phone_call",
     { toNumber: "+15550002222", intent: "sales" },
