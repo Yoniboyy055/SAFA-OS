@@ -48,10 +48,8 @@ export class Governor {
           };
         }
         break;
-      case "local":
-      case "outbound_message":
-      case "external_tool":
-        // Continue to general checks below
+      default:
+        // Continue to general checks below for non-network categories
         break;
     }
 
