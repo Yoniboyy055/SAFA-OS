@@ -124,5 +124,24 @@ explicit owner override is provided. The server only binds to `127.0.0.1`.
 node dist/dashboard/server.js --port 3777 --mode SCRIPT --authority OWNER --approve --allow-dashboard-under-kill-switch
 ```
 
+## Phone Control (Local-Only, Governed)
+The dashboard API exposes local-only endpoints:
+- `GET /health`
+- `GET /status`
+- `POST /command` (accepts `JARVIS: ...` line input)
+
+To start the server, set an owner token:
+```
+JARVIS_OWNER_TOKEN="set-a-long-random-token" npm run dashboard
+```
+
+For `POST /command`, send the token as `x-jarvis-owner-token` or `Authorization: Bearer`.
+
+Remote access must be owner-controlled (documentation only):
+- Recommended: Tailscale (VPN)
+- Optional: Cloudflare Tunnel
+
+**Warning:** Do NOT expose the dashboard directly to the public internet.
+
 ## Live Outbound (Disabled)
 Network corridor remains stub-only and live outbound is disabled by policy.
