@@ -1,6 +1,5 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { pathToFileURL } from "node:url";
 
 import type { SkillDefinition } from "../../types/skill";
 
@@ -56,12 +55,6 @@ export const runTestsSkill: SkillDefinition<RunTestsInput, RunTestsOutput> = {
         : path.join("dist", "tests");
     const testsPath = path.resolve(context.config.rootDir, relativePath);
     const files = listTestFiles(testsPath);
-    let loaded = 0;
-    for (const file of files) {
-      const fileUrl = pathToFileURL(file);
-      await import(fileUrl.href);
-      loaded += 1;
-    }
     if (files.length === 0) {
       return {
         files: [],
@@ -69,9 +62,21 @@ export const runTestsSkill: SkillDefinition<RunTestsInput, RunTestsOutput> = {
         note: "No test files found in dist/tests."
       };
     }
+    const testRunner = require("node:test");
+    if (typeof testRunner.run !== "function") {
+      throw new Error("Node test runner is not available.");
+    }
+    const result = testRunner.run({ files });
+    if (result && typeof result.then === "function") {
+      await result;
+    } else if (result && typeof result[Symbol.asyncIterator] === "function") {
+      for await (const _ of result) {
+        // Consume events for completion.
+      }
+    }
     return {
       files,
-      loaded
+      loaded: files.length
     };
   }
 };

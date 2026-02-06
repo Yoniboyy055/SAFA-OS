@@ -77,7 +77,11 @@ test("run_tests loads compiled test modules", async () => {
   const testsDir = path.join(rootDir, "dist", "tests");
   fs.mkdirSync(testsDir, { recursive: true });
   const testFile = path.join(testsDir, "sample.test.js");
-  fs.writeFileSync(testFile, "module.exports = { loaded: true };", "utf8");
+  fs.writeFileSync(
+    testFile,
+    "const { test } = require('node:test'); test('sample', () => {});",
+    "utf8"
+  );
 
   const result = await runTestsSkill.handler({ path: "dist/tests" }, buildContext(rootDir));
   assert.equal(result.loaded, 1);
