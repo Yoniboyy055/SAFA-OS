@@ -72,11 +72,11 @@ function buildContext(rootDir, overrides = {}) {
   };
 }
 
-test("deny when network OFF for real call", async () => {
+test("deny real call execution in Phase 3", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
   const context = buildContext(rootDir, {
     calls: { enabled: true, provider: "twilio", fromNumberAllowlist: ["+15550001111"], toNumberAllowlist: ["+15550002222"], countryAllowlist: ["+1"], twimlUrl: "https://example.com/twiml", recordCalls: false, dryRunDefault: false },
-    network: { enabled: false, allowlist: [], allowlistDomains: [], allowlistUrls: [] }
+    network: { enabled: true, allowlist: [], allowlistDomains: ["twilio.com"], allowlistUrls: [] }
   });
   await assert.rejects(
     () =>
@@ -84,7 +84,7 @@ test("deny when network OFF for real call", async () => {
         { toNumber: "+15550002222", intent: "sales", dryRun: false },
         context
       ),
-    /Network disabled/
+    /Phase 3/i
   );
 });
 
@@ -148,16 +148,15 @@ test("dryRun returns preview", async () => {
   assert.ok(result.previewHash);
 });
 
-test("approval required for real actions", async () => {
+test("approval required for previews in strict mode", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
   const context = buildContext(rootDir, {
-    calls: { enabled: true, provider: "twilio", fromNumberAllowlist: ["+15550001111"], toNumberAllowlist: ["+15550002222"], countryAllowlist: ["+1"], twimlUrl: "https://example.com/twiml", recordCalls: false, dryRunDefault: false },
-    network: { enabled: true, allowlist: [], allowlistDomains: ["twilio.com"], allowlistUrls: [] }
+    governance: { strictApprovalMode: true, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 }
   });
   await assert.rejects(
     () =>
       makeCallSkill.handler(
-        { toNumber: "+15550002222", intent: "sales", dryRun: false },
+        { toNumber: "+15550002222", intent: "sales", dryRun: true },
         { ...context, approved: false }
       ),
     /approval required|strict approval/i

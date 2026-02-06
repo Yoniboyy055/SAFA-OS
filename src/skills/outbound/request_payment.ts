@@ -51,7 +51,7 @@ export const requestPaymentSkill: SkillDefinition<
   },
   riskLevel: "HIGH",
   requiresApproval: true,
-  allowWhenNetworkOff: false,
+  allowWhenNetworkOff: true,
   category: "external_tool",
   auditTemplate: {
     action: "request_payment",

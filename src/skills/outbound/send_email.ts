@@ -81,7 +81,7 @@ export const sendEmailSkill: SkillDefinition<SendEmailInput, SendEmailOutput> = 
   },
   riskLevel: "HIGH",
   requiresApproval: true,
-  allowWhenNetworkOff: false,
+  allowWhenNetworkOff: true,
   category: "outbound_message",
   auditTemplate: {
     action: "send_email",

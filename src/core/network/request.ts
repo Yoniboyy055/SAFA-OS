@@ -84,38 +84,14 @@ function sanitizeHeaders(headers: Record<string, string>): Record<string, string
   return cleaned;
 }
 
-async function readResponseBody(
-  response: Response,
-  maxBytes: number
-): Promise<{ text: string; bytes: number }> {
-  if (!response.body) {
-    return { text: "", bytes: 0 };
-  }
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-    if (value) {
-      total += value.length;
-      if (total > maxBytes) {
-        reader.cancel().catch(() => undefined);
-        throw new Error("Response exceeds maximum size.");
-      }
-      chunks.push(value);
-    }
-  }
-  const buffer = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    buffer.set(chunk, offset);
-    offset += chunk.length;
-  }
-  const text = new TextDecoder("utf-8").decode(buffer);
-  return { text, bytes: total };
+function buildStubResponse(): NetworkResponse {
+  return {
+    status: 0,
+    bodyText: "",
+    responseHash: "stub",
+    responseBytes: 0,
+    durationMs: 0
+  };
 }
 
 export async function requestNetwork(
@@ -230,50 +206,19 @@ export async function requestNetwork(
     })
   });
 
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  const startTime = Date.now();
-  try {
-    const response = await fetch(options.url, {
-      method: options.method,
-      headers: sanitizedHeaders,
-      body: options.method === "POST" ? body : undefined,
-      signal: controller.signal
-    });
-    const { text, bytes } = await readResponseBody(
-      response,
-      MAX_RESPONSE_BYTES
-    );
-    const durationMs = Date.now() - startTime;
-    const responseHash = hashValue(text);
-
-    context.audit.log({
-      timestamp: new Date().toISOString(),
-      actor: context.actor,
-      action: "network.response",
-      approved: context.approved,
-      target: urlDecision.hostname,
-      result: JSON.stringify({
-        status: response.status,
-        durationMs,
-        responseHash,
-        responseBytes: bytes
-      })
-    });
-
-    return {
+  const response = buildStubResponse();
+  context.audit.log({
+    timestamp: new Date().toISOString(),
+    actor: context.actor,
+    action: "network.response",
+    approved: context.approved,
+    target: urlDecision.hostname,
+    result: JSON.stringify({
       status: response.status,
-      bodyText: text,
-      responseHash,
-      responseBytes: bytes,
-      durationMs
-    };
-  } catch (error) {
-    const reason =
-      error instanceof Error ? error.message : "Network request failed.";
-    deny(reason);
-  } finally {
-    clearTimeout(timeout);
-  }
+      durationMs: response.durationMs,
+      responseHash: response.responseHash,
+      responseBytes: response.responseBytes
+    })
+  });
+  return response;
 }

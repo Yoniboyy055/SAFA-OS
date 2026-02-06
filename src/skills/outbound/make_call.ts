@@ -44,7 +44,7 @@ export const makeCallSkill: SkillDefinition<MakeCallInput, MakeCallOutput> = {
   },
   riskLevel: "HIGH",
   requiresApproval: true,
-  allowWhenNetworkOff: false,
+  allowWhenNetworkOff: true,
   category: "external_tool",
   auditTemplate: {
     action: "make_call",

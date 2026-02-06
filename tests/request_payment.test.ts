@@ -72,11 +72,11 @@ function buildContext(rootDir, overrides = {}) {
   };
 }
 
-test("deny when network OFF for real request", async () => {
+test("deny real Stripe execution in Phase 3", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-pay-"));
   const context = buildContext(rootDir, {
     stripe: { enabled: true, dryRunDefault: false, apiBase: "https://api.stripe.com", mode: "production", statementDescriptor: "SIGNALCRYPT", successUrl: "", cancelUrl: "" },
-    network: { enabled: false, allowlist: [], allowlistDomains: [], allowlistUrls: [] }
+    network: { enabled: true, allowlist: [], allowlistDomains: ["stripe.com"], allowlistUrls: [] }
   });
   await assert.rejects(
     () =>
@@ -84,7 +84,7 @@ test("deny when network OFF for real request", async () => {
         { priceId: "price_basic", currency: "usd", customerEmail: "user@allow.com", dryRun: false },
         context
       ),
-    /Network disabled/
+    /Phase 3/i
   );
 });
 
@@ -112,16 +112,15 @@ test("dryRun returns preview", async () => {
   assert.ok(result.previewHash);
 });
 
-test("approval required for real actions", async () => {
+test("approval still required even for previews (strict mode)", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-pay-"));
   const context = buildContext(rootDir, {
-    stripe: { enabled: true, dryRunDefault: false, apiBase: "https://api.stripe.com", mode: "production", statementDescriptor: "SIGNALCRYPT", successUrl: "", cancelUrl: "" },
-    network: { enabled: true, allowlist: [], allowlistDomains: ["stripe.com"], allowlistUrls: [] }
+    governance: { strictApprovalMode: true, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 }
   });
   await assert.rejects(
     () =>
       requestPaymentSkill.handler(
-        { priceId: "price_basic", currency: "usd", customerEmail: "user@allow.com", dryRun: false },
+        { priceId: "price_basic", currency: "usd", customerEmail: "user@allow.com", dryRun: true },
         { ...context, approved: false }
       ),
     /approval required|strict approval/i

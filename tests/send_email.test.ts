@@ -176,38 +176,7 @@ test("deny when kill switch enabled", async () => {
   );
 });
 
-test("real send requires approval + enabled flags", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
-  const context = buildContext(rootDir, {
-    email: {
-      enabled: true,
-      provider: "smtp",
-      fromAllowlist: ["*@example.com"],
-      toAllowlist: ["*@allow.com"],
-      domainAllowlist: [],
-      dryRunDefault: false,
-      from: "Test <test@example.com>",
-      smtp: { host: "smtp.gmail.com", port: 587, secure: false }
-    },
-    network: { enabled: true, allowlist: [], allowlistDomains: ["smtp.gmail.com"], allowlistUrls: [] },
-    governance: { strictApprovalMode: false, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 }
-  });
-  await assert.rejects(
-    () =>
-      sendEmail(
-        {
-          to: ["user@allow.com"],
-          subject: "Hello",
-          body: "Test",
-          dryRun: false
-        },
-        { ...context, approved: false }
-      ),
-    /approval required/i
-  );
-});
-
-test("real send uses transport override without network", async () => {
+test("real email send is blocked in Phase 3", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
   const context = buildContext(rootDir, {
     email: {
@@ -222,26 +191,19 @@ test("real send uses transport override without network", async () => {
     },
     network: { enabled: true, allowlist: [], allowlistDomains: ["smtp.gmail.com"], allowlistUrls: [] }
   });
-  const result = await sendEmail(
-    {
-      to: ["user@allow.com"],
-      subject: "Hello",
-      body: "Test",
-      dryRun: false
-    },
-    {
-      ...context,
-      transportOverride: {
-        sendMail: async () => ({
-          messageId: "stub-id",
-          accepted: ["user@allow.com"],
-          rejected: []
-        })
-      }
-    }
+  await assert.rejects(
+    () =>
+      sendEmail(
+        {
+          to: ["user@allow.com"],
+          subject: "Hello",
+          body: "Test",
+          dryRun: false
+        },
+        context
+      ),
+    /disabled in Phase 3/i
   );
-  assert.equal(result.mode, "SENT");
-  assert.equal(result.messageId, "stub-id");
 });
 
 test("audit does not log smtp pass or full body", async () => {
@@ -260,6 +222,8 @@ test("audit does not log smtp pass or full body", async () => {
     {
       actor: context.actor,
       approved: true,
+      authority: context.authority,
+      commandMode: context.commandMode,
       config: context.config,
       audit: context.audit,
       governor: context.governor

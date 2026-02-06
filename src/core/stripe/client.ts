@@ -1,11 +1,8 @@
 import * as crypto from "node:crypto";
-import * as fs from "node:fs";
-import * as path from "node:path";
 
 import type { AuditLogger } from "../audit";
 import type { ResolvedConfig } from "../config";
 import type { Governor } from "../governor";
-import { requestNetwork } from "../network/request";
 
 export interface StripePaymentRequest {
   priceId?: string;
@@ -18,11 +15,10 @@ export interface StripePaymentRequest {
 }
 
 export interface StripePaymentResult {
-  mode: "DRY_RUN" | "REQUESTED" | "CREATED";
+  mode: "DRY_RUN" | "REQUESTED";
   previewHash: string;
   paymentUrl?: string;
   requestId?: string;
-  stripeId?: string;
   plan?: {
     method: "POST";
     url: string;
@@ -236,181 +232,14 @@ export async function requestPayment(
     };
   }
 
-  if (!context.config.stripe.enabled) {
-    const reason = "Stripe is disabled by configuration.";
-    context.audit.log({
-      timestamp: new Date().toISOString(),
-      actor: context.actor,
-      action: "request.denied",
-      approved: context.approved,
-      target: "stripe",
-      result: reason
-    });
-    throw new Error(reason);
-  }
-
-  if (!context.config.network.enabled) {
-    const reason = "Network disabled";
-    context.audit.log({
-      timestamp: new Date().toISOString(),
-      actor: context.actor,
-      action: "request.denied",
-      approved: context.approved,
-      target: "stripe",
-      result: reason
-    });
-    throw new Error(reason);
-  }
-
-  const url = new URL("/v1/checkout/sessions", context.config.stripe.apiBase).toString();
-  const body = buildCheckoutBody(request, context.config, currency);
-  const secretKey = process.env.STRIPE_SECRET_KEY ?? "";
-  if (!secretKey) {
-    const reason = "Stripe secret key is required.";
-    context.audit.log({
-      timestamp: new Date().toISOString(),
-      actor: context.actor,
-      action: "request.denied",
-      approved: context.approved,
-      target: "stripe",
-      result: reason
-    });
-    throw new Error(reason);
-  }
-
-  let apiHost = "";
-  try {
-    apiHost = new URL(context.config.stripe.apiBase).hostname;
-  } catch {
-    apiHost = "";
-  }
-  const allowlisted = context.config.network.allowlistDomains.some((domain) => {
-    const normalized = domain.toLowerCase();
-    const host = apiHost.toLowerCase();
-    return host === normalized || host.endsWith(`.${normalized}`);
-  });
-  if (!apiHost || !allowlisted) {
-    const reason = "Stripe API host is not allowlisted.";
-    context.audit.log({
-      timestamp: new Date().toISOString(),
-      actor: context.actor,
-      action: "request.denied",
-      approved: context.approved,
-      target: "stripe",
-      result: reason
-    });
-    throw new Error(reason);
-  }
-
-  const response = await requestNetwork(
-    {
-      method: "POST",
-      url,
-      headers: {
-        Authorization: `Bearer ${secretKey}`,
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body,
-      purpose: "stripe.checkout.create"
-    },
-    {
-      actor: context.actor,
-      approved: context.approved,
-      authority: context.authority,
-      commandMode: context.commandMode,
-      config: context.config,
-      audit: context.audit,
-      governor: context.governor,
-      defenseText: request.description ?? "",
-      costEstimateUsd: context.costEstimateUsd ?? 0,
-      costCapUsd: context.costCapUsd
-    }
-  );
-
-  if (response.status < 200 || response.status >= 300) {
-    const reason = `Stripe request failed with status ${response.status}.`;
-    context.audit.log({
-      timestamp: new Date().toISOString(),
-      actor: context.actor,
-      action: "request.denied",
-      approved: context.approved,
-      target: "stripe",
-      result: reason
-    });
-    throw new Error(reason);
-  }
-
-  let parsed: { id?: string; url?: string } = {};
-  try {
-    parsed = JSON.parse(response.bodyText) as { id?: string; url?: string };
-  } catch {
-    parsed = {};
-  }
-  if (!parsed.id || !parsed.url) {
-    const reason = "Stripe response missing id or url.";
-    context.audit.log({
-      timestamp: new Date().toISOString(),
-      actor: context.actor,
-      action: "request.denied",
-      approved: context.approved,
-      target: "stripe",
-      result: reason
-    });
-    throw new Error(reason);
-  }
-
-  const requestId = `stripe-${parsed.id}`;
-  const urlHash = hashPreview({ url: parsed.url });
-  const receiptsDir = path.join(context.config.rootDir, "data", "receipts");
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const receiptPath = path.join(
-    receiptsDir,
-    `stripe_${timestamp}_${parsed.id}.json`
-  );
-  fs.mkdirSync(receiptsDir, { recursive: true });
-  fs.writeFileSync(
-    receiptPath,
-    JSON.stringify(
-      {
-        stripeId: parsed.id,
-        createdAt: new Date().toISOString(),
-        amountCents: request.amountCents ?? null,
-        currency,
-        priceId: request.priceId ?? null,
-        emailDomain: request.customerEmail
-          ? request.customerEmail.split("@")[1] ?? ""
-          : "",
-        urlHash
-      },
-      null,
-      2
-    ),
-    "utf8"
-  );
+  const reason = "Stripe live execution is disabled in Phase 3.";
   context.audit.log({
     timestamp: new Date().toISOString(),
     actor: context.actor,
-    action: "request.created",
+    action: "request.denied",
     approved: context.approved,
     target: "stripe",
-    result: JSON.stringify({
-      requestId,
-      stripeId: parsed.id,
-      urlHash,
-      priceId: request.priceId ?? null,
-      amountCents: request.amountCents ?? null,
-      currency,
-      emailDomain: request.customerEmail
-        ? request.customerEmail.split("@")[1] ?? ""
-        : ""
-    })
+    result: reason
   });
-
-  return {
-    mode: "CREATED",
-    previewHash,
-    requestId,
-    stripeId: parsed.id,
-    paymentUrl: parsed.url
-  };
+  throw new Error(reason);
 }

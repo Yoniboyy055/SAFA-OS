@@ -9,8 +9,6 @@ const { Governor } = require("../src/core/governor");
 const { AuthorityLevel } = require("../src/core/authority");
 const { requestNetwork } = require("../src/core/network/request");
 
-const originalFetch = global.fetch;
-
 function buildContext(rootDir, overrides = {}) {
   const config = {
     network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] },
@@ -100,28 +98,6 @@ test("deny when domain not allowlisted", async () => {
   );
 });
 
-test("audit redacts Authorization header", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
-  const context = buildContext(rootDir);
-  global.fetch = async () => new Response("ok", { status: 200 });
-  try {
-    await requestNetwork(
-      {
-        method: "POST",
-        url: "https://example.com",
-        purpose: "test",
-        headers: { Authorization: "Bearer SECRET" },
-        body: "payload"
-      },
-      context
-    );
-    const log = fs.readFileSync(context.config.audit.logPath, "utf8");
-    assert.ok(!log.includes("Bearer SECRET"));
-  } finally {
-    global.fetch = originalFetch;
-  }
-});
-
 test("payload size enforcement", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const context = buildContext(rootDir);
@@ -141,25 +117,6 @@ test("payload size enforcement", async () => {
   );
 });
 
-test("response size enforcement", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
-  const context = buildContext(rootDir);
-  const largeBody = "x".repeat(300000);
-  global.fetch = async () => new Response(largeBody, { status: 200 });
-  try {
-    await assert.rejects(
-      () =>
-        requestNetwork(
-          { method: "GET", url: "https://example.com", purpose: "test" },
-          context
-        ),
-      /Response exceeds maximum size/i
-    );
-  } finally {
-    global.fetch = originalFetch;
-  }
-});
-
 test("method allowlist enforces GET/POST", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const context = buildContext(rootDir);
@@ -173,18 +130,14 @@ test("method allowlist enforces GET/POST", async () => {
   );
 });
 
-test("uses mocked fetch and restores global", async () => {
+test("stubbed corridor returns deterministic response", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const context = buildContext(rootDir);
-  global.fetch = async () => new Response("ok", { status: 200 });
-  try {
-    const result = await requestNetwork(
-      { method: "GET", url: "https://example.com", purpose: "test" },
-      context
-    );
-    assert.equal(result.status, 200);
-  } finally {
-    global.fetch = originalFetch;
-  }
+  const result = await requestNetwork(
+    { method: "GET", url: "https://example.com", purpose: "test" },
+    context
+  );
+  assert.equal(result.status, 0);
+  assert.equal(result.responseHash, "stub");
 });
 

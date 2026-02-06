@@ -1,9 +1,4 @@
 import * as crypto from "node:crypto";
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { Buffer } from "node:buffer";
-
-import { requestNetwork } from "../network/request";
 
 import type { AuditLogger } from "../audit";
 import type { ResolvedConfig } from "../config";
@@ -17,10 +12,9 @@ export interface CallRequest {
 }
 
 export interface CallResult {
-  mode: "DRY_RUN" | "REQUESTED" | "CREATED";
+  mode: "DRY_RUN" | "REQUESTED";
   previewHash: string;
   requestId?: string;
-  callSid?: string;
   plan?: {
     method: "POST";
     url: string;
@@ -223,186 +217,14 @@ export async function makeCall(
     throw new Error(reason);
   }
 
-  if (!context.config.network.enabled) {
-    const reason = "Network disabled";
-    context.audit.log({
-      timestamp: new Date().toISOString(),
-      actor: context.actor,
-      action: "request.denied",
-      approved: context.approved,
-      target: "calls",
-      result: reason
-    });
-    throw new Error(reason);
-  }
-
-  const allowlisted = context.config.network.allowlistDomains.some((domain) => {
-    const normalized = domain.toLowerCase();
-    return normalized === "twilio.com" || normalized.endsWith(".twilio.com");
-  });
-  if (!allowlisted) {
-    const reason = "Call provider domain is not allowlisted.";
-    context.audit.log({
-      timestamp: new Date().toISOString(),
-      actor: context.actor,
-      action: "request.denied",
-      approved: context.approved,
-      target: "calls",
-      result: reason
-    });
-    throw new Error(reason);
-  }
-
-  const accountSid = process.env.TWILIO_ACCOUNT_SID ?? "";
-  const authToken = process.env.TWILIO_AUTH_TOKEN ?? "";
-  const fromNumber = process.env.TWILIO_FROM_NUMBER ?? "";
-  if (!accountSid || !authToken) {
-    const reason = "Twilio credentials are required.";
-    context.audit.log({
-      timestamp: new Date().toISOString(),
-      actor: context.actor,
-      action: "request.denied",
-      approved: context.approved,
-      target: "calls",
-      result: reason
-    });
-    throw new Error(reason);
-  }
-  if (!fromNumber) {
-    const reason = "Twilio from number is required.";
-    context.audit.log({
-      timestamp: new Date().toISOString(),
-      actor: context.actor,
-      action: "request.denied",
-      approved: context.approved,
-      target: "calls",
-      result: reason
-    });
-    throw new Error(reason);
-  }
-  ensureNumberAllowlisted(
-    fromNumber,
-    context.config.calls.fromNumberAllowlist,
-    "From number"
-  );
-
-  const auth = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json`;
-  const params = new URLSearchParams();
-  params.set("To", request.toNumber);
-  params.set("From", fromNumber);
-  params.set("Url", twimlUrl);
-  if (context.config.calls.recordCalls) {
-    params.set("Record", "true");
-  }
-
-  const response = await requestNetwork(
-    {
-      method: "POST",
-      url,
-      headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: params.toString(),
-      purpose: "twilio.calls.create"
-    },
-    {
-      actor: context.actor,
-      approved: context.approved,
-      authority: context.authority,
-      commandMode: context.commandMode,
-      config: context.config,
-      audit: context.audit,
-      governor: context.governor,
-      defenseText: request.notes ?? "",
-      costEstimateUsd: context.costEstimateUsd ?? 0,
-      costCapUsd: context.costCapUsd
-    }
-  );
-
-  if (response.status < 200 || response.status >= 300) {
-    const reason = `Twilio request failed with status ${response.status}.`;
-    context.audit.log({
-      timestamp: new Date().toISOString(),
-      actor: context.actor,
-      action: "request.denied",
-      approved: context.approved,
-      target: "calls",
-      result: reason
-    });
-    throw new Error(reason);
-  }
-
-  let parsed: { sid?: string } = {};
-  try {
-    parsed = JSON.parse(response.bodyText) as { sid?: string };
-  } catch {
-    parsed = {};
-  }
-  if (!parsed.sid) {
-    const reason = "Twilio response missing call sid.";
-    context.audit.log({
-      timestamp: new Date().toISOString(),
-      actor: context.actor,
-      action: "request.denied",
-      approved: context.approved,
-      target: "calls",
-      result: reason
-    });
-    throw new Error(reason);
-  }
-
-  const requestId = `call-${parsed.sid}`;
-  const receiptsDir = path.join(context.config.rootDir, "data", "receipts");
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const receiptPath = path.join(
-    receiptsDir,
-    `twilio_${timestamp}_${parsed.sid}.json`
-  );
-  fs.mkdirSync(receiptsDir, { recursive: true });
-  fs.writeFileSync(
-    receiptPath,
-    JSON.stringify(
-      {
-        callSid: parsed.sid,
-        createdAt: new Date().toISOString(),
-        toNumber: request.toNumber,
-        intent: request.intent,
-        twimlUrlHash: hashPreview({ twimlUrl })
-      },
-      null,
-      2
-    ),
-    "utf8"
-  );
-
+  const reason = "Call live execution is disabled in Phase 3.";
   context.audit.log({
     timestamp: new Date().toISOString(),
     actor: context.actor,
-    action: "request.created",
+    action: "request.denied",
     approved: context.approved,
     target: "calls",
-    result: JSON.stringify({
-      requestId,
-      callSid: parsed.sid,
-      intent: request.intent,
-      twimlUrlHash: hashPreview({ twimlUrl })
-    })
+    result: reason
   });
-  context.audit.log({
-    timestamp: new Date().toISOString(),
-    actor: context.actor,
-    action: "request.created",
-    approved: context.approved,
-    target: "calls",
-    result: requestId
-  });
-
-  return {
-    mode: "CREATED",
-    previewHash,
-    requestId,
-    callSid: parsed.sid
-  };
+  throw new Error(reason);
 }

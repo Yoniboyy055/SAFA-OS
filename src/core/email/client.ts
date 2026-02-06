@@ -1,5 +1,3 @@
-const nodemailer = require("nodemailer");
-
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -344,42 +342,14 @@ export async function sendEmail(
     };
   }
 
-  if (!smtpConfig.user || !smtpConfig.pass) {
-    deny("SMTP credentials are required.");
-  }
-
+  const reason = "Email live execution is disabled in Phase 3.";
   context.audit.log({
     timestamp: new Date().toISOString(),
     actor: context.actor,
-    action: "request.created",
+    action: "request.denied",
     approved: context.approved,
     target: "email",
-    result: "SMTP_SEND"
+    result: reason
   });
-
-  const transport =
-    context.transportOverride ??
-    nodemailer.createTransport({
-      host: smtpConfig.host,
-      port: smtpConfig.port,
-      secure: smtpConfig.secure,
-      auth: {
-        user: smtpConfig.user,
-        pass: smtpConfig.pass
-      }
-    });
-
-  const sendResult = await transport.sendMail({
-    from,
-    to,
-    subject: message.subject,
-    text: message.body
-  });
-
-  return {
-    mode: "SENT",
-    messageId: sendResult.messageId ?? "unknown",
-    accepted: sendResult.accepted ?? [],
-    rejected: sendResult.rejected ?? []
-  };
+  throw new Error(reason);
 }
