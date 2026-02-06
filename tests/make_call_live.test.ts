@@ -6,6 +6,7 @@ const os = require("os");
 const path = require("path");
 const { AuditLogger } = require("../src/core/audit");
 const { Governor } = require("../src/core/governor");
+const { AuthorityLevel } = require("../src/core/authority");
 const { makeCall } = require("../src/core/calls/client");
 
 const originalFetch = global.fetch;
@@ -65,6 +66,8 @@ function buildContext(rootDir, overrides = {}) {
   return {
     actor: "tester",
     approved: true,
+    authority: AuthorityLevel.OWNER,
+    commandMode: "DECIDE",
     config,
     audit: new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] }),
     governor: new Governor()

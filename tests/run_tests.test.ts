@@ -5,6 +5,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { runTestsSkill } = require("../src/skills/local/run_tests");
+const { AuthorityLevel } = require("../src/core/authority");
 
 function buildContext(rootDir) {
   return {
@@ -64,6 +65,8 @@ function buildContext(rootDir) {
     },
     actor: "tester",
     approved: true,
+    authority: AuthorityLevel.OWNER,
+    commandMode: "SCRIPT",
     audit: { log: () => {} },
     governor: { evaluate: () => ({ allowed: true, reason: "Allowed." }) }
   };

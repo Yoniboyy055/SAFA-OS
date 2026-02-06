@@ -7,6 +7,7 @@ const path = require("path");
 const { sendEmail } = require("../src/core/email/client");
 const { AuditLogger } = require("../src/core/audit");
 const { Governor } = require("../src/core/governor");
+const { AuthorityLevel } = require("../src/core/authority");
 const { sendEmailSkill } = require("../src/skills/outbound/send_email");
 
 function buildConfig(rootDir, overrides = {}) {
@@ -77,6 +78,8 @@ function buildContext(rootDir, overrides = {}) {
   return {
     actor: "tester",
     approved: true,
+    authority: AuthorityLevel.OWNER,
+    commandMode: "CREATE",
     config,
     audit: new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] }),
     governor: new Governor()

@@ -63,7 +63,15 @@ function buildConfig(rootDir) {
 }
 
 function buildContext(rootDir) {
-  return { config: buildConfig(rootDir), actor: "tester" };
+  return {
+    config: buildConfig(rootDir),
+    actor: "tester",
+    approved: true,
+    authority: "OWNER",
+    commandMode: "SCRIPT",
+    audit: { log: () => {} },
+    governor: { evaluate: () => ({ allowed: true, reason: "Allowed." }) }
+  };
 }
 
 test("read_file rejects absolute paths", () => {

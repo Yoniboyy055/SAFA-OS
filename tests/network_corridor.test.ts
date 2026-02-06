@@ -93,7 +93,15 @@ test("network disabled: governor denies and client throws", async () => {
   const decision = governor.evaluateNetwork(
     buildRequest(),
     config,
-    { actor: "tester", approved: true }
+    {
+      actor: "tester",
+      approved: true,
+      authority: "OWNER",
+      commandMode: "DECIDE",
+      audit: new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] }),
+      maturityLevel: 5,
+      freshOwnerInput: true
+    }
   );
   assert.equal(decision.allowed, false);
   assert.match(decision.reason, /disabled/i);
@@ -104,6 +112,8 @@ test("network disabled: governor denies and client throws", async () => {
       requestNetwork(buildRequest(), {
         actor: "tester",
         approved: true,
+        authority: "OWNER",
+        commandMode: "DECIDE",
         config,
         audit,
         governor
@@ -121,7 +131,15 @@ test("network enabled but allowlistDomains empty => deny", () => {
   const decision = governor.evaluateNetwork(
     buildRequest(),
     config,
-    { actor: "tester", approved: true }
+    {
+      actor: "tester",
+      approved: true,
+      authority: "OWNER",
+      commandMode: "DECIDE",
+      audit: new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] }),
+      maturityLevel: 5,
+      freshOwnerInput: true
+    }
   );
   assert.equal(decision.allowed, false);
   assert.match(decision.reason, /allowlisted domains/i);
@@ -137,7 +155,15 @@ test("strict approval mode denies when not approved", () => {
   const decision = governor.evaluateNetwork(
     buildRequest(),
     config,
-    { actor: "tester", approved: false }
+    {
+      actor: "tester",
+      approved: false,
+      authority: "OWNER",
+      commandMode: "DECIDE",
+      audit: new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] }),
+      maturityLevel: 5,
+      freshOwnerInput: true
+    }
   );
   assert.equal(decision.allowed, false);
   assert.match(decision.reason, /strict approval/i);
@@ -200,6 +226,8 @@ test("network client remains stub-only when allowed", async () => {
   const response = await requestNetwork(buildRequest(), {
     actor: "tester",
     approved: true,
+    authority: "OWNER",
+    commandMode: "DECIDE",
     config,
     audit,
     governor
