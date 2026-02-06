@@ -17,3 +17,9 @@ If failure:
 Quick sanity checks:
 - `rg "fetch|axios|http|https|net|tls" src/`
 - Confirm approvals enforced (strict approval mode on).
+
+Phase 7 (network-on) activation checklist (do not run unless explicitly approved):
+- Confirm kill switch ON by default.
+- Ensure allowlists are non-empty before enabling network.
+- Say explicitly: "Enable Phase 5 network with allowlists".
+- Re-run build + tests after changing config.

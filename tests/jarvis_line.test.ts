@@ -8,8 +8,8 @@ const { parseJarvisLine } = require("../src/cli/jarvis_line");
 const { runWithArgs } = require("../src/cli/index");
 
 async function runLine(args: string[]) {
-  const logs = [];
-  const errors = [];
+  const logs: string[] = [];
+  const errors: string[] = [];
   const originalLog = console.log;
   const originalError = console.error;
   console.log = (...items) => logs.push(items.join(" "));
@@ -17,7 +17,7 @@ async function runLine(args: string[]) {
   let exitCode = 0;
   try {
     await runWithArgs(args, {
-      exit: (code) => {
+      exit: (code: number) => {
         exitCode = code;
       }
     });

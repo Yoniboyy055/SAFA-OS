@@ -51,6 +51,7 @@ export class Governor {
     const approvalRequired =
       config.governance.strictApprovalMode ||
       action.category === "network" ||
+      action.category === "outbound_message" ||
       action.requiresApproval ||
       action.riskLevel !== "LOW";
 
@@ -71,15 +72,21 @@ export class Governor {
         });
         return { approved: true };
       }
+      const reason =
+        action.category === "outbound_message"
+          ? "Outbound actions require approval; approval required."
+          : config.governance.strictApprovalMode
+            ? "Strict approval mode requires explicit approval."
+            : "Approval required.";
       context.audit.log({
         timestamp: new Date().toISOString(),
         actor: context.actor,
         action: "approval.denied",
         approved: false,
         target: action.type,
-        result: "Approval required."
+        result: reason
       });
-      return { approved: false, reason: "Approval required." };
+      return { approved: false, reason };
     }
 
     if (approval.expiresAt && Date.now() >= Date.parse(approval.expiresAt)) {
@@ -190,6 +197,33 @@ export class Governor {
     });
 
     if (action.category === "network") {
+      if (config.killSwitch.enabled) {
+        context.audit.log({
+          timestamp: new Date().toISOString(),
+          actor: context.actor,
+          action: "kill_switch.triggered",
+          approved: false,
+          target: action.type,
+          result: "Kill switch enabled."
+        });
+        return {
+          allowed: false,
+          reason: "Kill switch enabled for outbound actions."
+        };
+      }
+      if (!config.network.enabled) {
+        return {
+          allowed: false,
+          reason: "Network is disabled by default."
+        };
+      }
+      const approvalState = this.resolveApproval(action, config, context);
+      if (!approvalState.approved) {
+        return {
+          allowed: false,
+          reason: approvalState.reason ?? "Approval required."
+        };
+      }
       if (!networkRequest) {
         return {
           allowed: false,

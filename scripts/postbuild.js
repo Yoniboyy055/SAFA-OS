@@ -18,7 +18,7 @@ function copyDir(source, target) {
 }
 
 const root = path.resolve(__dirname, "..");
-const distCli = path.join(root, "dist", "cli");
-const distSrcCli = path.join(root, "dist", "src", "cli");
+const distRoot = path.join(root, "dist");
+const distSrcRoot = path.join(root, "dist", "src");
 
-copyDir(distSrcCli, distCli);
+copyDir(distSrcRoot, distRoot);

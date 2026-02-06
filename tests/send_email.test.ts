@@ -91,7 +91,16 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
 test("deny real send when network is disabled", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
   const context = buildContext(rootDir, {
-    email: { enabled: true, dryRunDefault: false, from: "Test <test@example.com>", smtp: { host: "smtp.gmail.com", port: 587, secure: false } },
+    email: {
+      enabled: true,
+      dryRunDefault: false,
+      from: "Test <test@example.com>",
+      fromAllowlist: ["*@example.com"],
+      toAllowlist: ["*@allow.com"],
+      domainAllowlist: [],
+      provider: "smtp",
+      smtp: { host: "smtp.gmail.com", port: 587, secure: false }
+    },
     network: {
       enabled: false,
       allowlist: [],
@@ -112,14 +121,23 @@ test("deny real send when network is disabled", async () => {
         },
         context
       ),
-    /Network disabled/
+    /network|off/i
   );
 });
 
 test("allow dry-run when network is off (writes outbox)", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
   const context = buildContext(rootDir, {
-    email: { enabled: false, dryRunDefault: true, from: "Test <test@example.com>", smtp: { host: "smtp.gmail.com", port: 587, secure: false } },
+    email: {
+      enabled: false,
+      dryRunDefault: true,
+      from: "Test <test@example.com>",
+      fromAllowlist: ["*@example.com"],
+      toAllowlist: ["*@allow.com"],
+      domainAllowlist: [],
+      provider: "smtp",
+      smtp: { host: "smtp.gmail.com", port: 587, secure: false }
+    },
     network: {
       enabled: false,
       allowlist: [],

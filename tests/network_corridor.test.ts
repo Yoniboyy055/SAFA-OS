@@ -204,7 +204,7 @@ test("network disabled: governor denies and client throws", async () => {
         audit,
         governor
       }),
-    /Network disabled/
+    /disabled/i
   );
 });
 

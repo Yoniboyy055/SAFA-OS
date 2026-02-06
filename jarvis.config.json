@@ -46,6 +46,12 @@
     "recordCalls": false,
     "dryRunDefault": true
   },
+  "execution": {
+    "enabled": false,
+    "allowCommands": [],
+    "maxRuntimeMs": 600000,
+    "allowlistPaths": []
+  },
   "governance": {
     "strictApprovalMode": true,
     "networkApprovalMode": "per_request",

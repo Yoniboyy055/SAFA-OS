@@ -6,16 +6,14 @@
     "jarvis": "dist/cli/index.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npx tsc -p tsconfig.json",
     "postbuild": "node scripts/postbuild.js",
     "start": "node dist/cli/index.js",
-    "test:runner": "node --test dist/tests",
-    "test": "npm run build && node --test dist/tests"
+    "dashboard": "npm run build && node dist/dashboard/server.js",
+    "dashboard:prod": "node dist/dashboard/server.js",
+    "test": "npm run build && node scripts/run-node-tests.js"
   },
   "devDependencies": {
-    "typescript": "latest"
-  },
-  "dependencies": {
-    "nodemailer": "latest"
+    "typescript": "^5.9.3"
   }
 }

@@ -11,7 +11,7 @@ test("audit logger appends and redacts sensitive fields", () => {
   const logPath = path.join(dir, "audit.log");
   const logger = new AuditLogger({
     logPath,
-    redactKeys: ["token", "secret"]
+    redactKeys: ["token", "secret", "authorization", "cookie", "bearer"]
   });
 
   logger.log({
@@ -20,7 +20,7 @@ test("audit logger appends and redacts sensitive fields", () => {
     action: "test",
     approved: false,
     target: "sample",
-    result: "token=abc123"
+    result: "Authorization: Bearer abc123; cookie=xyz"
   });
 
   logger.log({
@@ -43,3 +43,4 @@ test("audit logger appends and redacts sensitive fields", () => {
   assert.equal(redacted.token, "[REDACTED]");
   assert.equal(redacted.secret, "[REDACTED]");
 });
+
