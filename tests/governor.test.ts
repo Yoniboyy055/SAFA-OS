@@ -162,3 +162,73 @@ test("strict approval mode requires approval for low risk", () => {
   assert.equal(decision.allowed, false);
   assert.match(decision.reason, /strict approval/i);
 });
+
+test("governor denies when approval record is denied", () => {
+  const audit = new AuditLogger({ logPath: "/tmp/audit.log", redactKeys: [] });
+  const governor = new Governor();
+  const decision = governor.evaluate(
+    {
+      type: "send_http_request",
+      category: "network",
+      riskLevel: "HIGH",
+      requiresApproval: true,
+      allowWhenNetworkOff: false
+    },
+    { ...baseConfig, network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] } },
+    {
+      actor: "tester",
+      approved: true,
+      authority: AuthorityLevel.OWNER,
+      commandMode: "DECIDE",
+      audit,
+      maturityLevel: 5,
+      freshOwnerInput: true,
+      approval: {
+        id: "apr-1",
+        action: "send_http_request",
+        target: "https://example.com",
+        actor: "owner",
+        status: "DENIED",
+        createdAt: new Date().toISOString(),
+        reason: "Not allowed"
+      }
+    }
+  );
+  assert.equal(decision.allowed, false);
+  assert.match(decision.reason, /Not allowed/i);
+});
+
+test("governor denies when approval is expired", () => {
+  const audit = new AuditLogger({ logPath: "/tmp/audit.log", redactKeys: [] });
+  const governor = new Governor();
+  const decision = governor.evaluate(
+    {
+      type: "send_http_request",
+      category: "network",
+      riskLevel: "HIGH",
+      requiresApproval: true,
+      allowWhenNetworkOff: false
+    },
+    { ...baseConfig, network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] } },
+    {
+      actor: "tester",
+      approved: true,
+      authority: AuthorityLevel.OWNER,
+      commandMode: "DECIDE",
+      audit,
+      maturityLevel: 5,
+      freshOwnerInput: true,
+      approval: {
+        id: "apr-2",
+        action: "send_http_request",
+        target: "https://example.com",
+        actor: "owner",
+        status: "APPROVED",
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() - 1000).toISOString()
+      }
+    }
+  );
+  assert.equal(decision.allowed, false);
+  assert.match(decision.reason, /expired/i);
+});

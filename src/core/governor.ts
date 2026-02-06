@@ -4,6 +4,7 @@ import type { NetworkRequest } from "./network/types";
 import type { AuditLogger } from "./audit";
 import type { AuthorityLevel } from "./authority";
 import type { CommandMode } from "../cli/command_mode";
+import type { ApprovalRequest } from "./approvals";
 import { validatePayloadSize, validateUrl } from "./network/types";
 import { assertCommandMode } from "../cli/command_mode";
 import { assertOwnerAuthority } from "./authority";
@@ -23,6 +24,9 @@ export interface GovernanceContext {
   freshOwnerInput?: boolean;
   costEstimateUsd?: number;
   costCapUsd?: number;
+  approval?: ApprovalRequest;
+  planHash?: string;
+  payloadHash?: string;
 }
 
 export interface GovernedAction {
@@ -39,6 +43,122 @@ export interface GovernanceDecision {
 }
 
 export class Governor {
+  private resolveApproval(
+    action: GovernedAction,
+    config: ResolvedConfig,
+    context: GovernanceContext
+  ): { approved: boolean; reason?: string } {
+    const approvalRequired =
+      config.governance.strictApprovalMode ||
+      action.requiresApproval ||
+      action.riskLevel !== "LOW";
+
+    if (!approvalRequired) {
+      return { approved: true };
+    }
+
+    const approval = context.approval;
+    if (!approval) {
+      if (context.approved) {
+        context.audit.log({
+          timestamp: new Date().toISOString(),
+          actor: context.actor,
+          action: "approval.approved",
+          approved: true,
+          target: action.type,
+          result: "Explicit approval flag."
+        });
+        return { approved: true };
+      }
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "approval.denied",
+        approved: false,
+        target: action.type,
+        result: "Approval required."
+      });
+      return { approved: false, reason: "Approval required." };
+    }
+
+    if (approval.expiresAt && Date.now() >= Date.parse(approval.expiresAt)) {
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "approval.expired",
+        approved: false,
+        target: action.type,
+        result: "Approval expired."
+      });
+      return { approved: false, reason: "Approval expired." };
+    }
+
+    if (approval.status === "DENIED") {
+      const reason = approval.reason ?? "Approval denied.";
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "approval.denied",
+        approved: false,
+        target: action.type,
+        result: reason
+      });
+      return { approved: false, reason };
+    }
+
+    if (approval.status === "PENDING") {
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "approval.pending",
+        approved: false,
+        target: action.type,
+        result: "Approval pending."
+      });
+      return { approved: false, reason: "Approval pending." };
+    }
+
+    if (approval.status !== "APPROVED") {
+      return { approved: false, reason: "Approval not granted." };
+    }
+
+    if (approval.planHash && context.planHash !== approval.planHash) {
+      const reason = "Approval plan hash mismatch.";
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "approval.mismatch",
+        approved: false,
+        target: action.type,
+        result: reason
+      });
+      return { approved: false, reason };
+    }
+
+    if (approval.payloadHash && context.payloadHash !== approval.payloadHash) {
+      const reason = "Approval payload hash mismatch.";
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "approval.mismatch",
+        approved: false,
+        target: action.type,
+        result: reason
+      });
+      return { approved: false, reason };
+    }
+
+    context.audit.log({
+      timestamp: new Date().toISOString(),
+      actor: context.actor,
+      action: "approval.approved",
+      approved: true,
+      target: action.type,
+      result: approval.id
+    });
+    return { approved: true };
+  }
+
   evaluate(
     action: GovernedAction,
     config: ResolvedConfig,
@@ -84,6 +204,14 @@ export class Governor {
         action.category === "outbound_message" ||
         action.category === "external_tool")
     ) {
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "kill_switch.triggered",
+        approved: false,
+        target: action.type,
+        result: "Kill switch enabled."
+      });
       return {
         allowed: false,
         reason: "Kill switch enabled for outbound actions."
@@ -104,19 +232,11 @@ export class Governor {
       };
     }
 
-    if (config.governance.strictApprovalMode && !context.approved) {
+    const approvalState = this.resolveApproval(action, config, context);
+    if (!approvalState.approved) {
       return {
         allowed: false,
-        reason: "Strict approval mode requires explicit approval."
-      };
-    }
-
-    const approvalRequired =
-      action.requiresApproval || action.riskLevel !== "LOW";
-    if (approvalRequired && !context.approved) {
-      return {
-        allowed: false,
-        reason: "Approval required for risky action."
+        reason: approvalState.reason ?? "Approval required."
       };
     }
 
@@ -155,6 +275,14 @@ export class Governor {
     });
 
     if (config.killSwitch.enabled) {
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "kill_switch.triggered",
+        approved: false,
+        target: request.url,
+        result: "Kill switch enabled."
+      });
       return {
         allowed: false,
         reason: "Kill switch enabled for outbound actions."
@@ -175,6 +303,14 @@ export class Governor {
       maxPayloadBytes: config.governance.maxNetworkPayloadBytes
     });
     if (!urlDecision.allowed) {
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "allowlist.violation",
+        approved: false,
+        target: request.url,
+        result: urlDecision.reason
+      });
       return {
         allowed: false,
         reason: urlDecision.reason
@@ -189,19 +325,21 @@ export class Governor {
       return payloadDecision;
     }
 
-    if (config.governance.strictApprovalMode && !context.approved) {
+    const approvalState = this.resolveApproval(
+      {
+        type: request.id,
+        category: "network",
+        riskLevel: request.riskLevel,
+        requiresApproval: request.requiresApproval,
+        allowWhenNetworkOff: false
+      },
+      config,
+      context
+    );
+    if (!approvalState.approved) {
       return {
         allowed: false,
-        reason: "Strict approval mode requires explicit approval."
-      };
-    }
-
-    const approvalRequired =
-      request.requiresApproval || request.riskLevel !== "LOW";
-    if (approvalRequired && !context.approved) {
-      return {
-        allowed: false,
-        reason: "Approval required for network request."
+        reason: approvalState.reason ?? "Approval required."
       };
     }
 

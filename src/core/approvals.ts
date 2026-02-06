@@ -177,6 +177,14 @@ export function denyRequest(
   return denied;
 }
 
+export function revokeRequest(
+  request: ApprovalRequest,
+  context: ApprovalContext,
+  reason = "Approval revoked."
+): ApprovalRequest {
+  return denyRequest(request, context, reason);
+}
+
 export function expireRequest(
   request: ApprovalRequest,
   context: ApprovalContext,

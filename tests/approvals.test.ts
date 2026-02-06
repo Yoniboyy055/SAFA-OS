@@ -8,6 +8,7 @@ const {
   createApprovalRequest,
   approveRequest,
   denyRequest,
+  revokeRequest,
   createReceipt,
   isExpired
 } = require("../src/core/approvals");
@@ -51,6 +52,21 @@ test("approval denial is recorded", () => {
   const denied = denyRequest(approval, { actor: "owner", audit }, "Not allowed");
   assert.equal(denied.status, "DENIED");
   assert.equal(denied.reason, "Not allowed");
+});
+
+test("approval can be revoked", () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-approval-"));
+  const audit = buildAudit(rootDir);
+  const approval = createApprovalRequest(
+    {
+      action: "email.preview",
+      target: "user@allow.com"
+    },
+    { actor: "owner", audit }
+  );
+  const revoked = revokeRequest(approval, { actor: "owner", audit }, "Revoked");
+  assert.equal(revoked.status, "DENIED");
+  assert.equal(revoked.reason, "Revoked");
 });
 
 test("approval expiry is detected", () => {

@@ -17,6 +17,9 @@ export interface SkillRunContext {
   config: ResolvedConfig;
   audit: AuditLogger;
   governor: Governor;
+  approval?: import("../core/approvals").ApprovalRequest;
+  planHash?: string;
+  payloadHash?: string;
 }
 
 export class SkillRegistry {
@@ -85,7 +88,10 @@ export class SkillRegistry {
           defenseText: JSON.stringify(input ?? {}),
           maturityLevel: 5,
           freshOwnerInput: true,
-          costEstimateUsd: 0
+          costEstimateUsd: 0,
+          approval: context.approval,
+          planHash: context.planHash,
+          payloadHash: context.payloadHash
         }
       );
     } catch (error) {
