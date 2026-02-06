@@ -3,6 +3,8 @@
 ## Default State
 - NETWORK: OFF
 - TELEMETRY: OFF
+- KILL SWITCH: ON
+- STRICT APPROVAL MODE: ON
 - AUTONOMY: LIMITED
 - LOGGING: ON (append-only, secrets redacted)
 
@@ -14,6 +16,12 @@ Approval BEFORE:
 4) Sending messages (email/DM/webhook)
 5) Reading/writing secret stores
 6) Running shell commands that modify system state
+
+## Outbound Execution Rule (Hard Gate)
+- Any outbound action requires: --mode + --authority OWNER + --approve
+
+## Phase 5 Network Enablement Gate
+- Network remains OFF until the owner explicitly says: "Enable Phase 5 network with allowlists".
 
 ## Allowlist-only Networking (When Enabled)
 - Deny-by-default

@@ -51,6 +51,7 @@ export class Governor {
     const approvalRequired =
       config.governance.strictApprovalMode ||
       action.category === "network" ||
+      action.category === "outbound_message" ||
       action.requiresApproval ||
       action.riskLevel !== "LOW";
 
@@ -71,9 +72,12 @@ export class Governor {
         });
         return { approved: true };
       }
-      const reason = config.governance.strictApprovalMode
-        ? "Strict approval mode requires explicit approval."
-        : "Approval required.";
+      const reason =
+        action.category === "outbound_message"
+          ? "Outbound actions require explicit approval."
+          : config.governance.strictApprovalMode
+            ? "Strict approval mode requires explicit approval."
+            : "Approval required.";
       context.audit.log({
         timestamp: new Date().toISOString(),
         actor: context.actor,
