@@ -69,6 +69,29 @@ export class SkillRegistry {
         (input as { dryRun?: boolean }).dryRun === true);
 
     let decision;
+    let networkRequest: import("../core/network/types").NetworkRequest | undefined;
+    if (skill.category === "network" && input && typeof input === "object") {
+      const payload = input as {
+        url?: string;
+        method?: string;
+        headers?: Record<string, string>;
+        body?: string;
+        purpose?: string;
+      };
+      if (typeof payload.url === "string" && typeof payload.method === "string") {
+        networkRequest = {
+          id: `net-${Date.now()}`,
+          purpose: payload.purpose ?? skill.name,
+          method: payload.method,
+          url: payload.url,
+          headers: payload.headers ?? {},
+          bodySummary: typeof payload.body === "string" ? payload.body : "",
+          bodyHash: "",
+          riskLevel: skill.riskLevel,
+          requiresApproval: skill.requiresApproval
+        };
+      }
+    }
     try {
       decision = context.governor.evaluate(
         {
@@ -92,7 +115,8 @@ export class SkillRegistry {
           approval: context.approval,
           planHash: context.planHash,
           payloadHash: context.payloadHash
-        }
+        },
+        networkRequest
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

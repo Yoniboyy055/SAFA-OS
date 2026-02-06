@@ -50,6 +50,7 @@ export class Governor {
   ): { approved: boolean; reason?: string } {
     const approvalRequired =
       config.governance.strictApprovalMode ||
+      action.category === "network" ||
       action.requiresApproval ||
       action.riskLevel !== "LOW";
 
