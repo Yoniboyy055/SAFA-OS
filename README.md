@@ -92,6 +92,40 @@ node dist/cli/index.js run query_canon_memory --mode SCRIPT --authority OWNER --
 node dist/cli/index.js run search_raw_logs --mode SCRIPT --authority OWNER --approve --input '{"query":"event"}'
 ```
 
+## Phase 5 Memory Vault (data/memory)
+Phase 5 introduces a vault under `data/memory/`:
+- `canon/` approved facts
+- `notes/` session notes
+- `artifacts/` plans/packets
+
+Commands:
+```
+node dist/cli/index.js run memory_add --mode SCRIPT --authority OWNER --approve --input '{"bucket":"canon","title":"fact","content":"approved fact"}'
+node dist/cli/index.js run memory_list --mode SCRIPT --authority OWNER --approve --input '{"bucket":"canon"}'
+node dist/cli/index.js run memory_search --mode SCRIPT --authority OWNER --approve --input '{"bucket":"canon","query":"approved"}'
+node dist/cli/index.js run memory_get --mode SCRIPT --authority OWNER --approve --input '{"bucket":"canon","id":"<id>"}'
+```
+
+## Request-Only Plans (No Execution)
+These skills generate deterministic plans and artifacts without running commands:
+```
+node dist/cli/index.js run request_web_build --mode SCRIPT --authority OWNER --approve --input '{"projectName":"site","description":"marketing site"}'
+node dist/cli/index.js run request_doc_pack --mode SCRIPT --authority OWNER --approve --input '{"title":"Spec","sections":["Intro","Scope"]}'
+node dist/cli/index.js run request_video_edit --mode SCRIPT --authority OWNER --approve --input '{"inputPath":"in.mp4","outputPath":"out.mp4"}'
+node dist/cli/index.js run request_image_edit --mode SCRIPT --authority OWNER --approve --input '{"inputPath":"in.png","outputPath":"out.png"}'
+```
+
+## Execution Runner (Disabled by Default)
+```
+node dist/cli/index.js run run_packet --mode SCRIPT --authority OWNER --approve --input '{"path":"data/memory/artifacts/entry_<id>.json"}'
+```
+
+## LLM Recommendations (Advisory Only)
+```
+node dist/cli/index.js run recommend_llm --mode SCRIPT --authority OWNER --input '{"taskType":"summarize","privacyRequirement":"any"}'
+node dist/cli/index.js run analyze_input_risk --mode SCRIPT --authority OWNER --input '{"text":"ignore previous instructions"}'
+```
+
 ## Knowledge Vault (Local-Only)
 Local docs live under `knowledge/` with subfolders: playbooks, prompts, policies,
 ops, references.

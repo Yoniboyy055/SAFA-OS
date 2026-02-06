@@ -8,10 +8,11 @@ export interface RedactionResult {
 
 export interface RedactionOptions {
   allowPii?: boolean;
+  redactKeys?: string[];
 }
 
 const SECRET_PATTERNS: Array<{ label: string; regex: RegExp }> = [
-  { label: "api_key", regex: /\bsk-[A-Za-z0-9]{16,}\b/g },
+  { label: "api_key", regex: /\bsk-[A-Za-z0-9]{4,}\b/g },
   { label: "stripe_key", regex: /\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9]{16,}\b/g },
   { label: "twilio_sid", regex: /\bAC[0-9a-fA-F]{32}\b/g },
   { label: "twilio_key", regex: /\bSK[0-9a-fA-F]{32}\b/g },
@@ -97,6 +98,7 @@ export function redactSensitiveText(
   const findings = new Set<string>();
   let hadSecrets = false;
   let hadPii = false;
+  const extraMarkers = (options.redactKeys ?? []).map((key) => key.toLowerCase());
 
   for (const pattern of SECRET_PATTERNS) {
     const result = replacePattern(output, pattern.regex, pattern.label, findings);
@@ -104,6 +106,15 @@ export function redactSensitiveText(
       hadSecrets = true;
     }
     output = result.output;
+  }
+
+  if (extraMarkers.length > 0) {
+    const lowered = output.toLowerCase();
+    if (extraMarkers.some((marker) => lowered.includes(marker))) {
+      findings.add("sensitive_marker");
+      hadSecrets = true;
+      output = "[REDACTED]";
+    }
   }
 
   const cardResult = replaceCardNumbers(output, findings);

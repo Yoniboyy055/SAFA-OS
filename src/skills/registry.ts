@@ -108,7 +108,10 @@ export class SkillRegistry {
           authority: context.authority,
           commandMode: context.commandMode,
           audit: context.audit,
-          defenseText: JSON.stringify(input ?? {}),
+          defenseText:
+            skill.name === "analyze_input_risk"
+              ? ""
+              : JSON.stringify(input ?? {}),
           maturityLevel: 5,
           freshOwnerInput: true,
           costEstimateUsd: 0,

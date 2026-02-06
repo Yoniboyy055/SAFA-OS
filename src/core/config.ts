@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+import { validateConfig } from "./config_validate";
 
 export interface NetworkConfig {
   enabled: boolean;
@@ -56,6 +57,13 @@ export interface CallsConfig {
   dryRunDefault: boolean;
 }
 
+export interface ExecutionConfig {
+  enabled: boolean;
+  allowCommands: string[];
+  maxRuntimeMs: number;
+  allowlistPaths: string[];
+}
+
 export interface AuditConfig {
   logPath: string;
   redactKeys: string[];
@@ -88,6 +96,7 @@ export interface JarvisConfig {
   email: EmailConfig;
   stripe: StripeConfig;
   calls: CallsConfig;
+  execution: ExecutionConfig;
   audit: AuditConfig;
   permissions: PermissionsConfig;
 }
@@ -144,6 +153,12 @@ const DEFAULT_CONFIG: JarvisConfig = {
     twimlUrl: "",
     recordCalls: false,
     dryRunDefault: true
+  },
+  execution: {
+    enabled: false,
+    allowCommands: [],
+    maxRuntimeMs: 600000,
+    allowlistPaths: []
   },
   governance: {
     strictApprovalMode: true,
@@ -259,6 +274,20 @@ function mergeConfig(
         overrides.calls?.countryAllowlist ?? base.calls.countryAllowlist
       )
     },
+    execution: {
+      ...base.execution,
+      ...overrides.execution,
+      allowCommands: normalizeStringArray(
+        overrides.execution?.allowCommands ?? base.execution.allowCommands
+      ),
+      allowlistPaths: normalizeStringArray(
+        overrides.execution?.allowlistPaths ?? base.execution.allowlistPaths
+      ),
+      maxRuntimeMs:
+        typeof overrides.execution?.maxRuntimeMs === "number"
+          ? overrides.execution.maxRuntimeMs
+          : base.execution.maxRuntimeMs
+    },
     governance: {
       ...base.governance,
       ...overrides.governance
@@ -335,7 +364,7 @@ export function loadConfig(configPath?: string): ResolvedConfig {
   const merged = mergeConfig(DEFAULT_CONFIG, fileConfig);
   const rootDir = path.dirname(resolvedConfigPath);
 
-  return {
+  const resolved = {
     ...merged,
     audit: {
       ...merged.audit,
@@ -350,7 +379,15 @@ export function loadConfig(configPath?: string): ResolvedConfig {
         path.resolve(rootDir, entry)
       )
     },
+    execution: {
+      ...merged.execution,
+      allowlistPaths: merged.execution.allowlistPaths.map((entry) =>
+        path.resolve(rootDir, entry)
+      )
+    },
     configPath: resolvedConfigPath,
     rootDir
   };
+  validateConfig(resolved);
+  return resolved;
 }
