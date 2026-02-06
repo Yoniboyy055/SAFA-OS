@@ -1,4 +1,9 @@
-declare function require(moduleName: string): any;
+interface NodeRequire {
+  (moduleName: string): any;
+  main?: unknown;
+}
+declare const require: NodeRequire;
+declare const module: { exports: unknown };
 declare const __dirname: string;
 declare module "node:fs" {
   const fs: any;
@@ -53,6 +58,10 @@ declare const process: {
   cwd(): string;
   env: Record<string, string | undefined>;
   exit(code?: number): never;
+  stdin: {
+    setEncoding: (encoding: string) => void;
+    on: (event: string, handler: (chunk: string) => void) => void;
+  };
 };
 declare const console: {
   log: (...args: unknown[]) => void;

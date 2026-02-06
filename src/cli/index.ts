@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import * as fs from "node:fs";
 import { loadConfig } from "../core/config";
 import { AuditLogger } from "../core/audit";
 import { Governor } from "../core/governor";
@@ -10,6 +11,7 @@ import { buildNetworkPolicy, validateMethod } from "../core/network/policy";
 import { AuthorityLevel } from "../core/authority";
 import { assertSafeInput } from "../core/defense";
 import { parseCommandMode } from "./command_mode";
+import { summarizeJarvisLine } from "./jarvis_line";
 import { SkillRegistry } from "../skills/registry";
 import { readFileSkill } from "../skills/local/read_file";
 import { writeFileSkill } from "../skills/local/write_file";
@@ -22,6 +24,13 @@ import { sendEmailRequestSkill } from "../skills/outbound/send_email_request";
 import { requestPhoneCallSkill } from "../skills/outbound/request_phone_call";
 import { requestPaymentSkill } from "../skills/outbound/request_payment";
 import { makeCallSkill } from "../skills/outbound/make_call";
+import {
+  createApprovalRequest,
+  approveRequest,
+  denyRequest
+} from "../core/approvals";
+import { ApprovalStore } from "../core/approval_store";
+import { createPacket, loadPacket } from "../core/packet";
 
 function getFlagValue(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
@@ -40,6 +49,11 @@ function printUsage(): void {
 
 Usage:
   jarvis skills [--config <path>] [--actor <name>]
+  jarvis status [--config <path>] [--actor <name>]
+  jarvis line [--text "<JARVIS: ...>"] [--config <path>] [--actor <name>]
+  jarvis approvals <list|show|approve|deny> [args...]
+  jarvis audit tail --n 50
+  jarvis packet <create|apply> [args...]
   jarvis plan "<task>" [--config <path>] [--actor <name>]
   jarvis exec "<task>" [--approve] [--config <path>] [--actor <name>]
   jarvis payment:preview --input <json> [--config <path>] [--actor <name>]
@@ -59,8 +73,24 @@ Notes:
 `);
 }
 
-async function main(): Promise<void> {
-  const args = process.argv.slice(2);
+async function readStdinLine(): Promise<string> {
+  return new Promise((resolve) => {
+    let buffer = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => {
+      buffer += chunk;
+      if (buffer.includes("\n")) {
+        resolve(buffer.split("\n")[0]);
+      }
+    });
+    process.stdin.on("end", () => resolve(buffer.trim()));
+  });
+}
+
+export async function runWithArgs(
+  args: string[],
+  options?: { exit?: (code: number) => void }
+): Promise<void> {
   const command = args[0] ?? "help";
   const configPath = getFlagValue(args, "--config");
   const actor = getFlagValue(args, "--actor") ?? "local-user";
@@ -80,6 +110,16 @@ async function main(): Promise<void> {
   });
   const governor = new Governor();
   const registry = new SkillRegistry();
+
+  const originalExit = process.exit;
+  if (options?.exit) {
+    (process as { exit: (code?: number) => never }).exit = (code?: number) => {
+      options.exit?.(code ?? 0);
+      throw new Error(`__EXIT__:${code ?? 0}`);
+    };
+  }
+
+  try {
 
   registry.register(readFileSkill);
   registry.register(writeFileSkill);
@@ -133,6 +173,92 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "line") {
+    const textFlag = getFlagValue(args, "--text");
+    const line = textFlag ?? (await readStdinLine());
+    if (!line) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "jarvis_line",
+        approved,
+        target: "line",
+        result: "ERROR: Missing input."
+      });
+      console.error("JARVIS line text is required.");
+      process.exit(1);
+      return;
+    }
+    let parsed;
+    try {
+      parsed = summarizeJarvisLine(line);
+    } catch (error) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "jarvis_line",
+        approved,
+        target: "line",
+        result: `ERROR: ${error instanceof Error ? error.message : String(error)}`
+      });
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+      return;
+    }
+
+    const parsedConfigPath = getFlagValue(parsed.argv, "--config") ?? configPath;
+    const parsedActor = getFlagValue(parsed.argv, "--actor") ?? actor;
+    const lineConfig = loadConfig(parsedConfigPath);
+    const lineAudit = new AuditLogger({
+      logPath: lineConfig.audit.logPath,
+      redactKeys: lineConfig.audit.redactKeys
+    });
+
+    lineAudit.log({
+      timestamp: new Date().toISOString(),
+      actor: parsedActor,
+      action: "jarvis_line",
+      approved: parsed.argv.includes("--approve"),
+      target: parsed.command,
+      result: JSON.stringify({
+        input_redacted: true,
+        inputHash: parsed.inputHash
+      })
+    });
+
+    if (parsed.argv[0] === "run" && !parsed.argv.includes("--approve")) {
+      const store = new ApprovalStore(lineConfig.rootDir);
+      const skill = parsed.argv[1] ?? "unknown";
+      const inputRaw = getFlagValue(parsed.argv, "--input");
+      let payload: Record<string, unknown> | undefined;
+      if (inputRaw) {
+        try {
+          const parsedInput = JSON.parse(inputRaw);
+          if (parsedInput && typeof parsedInput === "object") {
+            payload = parsedInput as Record<string, unknown>;
+          }
+        } catch {
+          payload = undefined;
+        }
+      }
+      const approvalRequest = createApprovalRequest(
+        {
+          action: `run:${skill}`,
+          target: skill,
+          payload
+        },
+        { actor: parsedActor, audit: lineAudit }
+      );
+      store.upsert(approvalRequest);
+      console.error("Approval required. Request created.");
+      process.exit(1);
+      return;
+    }
+
+    await runWithArgs(parsed.argv, options);
+    return;
+  }
+
   if (command === "skills") {
     const skills = registry.list().map((skill) => ({
       name: skill.name,
@@ -150,6 +276,218 @@ async function main(): Promise<void> {
       result: "SUCCESS"
     });
     console.log(JSON.stringify(skills, null, 2));
+    return;
+  }
+
+  if (command === "status") {
+    const status = {
+      networkEnabled: config.network.enabled,
+      killSwitchEnabled: config.killSwitch.enabled,
+      strictApprovalMode: config.governance.strictApprovalMode,
+      configPath: config.configPath
+    };
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "status",
+      approved,
+      target: "system",
+      result: "SUCCESS"
+    });
+    console.log(JSON.stringify(status, null, 2));
+    return;
+  }
+
+  if (command === "audit") {
+    const sub = args[1];
+    if (sub !== "tail") {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "audit",
+        approved,
+        target: sub ?? "unknown",
+        result: "ERROR: Unknown audit command."
+      });
+      console.error("audit tail is the only supported command.");
+      process.exit(1);
+      return;
+    }
+    const countRaw = getFlagValue(args, "--n") ?? "50";
+    const count = Number.parseInt(countRaw, 10);
+    const lines = fs.existsSync(config.audit.logPath)
+      ? fs.readFileSync(config.audit.logPath, "utf8").trim().split("\n")
+      : [];
+    const tail = lines.slice(Math.max(0, lines.length - (Number.isNaN(count) ? 50 : count)));
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "audit.tail",
+      approved,
+      target: config.audit.logPath,
+      result: "SUCCESS"
+    });
+    console.log(tail.join("\n"));
+    return;
+  }
+
+  if (command === "approvals") {
+    const sub = args[1];
+    const store = new ApprovalStore(config.rootDir);
+    if (sub === "list") {
+      const approvals = store.list();
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "approvals.list",
+        approved,
+        target: "approvals",
+        result: "SUCCESS"
+      });
+      console.log(JSON.stringify(approvals, null, 2));
+      return;
+    }
+    if (sub === "show") {
+      const id = args[2];
+      if (!id) {
+        console.error("Approval id is required.");
+        process.exit(1);
+        return;
+      }
+      const approval = store.get(id);
+      if (!approval) {
+        console.error("Approval not found.");
+        process.exit(1);
+        return;
+      }
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "approvals.show",
+        approved,
+        target: id,
+        result: "SUCCESS"
+      });
+      console.log(JSON.stringify(approval, null, 2));
+      return;
+    }
+    if (sub === "approve") {
+      const id = args[2];
+      if (!id) {
+        console.error("Approval id is required.");
+        process.exit(1);
+        return;
+      }
+      const approval = store.get(id);
+      if (!approval) {
+        console.error("Approval not found.");
+        process.exit(1);
+        return;
+      }
+      const updated = approveRequest(approval, { actor, audit });
+      store.upsert(updated);
+      console.log(JSON.stringify(updated, null, 2));
+      return;
+    }
+    if (sub === "deny") {
+      const id = args[2];
+      if (!id) {
+        console.error("Approval id is required.");
+        process.exit(1);
+        return;
+      }
+      const approval = store.get(id);
+      if (!approval) {
+        console.error("Approval not found.");
+        process.exit(1);
+        return;
+      }
+      const reason = getFlagValue(args, "--reason") ?? "Denied.";
+      const updated = denyRequest(approval, { actor, audit }, reason);
+      store.upsert(updated);
+      console.log(JSON.stringify(updated, null, 2));
+      return;
+    }
+    console.error("Unknown approvals command.");
+    process.exit(1);
+    return;
+  }
+
+  if (command === "packet") {
+    const sub = args[1];
+    if (sub === "create") {
+      const mode = getFlagValue(args, "--mode");
+      const payloadRaw = getFlagValue(args, "--payload");
+      let payload: Record<string, unknown> | undefined;
+      if (payloadRaw) {
+        try {
+          payload = JSON.parse(payloadRaw) as Record<string, unknown>;
+        } catch (error) {
+          console.error(`Invalid payload JSON: ${String(error)}`);
+          process.exit(1);
+          return;
+        }
+      }
+      const jarvisLine =
+        payload && typeof payload.jarvisLine === "string"
+          ? String(payload.jarvisLine)
+          : undefined;
+      const packet = createPacket(config.rootDir, {
+        mode: mode ?? undefined,
+        payload,
+        jarvisLine
+      });
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "packet.create",
+        approved,
+        target: packet.id,
+        result: "SUCCESS"
+      });
+      console.log(JSON.stringify(packet, null, 2));
+      return;
+    }
+    if (sub === "apply") {
+      const id = args[2];
+      if (!id) {
+        console.error("Packet id is required.");
+        process.exit(1);
+        return;
+      }
+      const packet = loadPacket(config.rootDir, id);
+      if (packet.jarvisLine) {
+        const parsed = summarizeJarvisLine(packet.jarvisLine);
+        audit.log({
+          timestamp: new Date().toISOString(),
+          actor,
+          action: "packet.apply",
+          approved,
+          target: id,
+          result: JSON.stringify({ input_redacted: true, inputHash: parsed.inputHash })
+        });
+        await runWithArgs(parsed.argv, options);
+        return;
+      }
+      if (packet.mode === "RUN" && packet.payload) {
+        const payload = packet.payload;
+        const skill = typeof payload.skill === "string" ? payload.skill : undefined;
+        const input = payload.input && typeof payload.input === "object" ? payload.input : {};
+        if (!skill) {
+          console.error("Packet RUN payload missing skill.");
+          process.exit(1);
+          return;
+        }
+        const argv = ["run", skill, "--input", JSON.stringify(input), "--mode", "SCRIPT", "--authority", "OWNER"];
+        await runWithArgs(argv, options);
+        return;
+      }
+      console.error("Unsupported packet format.");
+      process.exit(1);
+      return;
+    }
+    console.error("Unknown packet command.");
+    process.exit(1);
     return;
   }
 
@@ -884,9 +1222,20 @@ async function main(): Promise<void> {
   if (command !== "help") {
     process.exit(1);
   }
+  } finally {
+    if (options?.exit) {
+      process.exit = originalExit;
+    }
+  }
 }
 
-main().catch((error) => {
-  console.error(`Fatal error: ${String(error)}`);
-  process.exit(1);
-});
+async function main(): Promise<void> {
+  await runWithArgs(process.argv.slice(2));
+}
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(`Fatal error: ${String(error)}`);
+    process.exit(1);
+  });
+}

@@ -69,6 +69,14 @@ node dist/cli/index.js call:make --approve --input '{"toNumber":"+15550002222","
 # (Blocked in Phase 3; preview only)
 ```
 
+## One-line Commands (JARVIS:)
+Use the line adapter for phone-to-laptop relay:
+```
+jarvis line --text "JARVIS: SKILLS"
+jarvis line --text "JARVIS: RUN read_file {\"path\":\"README.md\"} --dry-run"
+```
+See `docs/PHONE_UX.md` for more examples.
+
 ## Jarvis Cockpit v1 (Local UI)
 Open `ui/cockpit/index.html` in a local browser. This UI is static and local-only.
 
