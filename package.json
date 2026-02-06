@@ -7,9 +7,10 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "postbuild": "node scripts/postbuild.js",
     "start": "node dist/cli/index.js",
-    "test:runner": "node --test dist/tests/**/*.test.js",
-     "test": "npm run build && node --test dist/tests/**/*.test.js"
+    "test:runner": "node --test dist/tests",
+    "test": "npm run build && node --test dist/tests"
   },
   "devDependencies": {
     "typescript": "latest"
