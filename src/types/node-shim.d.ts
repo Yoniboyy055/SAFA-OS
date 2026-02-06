@@ -20,6 +20,12 @@ declare module "node:buffer" {
   const buffer: any;
   export = buffer;
 }
+declare const TextEncoder: {
+  new (): { encode: (input: string) => Uint8Array };
+};
+declare const TextDecoder: {
+  new (encoding?: string): { decode: (input: Uint8Array) => string };
+};
 declare const process: {
   argv: string[];
   cwd(): string;

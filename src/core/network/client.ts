@@ -12,6 +12,8 @@ import { validatePayloadSize, validateUrl } from "./types";
 export interface NetworkClientContext {
   actor: string;
   approved: boolean;
+  authority: import("../authority").AuthorityLevel;
+  commandMode: import("../../cli/command_mode").CommandMode;
   config: ResolvedConfig;
   audit: AuditLogger;
   governor: Governor;
@@ -58,7 +60,17 @@ export async function requestNetwork(
       allowWhenNetworkOff: false
     },
     context.config,
-    { actor: context.actor, approved: context.approved },
+    {
+      actor: context.actor,
+      approved: context.approved,
+      authority: context.authority,
+      commandMode: context.commandMode,
+      audit: context.audit,
+      defenseText: request.bodySummary,
+      maturityLevel: 5,
+      freshOwnerInput: true,
+      costEstimateUsd: 0
+    },
     request
   );
 

@@ -27,9 +27,14 @@ export interface NetworkResponse {
 export interface NetworkRequestContext {
   actor: string;
   approved: boolean;
+  authority: import("../authority").AuthorityLevel;
+  commandMode: import("../../cli/command_mode").CommandMode;
   config: ResolvedConfig;
   audit: AuditLogger;
   governor: Governor;
+  defenseText?: string;
+  costEstimateUsd?: number;
+  costCapUsd?: number;
 }
 
 const MAX_REQUEST_BYTES = 64 * 1024;
@@ -179,7 +184,18 @@ export async function requestNetwork(
       allowWhenNetworkOff: false
     },
     context.config,
-    { actor: context.actor, approved: context.approved },
+    {
+      actor: context.actor,
+      approved: context.approved,
+      authority: context.authority,
+      commandMode: context.commandMode,
+      audit: context.audit,
+      defenseText: context.defenseText,
+      maturityLevel: 5,
+      freshOwnerInput: true,
+      costEstimateUsd: context.costEstimateUsd ?? 0,
+      costCapUsd: context.costCapUsd
+    },
     networkRequest
   );
   if (!governorDecision.allowed) {
@@ -195,6 +211,7 @@ export async function requestNetwork(
   const sanitizedHeaders = sanitizeHeaders(options.headers ?? {});
   const urlHash = hashValue(urlDecision.normalizedUrl || options.url);
   const bodyHash = hashValue(body);
+  const costEstimateUsd = context.costEstimateUsd ?? 0;
 
   context.audit.log({
     timestamp: new Date().toISOString(),
@@ -208,7 +225,8 @@ export async function requestNetwork(
       headerKeys: Object.keys(sanitizedHeaders),
       headers: redactHeaders(sanitizedHeaders),
       bodyHash,
-      bodyBytes
+      bodyBytes,
+      costEstimateUsd
     })
   });
 

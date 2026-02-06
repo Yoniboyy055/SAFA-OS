@@ -31,9 +31,13 @@ export interface CallResult {
 export interface CallsClientContext {
   actor: string;
   approved: boolean;
+  authority: import("../authority").AuthorityLevel;
+  commandMode: import("../../cli/command_mode").CommandMode;
   config: ResolvedConfig;
   audit: AuditLogger;
   governor: Governor;
+  costEstimateUsd?: number;
+  costCapUsd?: number;
 }
 
 function hashPreview(payload: Record<string, unknown>): string {
@@ -90,7 +94,18 @@ export async function makeCall(
       allowWhenNetworkOff: dryRun
     },
     context.config,
-    { actor: context.actor, approved: context.approved }
+    {
+      actor: context.actor,
+      approved: context.approved,
+      authority: context.authority,
+      commandMode: context.commandMode,
+      audit: context.audit,
+      defenseText: request.notes ?? "",
+      maturityLevel: 5,
+      freshOwnerInput: true,
+      costEstimateUsd: context.costEstimateUsd ?? 0,
+      costCapUsd: context.costCapUsd
+    }
   );
 
   if (!governorDecision.allowed) {
@@ -295,9 +310,14 @@ export async function makeCall(
     {
       actor: context.actor,
       approved: context.approved,
+      authority: context.authority,
+      commandMode: context.commandMode,
       config: context.config,
       audit: context.audit,
-      governor: context.governor
+      governor: context.governor,
+      defenseText: request.notes ?? "",
+      costEstimateUsd: context.costEstimateUsd ?? 0,
+      costCapUsd: context.costCapUsd
     }
   );
 

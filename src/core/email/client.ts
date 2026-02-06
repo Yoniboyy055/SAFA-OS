@@ -12,6 +12,8 @@ import type { EmailMessage, EmailSendResult } from "./types";
 export interface EmailClientContext {
   actor: string;
   approved: boolean;
+  authority: import("../authority").AuthorityLevel;
+  commandMode: import("../../cli/command_mode").CommandMode;
   config: ResolvedConfig;
   audit: AuditLogger;
   governor: Governor;
@@ -262,7 +264,17 @@ export async function sendEmail(
       allowWhenNetworkOff: dryRun
     },
     context.config,
-    { actor: context.actor, approved: context.approved }
+    {
+      actor: context.actor,
+      approved: context.approved,
+      authority: context.authority,
+      commandMode: context.commandMode,
+      audit: context.audit,
+      defenseText: message.body,
+      maturityLevel: 5,
+      freshOwnerInput: true,
+      costEstimateUsd: 0
+    }
   );
   if (!governorDecision.allowed) {
     deny(governorDecision.reason);

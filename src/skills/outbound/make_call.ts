@@ -75,6 +75,8 @@ export const makeCallSkill: SkillDefinition<MakeCallInput, MakeCallOutput> = {
       {
         actor: context.actor,
         approved: context.approved,
+        authority: context.authority,
+        commandMode: context.commandMode,
         config: context.config,
         audit: context.audit,
         governor: context.governor
