@@ -16,6 +16,9 @@ import { listFilesSkill } from "../skills/local/list_files";
 import { searchTextSkill } from "../skills/local/search_text";
 import { runTestsSkill } from "../skills/local/run_tests";
 import { sendEmailSkill } from "../skills/outbound/send_email";
+import { sendHttpRequestSkill } from "../skills/outbound/send_http_request";
+import { sendEmailRequestSkill } from "../skills/outbound/send_email_request";
+import { requestPhoneCallSkill } from "../skills/outbound/request_phone_call";
 import { requestPaymentSkill } from "../skills/outbound/request_payment";
 import { makeCallSkill } from "../skills/outbound/make_call";
 
@@ -85,6 +88,9 @@ async function main(): Promise<void> {
   registry.register(sendEmailSkill);
   registry.register(requestPaymentSkill);
   registry.register(makeCallSkill);
+  registry.register(sendHttpRequestSkill);
+  registry.register(sendEmailRequestSkill);
+  registry.register(requestPhoneCallSkill);
 
   const requiresMode = [
     "exec",
