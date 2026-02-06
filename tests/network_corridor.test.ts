@@ -169,6 +169,58 @@ test("strict approval mode denies when not approved", () => {
   assert.match(decision.reason, /strict approval/i);
 });
 
+test("payload limits deny oversized requests", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const config = buildConfig(rootDir, {
+    network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] },
+    governance: { strictApprovalMode: false, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 8 }
+  });
+  const governor = new Governor();
+  const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
+  await assert.rejects(
+    () =>
+      requestNetwork(
+        {
+          ...buildRequest(),
+          bodySummary: "0123456789"
+        },
+        {
+          actor: "tester",
+          approved: true,
+          authority: "OWNER",
+          commandMode: "DECIDE",
+          config,
+          audit,
+          governor
+        }
+      ),
+    /payload/i
+  );
+});
+
+test("kill switch blocks network corridor", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const config = buildConfig(rootDir, {
+    network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] },
+    killSwitch: { enabled: true }
+  });
+  const governor = new Governor();
+  const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
+  await assert.rejects(
+    () =>
+      requestNetwork(buildRequest(), {
+        actor: "tester",
+        approved: true,
+        authority: "OWNER",
+        commandMode: "DECIDE",
+        config,
+        audit,
+        governor
+      }),
+    /kill switch/i
+  );
+});
+
 test("validator denies non-https URL", () => {
   const decision = validateUrl("http://example.com", {
     allowlistDomains: ["example.com"],

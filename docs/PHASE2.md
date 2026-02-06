@@ -11,7 +11,8 @@ in Phase 2 unless explicitly approved and implemented under governance rules.
 Scaffold status:
 - See `docs/NETWORK_CORRIDOR.md` for the off-by-default corridor interface and
   policy scaffold. No real network I/O is implemented.
-- Phase 2A.2 plan: `docs/PHASE2A2_PLAN.md` (locked; design only).
+- Phase 2A.2 design: `docs/PHASE2A2.md` and `docs/CORRIDOR_APPROVALS.md` (locked;
+  design only).
 
 What it would contain (if approved later):
 - Allowlist-only networking with domain restrictions.
