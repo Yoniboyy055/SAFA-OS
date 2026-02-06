@@ -2,7 +2,8 @@ import type { AuditLogger } from "../audit";
 import type { ResolvedConfig } from "../config";
 import type { Governor } from "../governor";
 import type { NetworkRequest, NetworkResponseMeta } from "./types";
-import { requestNetwork as performNetworkRequest } from "./request";
+import { auditNetworkRequest, auditNetworkResult } from "../audit";
+import { buildNetworkPolicy, validateMethod } from "./policy";
 
 export interface NetworkClientContext {
   actor: string;
@@ -18,30 +19,73 @@ export async function requestNetwork(
   request: NetworkRequest,
   context: NetworkClientContext
 ): Promise<NetworkResponseMeta> {
-  const response = await performNetworkRequest(
+  const policy = buildNetworkPolicy(context.config);
+  const methodDecision = validateMethod(request.method, policy);
+
+  auditNetworkRequest(
+    context.audit,
     {
-      method: request.method as "GET" | "POST",
       url: request.url,
-      headers: request.headers,
-      body: request.bodySummary,
-      purpose: request.purpose
+      domain: request.url,
+      method: request.method,
+      purpose: request.purpose,
+      approved: context.approved,
+      bodyHash: request.bodyHash,
+      bodySummary: request.bodySummary.slice(0, 256),
+      headers: request.headers
     },
+    context.actor
+  );
+
+  if (!methodDecision.allowed) {
+    throw new Error(methodDecision.reason);
+  }
+
+  const decision = context.governor.evaluate(
+    {
+      type: "network_request",
+      category: "network",
+      riskLevel: request.riskLevel,
+      requiresApproval: request.requiresApproval,
+      allowWhenNetworkOff: false
+    },
+    context.config,
     {
       actor: context.actor,
       approved: context.approved,
       authority: context.authority,
       commandMode: context.commandMode,
-      config: context.config,
       audit: context.audit,
-      governor: context.governor,
-      defenseText: request.bodySummary
-    }
+      defenseText: request.bodySummary,
+      maturityLevel: 5,
+      freshOwnerInput: true,
+      costEstimateUsd: 0
+    },
+    request
   );
 
-  return {
-    status: response.status,
-    bytes: response.responseBytes,
-    durationMs: response.durationMs,
-    responseHash: response.responseHash
+  if (!decision.allowed) {
+    throw new Error(decision.reason);
+  }
+
+  if (!context.config.network.enabled) {
+    throw new Error("Network disabled");
+  }
+
+  const response: NetworkResponseMeta = {
+    status: 0,
+    bytes: 0,
+    durationMs: 0,
+    responseHash: "stub"
   };
+
+  auditNetworkResult(
+    context.audit,
+    response,
+    context.actor,
+    context.approved,
+    request.url
+  );
+
+  return response;
 }

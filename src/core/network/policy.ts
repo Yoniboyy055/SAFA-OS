@@ -16,16 +16,22 @@ export function buildNetworkPolicy(
     timeoutMs?: number;
   }
 ): NetworkPolicy {
+  const defaultMaxBytes =
+    typeof config.network.maxBytes === "number"
+      ? config.network.maxBytes
+      : 200000;
   const maxPayloadBytes =
     typeof overrides?.maxRequestBytes === "number"
       ? Math.min(overrides.maxRequestBytes, config.governance.maxNetworkPayloadBytes)
-      : config.governance.maxNetworkPayloadBytes;
+      : Math.min(defaultMaxBytes, config.governance.maxNetworkPayloadBytes);
 
   return {
     allowedMethods: ["GET", "POST"],
-    timeoutMs: overrides?.timeoutMs ?? 10_000,
+    timeoutMs:
+      overrides?.timeoutMs ??
+      (typeof config.network.timeoutMs === "number" ? config.network.timeoutMs : 10000),
     maxPayloadBytes,
-    maxResponseBytes: overrides?.maxResponseBytes ?? 256 * 1024
+    maxResponseBytes: overrides?.maxResponseBytes ?? defaultMaxBytes
   };
 }
 

@@ -12,6 +12,18 @@ export interface NetworkRequest {
   requiresApproval: boolean;
 }
 
+export interface NetworkResponse {
+  status: number;
+  responseHash: string;
+  bytes: number;
+  durationMs: number;
+}
+
+export interface NetworkAllowlist {
+  domains: string[];
+  urls: string[];
+}
+
 export interface NetworkDecision {
   allowed: boolean;
   reason: string;
