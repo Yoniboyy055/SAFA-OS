@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/cli/index.js",
     "test:runner": "node --test dist/tests/**/*.test.js",
-    "test": "npm run build && node --test dist/tests/**/*.test.js"
+     "test": "npm run build && node --test dist/tests/**/*.test.js"
   },
   "devDependencies": {
     "typescript": "latest"
