@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Jarvis Cockpit v1</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">J</div>
+        <div>
+          <div class="title">Jarvis Cockpit</div>
+          <div class="subtitle">Full Power (Governed) — Local Only</div>
+        </div>
+      </div>
+      <div class="status">
+        <span class="pill">Network: OFF</span>
+        <span class="pill">Kill Switch: READY</span>
+        <span class="pill">Strict Approval: ON</span>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="card" id="intent-queue">
+        <div class="card-header">
+          <h2>Intent Queue</h2>
+          <span class="badge">Local</span>
+        </div>
+        <div class="card-body">
+          <ul class="list" id="intent-list"></ul>
+        </div>
+      </section>
+
+      <section class="card" id="approval-inbox">
+        <div class="card-header">
+          <h2>Approval Inbox</h2>
+          <span class="badge danger">Approval Required</span>
+        </div>
+        <div class="card-body">
+          <ul class="list" id="approval-list"></ul>
+        </div>
+      </section>
+
+      <section class="card" id="receipt-viewer">
+        <div class="card-header">
+          <h2>Receipt Viewer</h2>
+          <span class="badge">Audit-Safe</span>
+        </div>
+        <div class="card-body">
+          <div class="receipt" id="receipt-view"></div>
+        </div>
+      </section>
+
+      <section class="card" id="audit-timeline">
+        <div class="card-header">
+          <h2>Audit Timeline</h2>
+          <span class="badge">Append-Only</span>
+        </div>
+        <div class="card-body">
+          <ul class="list timeline" id="audit-list"></ul>
+        </div>
+      </section>
+
+      <section class="card" id="kill-switch">
+        <div class="card-header">
+          <h2>Kill Switch</h2>
+          <span class="badge danger">Critical</span>
+        </div>
+        <div class="card-body">
+          <p class="muted">
+            The kill switch halts all outbound actions instantly. This view
+            reflects the current state and records all transitions in audit.
+          </p>
+          <div class="switch-row">
+            <button class="btn btn-outline" disabled>Pause All</button>
+            <button class="btn btn-danger" disabled>Engage Kill Switch</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Operator-grade. Calm. No surprises.</span>
+      <span class="muted">All data shown here is local-only.</span>
+    </footer>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

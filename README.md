@@ -43,10 +43,8 @@ Jarvis OS is a single-core assistant system with modular capabilities, governed 
    - Write a file (requires approval + allowlist): \
      `node dist/cli/index.js run write_file --approve --input '{"path":"data/example.txt","content":"hello"}'`
 
-## Phase 3 Email (Gmail SMTP)
-### Setup Gmail App Password
-- Google Account → Security → App Passwords
-- Store the app password in `.env` (never commit).
+## Phase 3 Email (Local-Only)
+Live sends are disabled in Phase 3. Use previews and queues only.
 
 ### Commands
 ```
@@ -54,20 +52,25 @@ npm install
 npm run build
 node dist/cli/index.js email:preview --input '{"to":"a@allow.com","subject":"Hello","body":"Draft body"}'
 node dist/cli/index.js email:send --approve --input '{"to":"a@allow.com","subject":"Hello","body":"Live body","dryRun":false}'
+# (Blocked in Phase 3; preview/queue only)
 ```
 
-## Phase 3 Payments (Stripe Request-Only)
+## Phase 3 Payments (Preview-Only)
 ```
 node dist/cli/index.js payment:preview --input '{"priceId":"price_basic","currency":"usd","customerEmail":"user@allow.com"}'
 node dist/cli/index.js payment:request --approve --input '{"priceId":"price_basic","currency":"usd","customerEmail":"user@allow.com","dryRun":false}'
+# (Blocked in Phase 3; preview only)
 ```
 
-## Phase 3 Calls (Request-Only)
+## Phase 3 Calls (Preview-Only)
 ```
 node dist/cli/index.js call:preview --input '{"toNumber":"+15550002222","intent":"sales","dryRun":true}'
 node dist/cli/index.js call:make --approve --input '{"toNumber":"+15550002222","intent":"sales","dryRun":false}'
+# (Blocked in Phase 3; preview only)
 ```
 
-## Phase 4 Live Outbound (Stripe/Twilio)
-- Network is OFF by default; enable explicitly.
-- See `docs/PHASE4_GO_LIVE_CHECKLIST.md` before enabling live execution.
+## Jarvis Cockpit v1 (Local UI)
+Open `ui/cockpit/index.html` in a local browser. This UI is static and local-only.
+
+## Phase 4 Live Outbound
+Not implemented in Phase 3. Network corridor remains stub-only.

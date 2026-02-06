@@ -1,10 +1,11 @@
 # Phone Calls (Governed, Request-Only)
 
 This module requests outbound calls with strict approvals and allowlists. It
-does not perform auto-speech or autonomous calling.
+does not perform auto-speech or autonomous calling. **Live calls are disabled
+in Phase 3.**
 
 ## Safety Principles
-- Approval is always required for real calls.
+- Real calls are blocked in Phase 3 (preview only).
 - Dry-run previews are supported.
 - Kill switch blocks all outbound calls.
 
@@ -13,7 +14,7 @@ does not perform auto-speech or autonomous calling.
 - `calls.toNumberAllowlist`
 - `calls.countryAllowlist`
 - `permissions.callIntentAllowlist`
-- `network.allowlistDomains` must include provider domains for real calls.
+- `network.allowlistDomains` must include provider domains for real calls (Phase 4 only).
 
 ## CLI Examples
 Preview:
@@ -21,7 +22,7 @@ Preview:
 node dist/cli/index.js call:preview --input '{"toNumber":"+15550002222","intent":"sales","dryRun":true}'
 ```
 
-Request (real, approval required):
+Request (blocked in Phase 3):
 ```
 node dist/cli/index.js call:make --approve --input '{"toNumber":"+15550002222","intent":"sales","dryRun":false}'
 ```

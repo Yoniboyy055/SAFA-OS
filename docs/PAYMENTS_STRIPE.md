@@ -2,12 +2,12 @@
 
 This module creates **payment requests only**. It does not charge cards or
 capture funds directly. All actions are gated by approvals, allowlists, and the
-kill switch. Network is OFF by default.
+kill switch. Network is OFF by default and **live Stripe is disabled in Phase 3**.
 
 ## Safety Principles
 - No mass outreach or automated billing.
 - Dry-run preview is supported for every request.
-- Approval required for real requests.
+- Real requests are blocked in Phase 3 (preview only).
 - All actions are audited with redaction (no secrets logged).
 
 ## Required Allowlists
@@ -15,7 +15,7 @@ kill switch. Network is OFF by default.
 - `permissions.stripeAmountAllowlist`
 - `permissions.stripeCurrencyAllowlist`
 - `permissions.stripeCustomerEmailAllowlist`
-- `network.allowlistDomains` must include `stripe.com` for real requests.
+- `network.allowlistDomains` must include `stripe.com` for real requests (Phase 4 only).
 
 ## CLI Examples
 Preview:
@@ -23,13 +23,13 @@ Preview:
 node dist/cli/index.js payment:preview --input '{"priceId":"price_basic","currency":"usd","customerEmail":"user@allow.com"}'
 ```
 
-Request (real, approval required):
+Request (blocked in Phase 3):
 ```
 node dist/cli/index.js payment:request --approve --input '{"priceId":"price_basic","currency":"usd","customerEmail":"user@allow.com","dryRun":false}'
 ```
 
 ## Notes
-- Real outbound requests require: approval + allowlists + network enabled.
+- Real outbound requests require Phase 4 enablement.
 
 ## Go Live Checklist (Phase 4)
 1) Set `STRIPE_SECRET_KEY` in `.env`
