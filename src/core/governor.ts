@@ -74,7 +74,7 @@ export class Governor {
       }
       const reason =
         action.category === "outbound_message"
-          ? "Outbound actions require explicit approval."
+          ? "Outbound actions require approval; approval required."
           : config.governance.strictApprovalMode
             ? "Strict approval mode requires explicit approval."
             : "Approval required.";

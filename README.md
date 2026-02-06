@@ -80,5 +80,13 @@ See `docs/PHONE_UX.md` for more examples.
 ## Jarvis Cockpit v1 (Local UI)
 Open `ui/cockpit/index.html` in a local browser. This UI is static and local-only.
 
+## Dashboard Server (Local-only)
+The dashboard server refuses to start while the kill switch is enabled, unless an
+explicit owner override is provided. The server only binds to `127.0.0.1`.
+
+```
+node dist/dashboard/server.js --port 3777 --mode SCRIPT --authority OWNER --approve --allow-dashboard-under-kill-switch
+```
+
 ## Live Outbound (Disabled)
 Network corridor remains stub-only and live outbound is disabled by policy.

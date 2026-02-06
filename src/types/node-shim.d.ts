@@ -25,6 +25,10 @@ declare module "node:buffer" {
   const buffer: any;
   export = buffer;
 }
+declare module "node:http" {
+  const http: any;
+  export = http;
+}
 declare const TextEncoder: {
   new (): { encode: (input: string) => Uint8Array };
 };
