@@ -9,6 +9,8 @@ const { Governor } = require("../src/core/governor");
 const { AuthorityLevel } = require("../src/core/authority");
 const { requestNetwork } = require("../src/core/network/request");
 
+const originalFetch = globalThis.fetch;
+
 function buildContext(rootDir, overrides = {}) {
   const config = {
     network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] },
@@ -75,6 +77,9 @@ function buildContext(rootDir, overrides = {}) {
 test("deny when network OFF", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const context = buildContext(rootDir, { network: { enabled: false, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] } });
+  globalThis.fetch = async () => {
+    throw new Error("fetch should not be called");
+  };
   await assert.rejects(
     () =>
       requestNetwork(
@@ -83,11 +88,15 @@ test("deny when network OFF", async () => {
       ),
     /Network disabled/
   );
+  globalThis.fetch = originalFetch;
 });
 
 test("deny when domain not allowlisted", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const context = buildContext(rootDir, { network: { enabled: true, allowlist: [], allowlistDomains: ["allowed.com"], allowlistUrls: [] } });
+  globalThis.fetch = async () => {
+    throw new Error("fetch should not be called");
+  };
   await assert.rejects(
     () =>
       requestNetwork(
@@ -96,12 +105,16 @@ test("deny when domain not allowlisted", async () => {
       ),
     /not allowlisted/i
   );
+  globalThis.fetch = originalFetch;
 });
 
 test("payload size enforcement", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const context = buildContext(rootDir);
   const bigBody = "a".repeat(20000);
+  globalThis.fetch = async () => {
+    throw new Error("fetch should not be called");
+  };
   await assert.rejects(
     () =>
       requestNetwork(
@@ -115,11 +128,15 @@ test("payload size enforcement", async () => {
       ),
     /Payload exceeds max/i
   );
+  globalThis.fetch = originalFetch;
 });
 
 test("method allowlist enforces GET/POST", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const context = buildContext(rootDir);
+  globalThis.fetch = async () => {
+    throw new Error("fetch should not be called");
+  };
   await assert.rejects(
     () =>
       requestNetwork(
@@ -128,16 +145,38 @@ test("method allowlist enforces GET/POST", async () => {
       ),
     /Method not allowlisted/i
   );
+  globalThis.fetch = originalFetch;
 });
 
-test("stubbed corridor returns deterministic response", async () => {
+test("allowlisted request executes with approval", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const context = buildContext(rootDir);
+  globalThis.fetch = async () => ({
+    status: 200,
+    body: {
+      getReader() {
+        let sent = false;
+        return {
+          async read() {
+            if (sent) {
+              return { done: true };
+            }
+            sent = true;
+            return { done: false, value: new TextEncoder().encode("ok") };
+          },
+          cancel() {
+            return Promise.resolve();
+          }
+        };
+      }
+    }
+  });
   const result = await requestNetwork(
     { method: "GET", url: "https://example.com", purpose: "test" },
     context
   );
-  assert.equal(result.status, 0);
-  assert.equal(result.responseHash, "stub");
+  assert.equal(result.status, 200);
+  assert.ok(result.responseHash);
+  globalThis.fetch = originalFetch;
 });
 

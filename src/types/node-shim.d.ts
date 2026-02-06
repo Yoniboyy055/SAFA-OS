@@ -26,6 +26,28 @@ declare const TextEncoder: {
 declare const TextDecoder: {
   new (encoding?: string): { decode: (input: Uint8Array) => string };
 };
+declare function fetch(
+  input: string,
+  init?: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    signal?: unknown;
+  }
+): Promise<{
+  status: number;
+  body?: {
+    getReader: () => {
+      read: () => Promise<{ done: boolean; value?: Uint8Array }>;
+      cancel: () => Promise<void>;
+    };
+  };
+}>;
+
+declare class AbortController {
+  readonly signal: unknown;
+  abort: () => void;
+}
 declare const process: {
   argv: string[];
   cwd(): string;

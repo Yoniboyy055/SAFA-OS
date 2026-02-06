@@ -86,6 +86,8 @@ function buildRequest(url = "https://example.com") {
   };
 }
 
+const originalFetch = globalThis.fetch;
+
 test("network disabled: governor denies and client throws", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const config = buildConfig(rootDir, { network: { ...buildConfig(rootDir).network, enabled: false } });
@@ -107,6 +109,9 @@ test("network disabled: governor denies and client throws", async () => {
   assert.match(decision.reason, /disabled/i);
 
   const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
+  globalThis.fetch = async () => {
+    throw new Error("fetch should not be called");
+  };
   await assert.rejects(
     () =>
       requestNetwork(buildRequest(), {
@@ -120,6 +125,7 @@ test("network disabled: governor denies and client throws", async () => {
       }),
     /Network disabled/
   );
+  globalThis.fetch = originalFetch;
 });
 
 test("network enabled but allowlistDomains empty => deny", () => {
@@ -204,6 +210,9 @@ test("payload limits deny oversized requests", async () => {
   });
   const governor = new Governor();
   const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
+  globalThis.fetch = async () => {
+    throw new Error("fetch should not be called");
+  };
   await assert.rejects(
     () =>
       requestNetwork(
@@ -223,6 +232,7 @@ test("payload limits deny oversized requests", async () => {
       ),
     /payload/i
   );
+  globalThis.fetch = originalFetch;
 });
 
 test("kill switch blocks network corridor", async () => {
@@ -233,6 +243,9 @@ test("kill switch blocks network corridor", async () => {
   });
   const governor = new Governor();
   const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
+  globalThis.fetch = async () => {
+    throw new Error("fetch should not be called");
+  };
   await assert.rejects(
     () =>
       requestNetwork(buildRequest(), {
@@ -246,6 +259,7 @@ test("kill switch blocks network corridor", async () => {
       }),
     /kill switch/i
   );
+  globalThis.fetch = originalFetch;
 });
 
 test("validator denies non-https URL", () => {
@@ -295,13 +309,33 @@ test("allowlist urls require exact match", () => {
   assert.equal(denied.allowed, false);
 });
 
-test("network client remains stub-only when allowed", async () => {
+test("allowlisted domain executes only with approval", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const config = buildConfig(rootDir, {
     network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] }
   });
   const governor = new Governor();
   const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
+  globalThis.fetch = async () => ({
+    status: 204,
+    body: {
+      getReader() {
+        let sent = false;
+        return {
+          async read() {
+            if (sent) {
+              return { done: true };
+            }
+            sent = true;
+            return { done: false, value: new TextEncoder().encode("") };
+          },
+          cancel() {
+            return Promise.resolve();
+          }
+        };
+      }
+    }
+  });
   const response = await requestNetwork(buildRequest(), {
     actor: "tester",
     approved: true,
@@ -311,8 +345,34 @@ test("network client remains stub-only when allowed", async () => {
     audit,
     governor
   });
-  assert.equal(response.status, 0);
-  assert.equal(response.responseHash, "stub");
+  assert.equal(response.status, 204);
+  globalThis.fetch = originalFetch;
+});
+
+test("allowlisted domain denied without approval", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const config = buildConfig(rootDir, {
+    network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] }
+  });
+  const governor = new Governor();
+  const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
+  globalThis.fetch = async () => {
+    throw new Error("fetch should not be called");
+  };
+  await assert.rejects(
+    () =>
+      requestNetwork(buildRequest(), {
+        actor: "tester",
+        approved: false,
+        authority: "OWNER",
+        commandMode: "DECIDE",
+        config,
+        audit,
+        governor
+      }),
+    /approval/i
+  );
+  globalThis.fetch = originalFetch;
 });
 
 test("audit redaction prevents authorization/cookie leakage", () => {

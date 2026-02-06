@@ -6,6 +6,7 @@ import type { ResolvedConfig } from "../config";
 import type { Governor } from "../governor";
 import type { NetworkRequest } from "./types";
 import { validatePayloadSize, validateUrl } from "./types";
+import { buildNetworkPolicy, validateMethod } from "./policy";
 
 export interface NetworkRequestOptions {
   method: "GET" | "POST";
@@ -84,14 +85,38 @@ function sanitizeHeaders(headers: Record<string, string>): Record<string, string
   return cleaned;
 }
 
-function buildStubResponse(): NetworkResponse {
-  return {
-    status: 0,
-    bodyText: "",
-    responseHash: "stub",
-    responseBytes: 0,
-    durationMs: 0
-  };
+async function readResponseBody(
+  response: Response,
+  maxBytes: number
+): Promise<{ text: string; bytes: number }> {
+  if (!response.body) {
+    return { text: "", bytes: 0 };
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    if (value) {
+      total += value.length;
+      if (total > maxBytes) {
+        reader.cancel().catch(() => undefined);
+        throw new Error("Response exceeds maximum size.");
+      }
+      chunks.push(value);
+    }
+  }
+  const buffer = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset);
+    offset += chunk.length;
+  }
+  const text = new TextDecoder("utf-8").decode(buffer);
+  return { text, bytes: total };
 }
 
 export async function requestNetwork(
@@ -110,12 +135,35 @@ export async function requestNetwork(
     throw new Error(reason);
   };
 
-  if (!context.config.network.enabled) {
-    deny("Network disabled");
-  }
+  const policy = buildNetworkPolicy(context.config, {
+    maxRequestBytes: MAX_REQUEST_BYTES,
+    maxResponseBytes: MAX_RESPONSE_BYTES,
+    timeoutMs: DEFAULT_TIMEOUT_MS
+  });
 
-  if (options.method !== "GET" && options.method !== "POST") {
-    deny("Method not allowlisted.");
+  const method = options.method.toUpperCase() as "GET" | "POST";
+  const body = options.body ?? "";
+  const bodyHash = hashValue(body);
+  const bodyBytes = new TextEncoder().encode(body).length;
+  const urlHash = hashValue(options.url);
+
+  context.audit.log({
+    timestamp: new Date().toISOString(),
+    actor: context.actor,
+    action: "network.attempt",
+    approved: context.approved,
+    target: options.url,
+    result: JSON.stringify({
+      urlHash,
+      method,
+      bodyHash,
+      bodyBytes
+    })
+  });
+
+  const methodDecision = validateMethod(method, policy);
+  if (!methodDecision.allowed) {
+    deny(methodDecision.reason);
   }
 
   const urlDecision = validateUrl(options.url, {
@@ -125,15 +173,19 @@ export async function requestNetwork(
     maxPayloadBytes: context.config.governance.maxNetworkPayloadBytes
   });
   if (!urlDecision.allowed) {
+    if (urlDecision.reason.toLowerCase().includes("allowlist")) {
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "allowlist.violation",
+        approved: context.approved,
+        target: options.url,
+        result: urlDecision.reason
+      });
+    }
     deny(urlDecision.reason);
   }
-
-  const body = options.body ?? "";
-  const bodyBytes = new TextEncoder().encode(body).length;
-  const effectiveMaxPayload = Math.min(
-    MAX_REQUEST_BYTES,
-    context.config.governance.maxNetworkPayloadBytes
-  );
+  const effectiveMaxPayload = Math.min(policy.maxPayloadBytes, context.config.governance.maxNetworkPayloadBytes);
   const payloadDecision = validatePayloadSize(body, effectiveMaxPayload);
   if (!payloadDecision.allowed) {
     deny(payloadDecision.reason);
@@ -142,11 +194,11 @@ export async function requestNetwork(
   const networkRequest: NetworkRequest = {
     id: `net-${hashValue(options.url).slice(0, 12)}`,
     purpose: options.purpose,
-    method: options.method,
+    method,
     url: options.url,
     headers: options.headers ?? {},
     bodySummary: body,
-    bodyHash: hashValue(body),
+    bodyHash,
     riskLevel: "HIGH",
     requiresApproval: true
   };
@@ -170,7 +222,9 @@ export async function requestNetwork(
       maturityLevel: 5,
       freshOwnerInput: true,
       costEstimateUsd: context.costEstimateUsd ?? 0,
-      costCapUsd: context.costCapUsd
+      costCapUsd: context.costCapUsd,
+      planHash: hashValue(`${method}:${options.url}`),
+      payloadHash: bodyHash
     },
     networkRequest
   );
@@ -185,9 +239,25 @@ export async function requestNetwork(
   }
 
   const sanitizedHeaders = sanitizeHeaders(options.headers ?? {});
-  const urlHash = hashValue(urlDecision.normalizedUrl || options.url);
-  const bodyHash = hashValue(body);
   const costEstimateUsd = context.costEstimateUsd ?? 0;
+
+  context.audit.log({
+    timestamp: new Date().toISOString(),
+    actor: context.actor,
+    action: "network.attempt",
+    approved: context.approved,
+    target: urlDecision.normalizedUrl || options.url,
+    result: JSON.stringify({
+      urlHash,
+      method,
+      bodyHash,
+      bodyBytes
+    })
+  });
+
+  if (!context.config.network.enabled) {
+    deny("Network disabled");
+  }
 
   context.audit.log({
     timestamp: new Date().toISOString(),
@@ -197,7 +267,7 @@ export async function requestNetwork(
     target: urlDecision.hostname,
     result: JSON.stringify({
       urlHash,
-      method: options.method,
+      method,
       headerKeys: Object.keys(sanitizedHeaders),
       headers: redactHeaders(sanitizedHeaders),
       bodyHash,
@@ -206,19 +276,50 @@ export async function requestNetwork(
     })
   });
 
-  const response = buildStubResponse();
-  context.audit.log({
-    timestamp: new Date().toISOString(),
-    actor: context.actor,
-    action: "network.response",
-    approved: context.approved,
-    target: urlDecision.hostname,
-    result: JSON.stringify({
+  const timeoutMs = options.timeoutMs ?? policy.timeoutMs;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const startTime = Date.now();
+  try {
+    const response = await fetch(options.url, {
+      method: options.method,
+      headers: sanitizedHeaders,
+      body: method === "POST" ? body : undefined,
+      signal: controller.signal
+    });
+    const { text, bytes } = await readResponseBody(
+      response,
+      policy.maxResponseBytes
+    );
+    const durationMs = Date.now() - startTime;
+    const responseHash = hashValue(text);
+
+    context.audit.log({
+      timestamp: new Date().toISOString(),
+      actor: context.actor,
+      action: "network.response",
+      approved: context.approved,
+      target: urlDecision.hostname,
+      result: JSON.stringify({
+        status: response.status,
+        durationMs,
+        responseHash,
+        responseBytes: bytes
+      })
+    });
+
+    return {
       status: response.status,
-      durationMs: response.durationMs,
-      responseHash: response.responseHash,
-      responseBytes: response.responseBytes
-    })
-  });
-  return response;
+      bodyText: text,
+      responseHash,
+      responseBytes: bytes,
+      durationMs
+    };
+  } catch (error) {
+    const reason =
+      error instanceof Error ? error.message : "Network request failed.";
+    deny(reason);
+  } finally {
+    clearTimeout(timeout);
+  }
 }

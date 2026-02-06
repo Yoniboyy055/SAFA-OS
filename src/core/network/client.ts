@@ -1,13 +1,8 @@
 import type { AuditLogger } from "../audit";
 import type { ResolvedConfig } from "../config";
 import type { Governor } from "../governor";
-import type {
-  NetworkDecision,
-  NetworkRequest,
-  NetworkResponseMeta
-} from "./types";
-import { auditNetworkRequest, auditNetworkResult } from "../audit";
-import { validatePayloadSize, validateUrl } from "./types";
+import type { NetworkRequest, NetworkResponseMeta } from "./types";
+import { requestNetwork as performNetworkRequest } from "./request";
 
 export interface NetworkClientContext {
   actor: string;
@@ -19,108 +14,34 @@ export interface NetworkClientContext {
   governor: Governor;
 }
 
-function buildDecision(
-  decision: NetworkDecision,
-  request: NetworkRequest
-): NetworkDecision {
-  if (!decision.allowed) {
-    return decision;
-  }
-  if (!request.url) {
-    return {
-      allowed: false,
-      reason: "Request URL is required."
-    };
-  }
-  return decision;
-}
-
 export async function requestNetwork(
   request: NetworkRequest,
   context: NetworkClientContext
 ): Promise<NetworkResponseMeta> {
-  const urlDecision = validateUrl(request.url, {
-    allowlistDomains: context.config.network.allowlistDomains,
-    allowlistUrls: context.config.network.allowlistUrls,
-    allowHttp: false,
-    maxPayloadBytes: context.config.governance.maxNetworkPayloadBytes
-  });
-
-  const payloadDecision = validatePayloadSize(
-    request.bodySummary,
-    context.config.governance.maxNetworkPayloadBytes
-  );
-
-  const governorDecision = context.governor.evaluate(
+  const response = await performNetworkRequest(
     {
-      type: "network_request",
-      category: "network",
-      riskLevel: request.riskLevel,
-      requiresApproval: request.requiresApproval,
-      allowWhenNetworkOff: false
+      method: request.method as "GET" | "POST",
+      url: request.url,
+      headers: request.headers,
+      body: request.bodySummary,
+      purpose: request.purpose
     },
-    context.config,
     {
       actor: context.actor,
       approved: context.approved,
       authority: context.authority,
       commandMode: context.commandMode,
+      config: context.config,
       audit: context.audit,
-      defenseText: request.bodySummary,
-      maturityLevel: 5,
-      freshOwnerInput: true,
-      costEstimateUsd: 0
-    },
-    request
+      governor: context.governor,
+      defenseText: request.bodySummary
+    }
   );
 
-  const decision = buildDecision(
-    urlDecision.allowed
-      ? payloadDecision.allowed
-        ? governorDecision
-        : payloadDecision
-      : urlDecision,
-    request
-  );
-
-  const domain = urlDecision.hostname || "unknown";
-  auditNetworkRequest(
-    context.audit,
-    {
-      url: urlDecision.normalizedUrl || request.url,
-      domain,
-      method: request.method,
-      purpose: request.purpose,
-      approved: context.approved,
-      bodyHash: request.bodyHash,
-      bodySummary: request.bodySummary.slice(0, 256),
-      headers: request.headers
-    },
-    context.actor
-  );
-
-  if (!context.config.network.enabled) {
-    throw new Error("Network disabled");
-  }
-
-  if (!decision.allowed) {
-    throw new Error(decision.reason);
-  }
-
-  const response: NetworkResponseMeta = {
-    status: 0,
-    bytes: 0,
-    durationMs: 0,
-    responseHash: "stub"
+  return {
+    status: response.status,
+    bytes: response.responseBytes,
+    durationMs: response.durationMs,
+    responseHash: response.responseHash
   };
-
-  auditNetworkResult(
-    context.audit,
-    response,
-    context.actor,
-    context.approved,
-    urlDecision.normalizedUrl || request.url
-  );
-
-  return response;
 }
