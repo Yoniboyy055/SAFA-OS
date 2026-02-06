@@ -89,6 +89,26 @@ test("run_tests loads compiled test modules", async () => {
   assert.ok(result.files[0].endsWith("sample.test.js"));
 });
 
+test("run_tests respects kill switch", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-run-"));
+  const testsDir = path.join(rootDir, "dist", "tests");
+  fs.mkdirSync(testsDir, { recursive: true });
+  const testFile = path.join(testsDir, "sample.test.js");
+  fs.writeFileSync(
+    testFile,
+    "const { test } = require('node:test'); test('sample', () => {});",
+    "utf8"
+  );
+
+  const context = buildContext(rootDir, {
+    killSwitch: { enabled: true }
+  });
+  await assert.rejects(
+    () => runTestsSkill.handler({ path: "dist/tests" }, context),
+    /Kill switch/i
+  );
+});
+
 test("run_tests returns note when no test files exist", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-run-"));
   const result = await runTestsSkill.handler({}, buildContext(rootDir));

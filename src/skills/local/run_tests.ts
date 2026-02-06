@@ -49,6 +49,9 @@ export const runTestsSkill: SkillDefinition<RunTestsInput, RunTestsOutput> = {
     target: (input) => input.path ?? "dist/tests"
   },
   handler: async (input, context) => {
+    if (context.config.killSwitch.enabled) {
+      throw new Error("Kill switch enabled.");
+    }
     const relativePath =
       typeof input.path === "string" && input.path.trim().length > 0
         ? input.path.trim()

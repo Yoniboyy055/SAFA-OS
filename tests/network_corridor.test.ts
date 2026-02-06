@@ -169,6 +169,33 @@ test("strict approval mode denies when not approved", () => {
   assert.match(decision.reason, /strict approval/i);
 });
 
+test("approval required for outbound-intent requests", () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const config = buildConfig(rootDir, {
+    network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] },
+    governance: { strictApprovalMode: false, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 }
+  });
+  const governor = new Governor();
+  const decision = governor.evaluateNetwork(
+    {
+      ...buildRequest(),
+      requiresApproval: true
+    },
+    config,
+    {
+      actor: "tester",
+      approved: false,
+      authority: "OWNER",
+      commandMode: "DECIDE",
+      audit: new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] }),
+      maturityLevel: 5,
+      freshOwnerInput: true
+    }
+  );
+  assert.equal(decision.allowed, false);
+  assert.match(decision.reason, /approval required/i);
+});
+
 test("payload limits deny oversized requests", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const config = buildConfig(rootDir, {
