@@ -38,8 +38,8 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
       apiBase: "https://api.stripe.com",
       mode: "production",
       statementDescriptor: "SIGNALCRYPT",
-      successUrl: "",
-      cancelUrl: ""
+      successUrl: "https://example.com/success",
+      cancelUrl: "https://example.com/cancel"
     },
     calls: {
       enabled: false,
@@ -82,7 +82,15 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
 test("deny real Stripe execution in Phase 3", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-pay-"));
   const context = buildContext(rootDir, {
-    stripe: { enabled: true, dryRunDefault: false, apiBase: "https://api.stripe.com", mode: "production", statementDescriptor: "SIGNALCRYPT", successUrl: "", cancelUrl: "" },
+    stripe: {
+      enabled: true,
+      dryRunDefault: false,
+      apiBase: "https://api.stripe.com",
+      mode: "production",
+      statementDescriptor: "SIGNALCRYPT",
+      successUrl: "https://example.com/success",
+      cancelUrl: "https://example.com/cancel"
+    },
     network: {
       enabled: true,
       allowlist: [],
