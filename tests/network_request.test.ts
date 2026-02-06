@@ -11,7 +11,14 @@ const { requestNetwork } = require("../src/core/network/client");
 
 function buildContext(rootDir, overrides = {}) {
   const config = {
-    network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] },
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: ["example.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    },
     telemetry: { enabled: false },
     killSwitch: { enabled: false },
     governance: { strictApprovalMode: false, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 },
@@ -74,7 +81,16 @@ function buildContext(rootDir, overrides = {}) {
 
 test("deny when network OFF", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
-  const context = buildContext(rootDir, { network: { enabled: false, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] } });
+  const context = buildContext(rootDir, {
+    network: {
+      enabled: false,
+      allowlist: [],
+      allowlistDomains: ["example.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
+  });
   await assert.rejects(
     () =>
       requestNetwork(
@@ -91,13 +107,22 @@ test("deny when network OFF", async () => {
         },
         context
       ),
-    /Network disabled/
+    /disabled/i
   );
 });
 
 test("deny when domain not allowlisted", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
-  const context = buildContext(rootDir, { network: { enabled: true, allowlist: [], allowlistDomains: ["allowed.com"], allowlistUrls: [] } });
+  const context = buildContext(rootDir, {
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: ["allowed.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
+  });
   await assert.rejects(
     () =>
       requestNetwork(

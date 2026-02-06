@@ -11,7 +11,14 @@ const { requestPaymentSkill } = require("../src/skills/outbound/request_payment"
 
 function buildContext(rootDir, overrides = {}) {
   const config = {
-    network: { enabled: false, allowlist: [], allowlistDomains: [], allowlistUrls: [] },
+    network: {
+      enabled: false,
+      allowlist: [],
+      allowlistDomains: [],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    },
     telemetry: { enabled: false },
     killSwitch: { enabled: false },
     governance: { strictApprovalMode: false, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 },
@@ -76,7 +83,14 @@ test("deny real Stripe execution in Phase 3", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-pay-"));
   const context = buildContext(rootDir, {
     stripe: { enabled: true, dryRunDefault: false, apiBase: "https://api.stripe.com", mode: "production", statementDescriptor: "SIGNALCRYPT", successUrl: "", cancelUrl: "" },
-    network: { enabled: true, allowlist: [], allowlistDomains: ["stripe.com"], allowlistUrls: [] }
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: ["stripe.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
   });
   await assert.rejects(
     () =>

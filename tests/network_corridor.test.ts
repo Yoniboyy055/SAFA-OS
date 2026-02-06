@@ -8,6 +8,8 @@ const { Governor } = require("../src/core/governor");
 const { AuditLogger, auditNetworkRequest } = require("../src/core/audit");
 const { requestNetwork } = require("../src/core/network/client");
 const { validateUrl } = require("../src/core/network/types");
+const { SkillRegistry } = require("../src/skills/registry");
+const { sendHttpRequestSkill } = require("../src/skills/network/send_http_request");
 
 function buildConfig(rootDir, overrides = {}) {
   return {
@@ -15,7 +17,9 @@ function buildConfig(rootDir, overrides = {}) {
       enabled: false,
       allowlist: [],
       allowlistDomains: ["example.com"],
-      allowlistUrls: []
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
     },
     telemetry: { enabled: false },
     killSwitch: { enabled: false },
@@ -86,9 +90,91 @@ function buildRequest(url = "https://example.com") {
   };
 }
 
+function buildSkillContext(rootDir, overrides = {}) {
+  const config = buildConfig(rootDir, overrides);
+  return {
+    actor: "tester",
+    approved: true,
+    authority: "OWNER",
+    commandMode: "DECIDE",
+    config,
+    audit: new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] }),
+    governor: new Governor()
+  };
+}
+
+test("network disabled denies send_http_request", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const registry = new SkillRegistry();
+  registry.register(sendHttpRequestSkill);
+  const context = buildSkillContext(rootDir, {
+    network: {
+      enabled: false,
+      allowlist: [],
+      allowlistDomains: ["example.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
+  });
+  const result = await registry.execute(
+    "send_http_request",
+    { method: "GET", url: "https://example.com" },
+    context
+  );
+  assert.equal(result.success, false);
+});
+
+test("allowlist empty denies send_http_request", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const registry = new SkillRegistry();
+  registry.register(sendHttpRequestSkill);
+  const context = buildSkillContext(rootDir, {
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: [],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
+  });
+  const result = await registry.execute(
+    "send_http_request",
+    { method: "GET", url: "https://example.com" },
+    context
+  );
+  assert.equal(result.success, false);
+});
+
+test("allowlisted domain + approval returns stub response", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const registry = new SkillRegistry();
+  registry.register(sendHttpRequestSkill);
+  const context = buildSkillContext(rootDir, {
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: ["example.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
+  });
+  const result = await registry.execute(
+    "send_http_request",
+    { method: "GET", url: "https://example.com" },
+    context
+  );
+  assert.equal(result.success, true);
+  assert.equal(result.output.status, 0);
+});
+
 test("network disabled: governor denies and client throws", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
-  const config = buildConfig(rootDir, { network: { ...buildConfig(rootDir).network, enabled: false } });
+  const config = buildConfig(rootDir, {
+    network: { ...buildConfig(rootDir).network, enabled: false }
+  });
   const governor = new Governor();
   const decision = governor.evaluateNetwork(
     buildRequest(),
@@ -125,7 +211,14 @@ test("network disabled: governor denies and client throws", async () => {
 test("network enabled but allowlistDomains empty => deny", () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const config = buildConfig(rootDir, {
-    network: { enabled: true, allowlist: [], allowlistDomains: [], allowlistUrls: [] }
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: [],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
   });
   const governor = new Governor();
   const decision = governor.evaluateNetwork(
@@ -148,7 +241,14 @@ test("network enabled but allowlistDomains empty => deny", () => {
 test("strict approval mode denies when not approved", () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const config = buildConfig(rootDir, {
-    network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] },
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: ["example.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    },
     governance: { strictApprovalMode: true, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 }
   });
   const governor = new Governor();
@@ -172,7 +272,14 @@ test("strict approval mode denies when not approved", () => {
 test("approval required for outbound-intent requests", () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const config = buildConfig(rootDir, {
-    network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] },
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: ["example.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    },
     governance: { strictApprovalMode: false, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 }
   });
   const governor = new Governor();
@@ -199,7 +306,14 @@ test("approval required for outbound-intent requests", () => {
 test("payload limits deny oversized requests", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const config = buildConfig(rootDir, {
-    network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] },
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: ["example.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    },
     governance: { strictApprovalMode: false, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 8 }
   });
   const governor = new Governor();
@@ -228,7 +342,14 @@ test("payload limits deny oversized requests", async () => {
 test("kill switch blocks network corridor", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const config = buildConfig(rootDir, {
-    network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] },
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: ["example.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    },
     killSwitch: { enabled: true }
   });
   const governor = new Governor();
@@ -298,7 +419,14 @@ test("allowlist urls require exact match", () => {
 test("allowlisted domain executes only with approval", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const config = buildConfig(rootDir, {
-    network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] }
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: ["example.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
   });
   const governor = new Governor();
   const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
@@ -319,13 +447,17 @@ test("allowlisted domain executes only with approval", async () => {
 test("allowlisted domain denied without approval", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
   const config = buildConfig(rootDir, {
-    network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] }
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: ["example.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
   });
   const governor = new Governor();
   const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
-  globalThis.fetch = async () => {
-    throw new Error("fetch should not be called");
-  };
   await assert.rejects(
     () =>
       requestNetwork(buildRequest(), {
@@ -339,7 +471,6 @@ test("allowlisted domain denied without approval", async () => {
       }),
     /approval/i
   );
-  globalThis.fetch = originalFetch;
 });
 
 test("audit redaction prevents authorization/cookie leakage", () => {

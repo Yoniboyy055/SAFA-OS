@@ -13,7 +13,14 @@ const { isAutonomous, canInitiate, canSetGoals, canSelfModify } = require("../sr
 
 function buildConfig(rootDir) {
   return {
-    network: { enabled: false, allowlist: [], allowlistDomains: [], allowlistUrls: [] },
+    network: {
+      enabled: false,
+      allowlist: [],
+      allowlistDomains: [],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    },
     telemetry: { enabled: false },
     killSwitch: { enabled: false },
     governance: { strictApprovalMode: true, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 },

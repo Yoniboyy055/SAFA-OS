@@ -10,7 +10,14 @@ const { AuthorityLevel } = require("../src/core/authority");
 function buildContext(rootDir) {
   return {
     config: {
-      network: { enabled: false, allowlist: [], allowlistDomains: [], allowlistUrls: [] },
+      network: {
+        enabled: false,
+        allowlist: [],
+        allowlistDomains: [],
+        allowlistUrls: [],
+        timeoutMs: 10000,
+        maxBytes: 200000
+      },
       telemetry: { enabled: false },
       killSwitch: { enabled: false },
       governance: {

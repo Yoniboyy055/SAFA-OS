@@ -12,7 +12,14 @@ const { AuthorityLevel } = require("../src/core/authority");
 
 function buildContext(rootDir, overrides = {}) {
   const config = {
-    network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] },
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: ["example.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    },
     telemetry: { enabled: false },
     killSwitch: { enabled: false },
     governance: { strictApprovalMode: false, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 },
@@ -78,7 +85,14 @@ test("send_http_request denied when network OFF", async () => {
   const registry = new SkillRegistry();
   registry.register(sendHttpRequestSkill);
   const context = buildContext(rootDir, {
-    network: { enabled: false, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] }
+    network: {
+      enabled: false,
+      allowlist: [],
+      allowlistDomains: ["example.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
   });
   const result = await registry.execute(
     "send_http_request",

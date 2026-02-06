@@ -11,7 +11,14 @@ const { makeCallSkill } = require("../src/skills/outbound/make_call");
 
 function buildContext(rootDir, overrides = {}) {
   const config = {
-    network: { enabled: false, allowlist: [], allowlistDomains: [], allowlistUrls: [] },
+    network: {
+      enabled: false,
+      allowlist: [],
+      allowlistDomains: [],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    },
     telemetry: { enabled: false },
     killSwitch: { enabled: false },
     governance: { strictApprovalMode: false, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 },
@@ -76,7 +83,14 @@ test("deny real call execution in Phase 3", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
   const context = buildContext(rootDir, {
     calls: { enabled: true, provider: "twilio", fromNumberAllowlist: ["+15550001111"], toNumberAllowlist: ["+15550002222"], countryAllowlist: ["+1"], twimlUrl: "https://example.com/twiml", recordCalls: false, dryRunDefault: false },
-    network: { enabled: true, allowlist: [], allowlistDomains: ["twilio.com"], allowlistUrls: [] }
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: ["twilio.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
   });
   await assert.rejects(
     () =>

@@ -16,7 +16,9 @@ function buildConfig(rootDir, overrides = {}) {
       enabled: false,
       allowlist: [],
       allowlistDomains: ["smtp.gmail.com"],
-      allowlistUrls: []
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
     },
     telemetry: { enabled: false },
     killSwitch: { enabled: false },
@@ -90,7 +92,14 @@ test("deny real send when network is disabled", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
   const context = buildContext(rootDir, {
     email: { enabled: true, dryRunDefault: false, from: "Test <test@example.com>", smtp: { host: "smtp.gmail.com", port: 587, secure: false } },
-    network: { enabled: false, allowlist: [], allowlistDomains: ["smtp.gmail.com"], allowlistUrls: [] }
+    network: {
+      enabled: false,
+      allowlist: [],
+      allowlistDomains: ["smtp.gmail.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
   });
   await assert.rejects(
     () =>
@@ -111,7 +120,14 @@ test("allow dry-run when network is off (writes outbox)", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
   const context = buildContext(rootDir, {
     email: { enabled: false, dryRunDefault: true, from: "Test <test@example.com>", smtp: { host: "smtp.gmail.com", port: 587, secure: false } },
-    network: { enabled: false, allowlist: [], allowlistDomains: ["smtp.gmail.com"], allowlistUrls: [] }
+    network: {
+      enabled: false,
+      allowlist: [],
+      allowlistDomains: ["smtp.gmail.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
   });
   const result = await sendEmail(
     {
@@ -189,7 +205,14 @@ test("real email send is blocked in Phase 3", async () => {
       from: "Test <test@example.com>",
       smtp: { host: "smtp.gmail.com", port: 587, secure: false }
     },
-    network: { enabled: true, allowlist: [], allowlistDomains: ["smtp.gmail.com"], allowlistUrls: [] }
+    network: {
+      enabled: true,
+      allowlist: [],
+      allowlistDomains: ["smtp.gmail.com"],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
+    }
   });
   await assert.rejects(
     () =>

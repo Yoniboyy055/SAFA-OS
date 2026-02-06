@@ -6,7 +6,14 @@ const { AuditLogger } = require("../src/core/audit");
 const { AuthorityLevel } = require("../src/core/authority");
 
 const baseConfig = {
-  network: { enabled: false, allowlist: [], allowlistDomains: [], allowlistUrls: [] },
+  network: {
+    enabled: false,
+    allowlist: [],
+    allowlistDomains: [],
+    allowlistUrls: [],
+    timeoutMs: 10000,
+    maxBytes: 200000
+  },
   telemetry: { enabled: false },
   killSwitch: { enabled: false },
   governance: {
@@ -174,7 +181,17 @@ test("governor denies when approval record is denied", () => {
       requiresApproval: true,
       allowWhenNetworkOff: false
     },
-    { ...baseConfig, network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] } },
+    {
+      ...baseConfig,
+      network: {
+        enabled: true,
+        allowlist: [],
+        allowlistDomains: ["example.com"],
+        allowlistUrls: [],
+        timeoutMs: 10000,
+        maxBytes: 200000
+      }
+    },
     {
       actor: "tester",
       approved: true,
@@ -209,7 +226,17 @@ test("governor denies when approval is expired", () => {
       requiresApproval: true,
       allowWhenNetworkOff: false
     },
-    { ...baseConfig, network: { enabled: true, allowlist: [], allowlistDomains: ["example.com"], allowlistUrls: [] } },
+    {
+      ...baseConfig,
+      network: {
+        enabled: true,
+        allowlist: [],
+        allowlistDomains: ["example.com"],
+        allowlistUrls: [],
+        timeoutMs: 10000,
+        maxBytes: 200000
+      }
+    },
     {
       actor: "tester",
       approved: true,
