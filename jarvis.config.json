@@ -3,7 +3,9 @@
     "enabled": false,
     "allowlist": [],
     "allowlistDomains": [],
-    "allowlistUrls": []
+    "allowlistUrls": [],
+    "timeoutMs": 10000,
+    "maxBytes": 200000
   },
   "telemetry": {
     "enabled": false

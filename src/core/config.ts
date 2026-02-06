@@ -6,6 +6,8 @@ export interface NetworkConfig {
   allowlist: string[];
   allowlistDomains: string[];
   allowlistUrls: string[];
+  timeoutMs: number;
+  maxBytes: number;
 }
 
 export interface TelemetryConfig {
@@ -100,7 +102,9 @@ const DEFAULT_CONFIG: JarvisConfig = {
     enabled: false,
     allowlist: [],
     allowlistDomains: [],
-    allowlistUrls: []
+    allowlistUrls: [],
+    timeoutMs: 10000,
+    maxBytes: 200000
   },
   telemetry: {
     enabled: false
@@ -203,7 +207,15 @@ function mergeConfig(
       ),
       allowlistUrls: normalizeStringArray(
         overrides.network?.allowlistUrls ?? base.network.allowlistUrls
-      )
+      ),
+      timeoutMs:
+        typeof overrides.network?.timeoutMs === "number"
+          ? overrides.network.timeoutMs
+          : base.network.timeoutMs,
+      maxBytes:
+        typeof overrides.network?.maxBytes === "number"
+          ? overrides.network.maxBytes
+          : base.network.maxBytes
     },
     telemetry: {
       ...base.telemetry,
