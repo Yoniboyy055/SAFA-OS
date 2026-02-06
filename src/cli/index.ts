@@ -6,6 +6,7 @@ import { Planner } from "../core/planner";
 import { Manager } from "../core/manager";
 import { Operator } from "../core/operator";
 import { validatePayloadSize, validateUrl } from "../core/network/types";
+import { buildNetworkPolicy, validateMethod } from "../core/network/policy";
 import { AuthorityLevel } from "../core/authority";
 import { assertSafeInput } from "../core/defense";
 import { parseCommandMode } from "./command_mode";
@@ -16,7 +17,7 @@ import { listFilesSkill } from "../skills/local/list_files";
 import { searchTextSkill } from "../skills/local/search_text";
 import { runTestsSkill } from "../skills/local/run_tests";
 import { sendEmailSkill } from "../skills/outbound/send_email";
-import { sendHttpRequestSkill } from "../skills/outbound/send_http_request";
+import { sendHttpRequestSkill } from "../skills/network/send_http_request";
 import { sendEmailRequestSkill } from "../skills/outbound/send_email_request";
 import { requestPhoneCallSkill } from "../skills/outbound/request_phone_call";
 import { requestPaymentSkill } from "../skills/outbound/request_payment";
@@ -341,6 +342,8 @@ async function main(): Promise<void> {
       return;
     }
 
+    const policy = buildNetworkPolicy(config);
+    const methodDecision = validateMethod(method, policy);
     const urlDecision = validateUrl(url, {
       allowlistDomains: config.network.allowlistDomains,
       allowlistUrls: config.network.allowlistUrls,
@@ -386,13 +389,18 @@ async function main(): Promise<void> {
     );
 
     const allowed =
-      urlDecision.allowed && payloadDecision.allowed && governorDecision.allowed;
+      methodDecision.allowed &&
+      urlDecision.allowed &&
+      payloadDecision.allowed &&
+      governorDecision.allowed;
     const reason =
-      !urlDecision.allowed
-        ? urlDecision.reason
-        : !payloadDecision.allowed
-          ? payloadDecision.reason
-          : governorDecision.reason;
+      !methodDecision.allowed
+        ? methodDecision.reason
+        : !urlDecision.allowed
+          ? urlDecision.reason
+          : !payloadDecision.allowed
+            ? payloadDecision.reason
+            : governorDecision.reason;
 
     const preview = {
       allowed,

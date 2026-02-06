@@ -1,7 +1,7 @@
 import * as crypto from "node:crypto";
 
 import type { SkillDefinition } from "../../types/skill";
-import { requestNetwork } from "../../core/network/request";
+import { requestNetwork } from "../../core/network/client";
 
 interface SendHttpRequestInput {
   method: "GET" | "POST";
@@ -53,12 +53,15 @@ export const sendHttpRequestSkill: SkillDefinition<
     const body = input.body ?? "";
     const response = await requestNetwork(
       {
+        id: `net-${hashValue(`${input.method}:${input.url}`).slice(0, 12)}`,
+        purpose: input.purpose ?? "send_http_request",
         method: input.method,
         url: input.url,
-        headers: input.headers,
-        body,
-        timeoutMs: input.timeoutMs,
-        purpose: input.purpose ?? "send_http_request"
+        headers: input.headers ?? {},
+        bodySummary: body,
+        bodyHash: body ? hashValue(body) : "",
+        riskLevel: "HIGH",
+        requiresApproval: true
       },
       {
         actor: context.actor,
@@ -67,8 +70,7 @@ export const sendHttpRequestSkill: SkillDefinition<
         commandMode: context.commandMode,
         config: context.config,
         audit: context.audit,
-        governor: context.governor,
-        defenseText: body
+        governor: context.governor
       }
     );
 
@@ -81,7 +83,7 @@ export const sendHttpRequestSkill: SkillDefinition<
       result: JSON.stringify({
         status: response.status,
         responseHash: response.responseHash,
-        responseBytes: response.responseBytes,
+        responseBytes: response.bytes,
         durationMs: response.durationMs,
         bodyHash: body ? hashValue(body) : ""
       })
@@ -90,7 +92,7 @@ export const sendHttpRequestSkill: SkillDefinition<
     return {
       status: response.status,
       responseHash: response.responseHash,
-      responseBytes: response.responseBytes,
+      responseBytes: response.bytes,
       durationMs: response.durationMs
     };
   }

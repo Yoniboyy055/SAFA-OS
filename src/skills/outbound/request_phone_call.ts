@@ -38,7 +38,7 @@ export const requestPhoneCallSkill: SkillDefinition<
   riskLevel: "HIGH",
   requiresApproval: true,
   allowWhenNetworkOff: true,
-  category: "external_tool",
+  category: "outbound_message",
   auditTemplate: {
     action: "request_phone_call",
     target: (input) => input.toNumber
