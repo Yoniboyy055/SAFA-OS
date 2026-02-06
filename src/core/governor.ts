@@ -25,6 +25,7 @@ export class Governor {
     config: ResolvedConfig,
     context: GovernanceContext
   ): GovernanceDecision {
+    // Handle kill switch first
     if (
       config.killSwitch.enabled &&
       (action.category === "network" ||
@@ -37,11 +38,21 @@ export class Governor {
       };
     }
 
-    if (action.category === "network" && !config.network.enabled) {
-      return {
-        allowed: false,
-        reason: "Network is disabled by default."
-      };
+    // Use switch to handle network category explicitly
+    switch (action.category) {
+      case "network":
+        if (!config.network.enabled) {
+          return {
+            allowed: false,
+            reason: "Network is disabled by default."
+          };
+        }
+        break;
+      case "local":
+      case "outbound_message":
+      case "external_tool":
+        // Continue to general checks below
+        break;
     }
 
     if (!action.allowWhenNetworkOff && !config.network.enabled) {
