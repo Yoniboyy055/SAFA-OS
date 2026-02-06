@@ -1,7 +1,11 @@
 {
   "network": {
     "enabled": false,
-    "allowlist": []
+    "allowlist": [],
+    "allowlistDomains": [],
+    "allowlistUrls": [],
+    "timeoutMs": 10000,
+    "maxBytes": 200000
   },
   "telemetry": {
     "enabled": false
@@ -9,18 +13,80 @@
   "killSwitch": {
     "enabled": true
   },
+  "email": {
+    "enabled": false,
+    "provider": "smtp",
+    "fromAllowlist": [],
+    "toAllowlist": [],
+    "domainAllowlist": [],
+    "dryRunDefault": true,
+    "from": "",
+    "smtp": {
+      "host": "smtp.gmail.com",
+      "port": 587,
+      "secure": false
+    }
+  },
+  "stripe": {
+    "enabled": false,
+    "dryRunDefault": true,
+    "apiBase": "https://api.stripe.com",
+    "mode": "production",
+    "statementDescriptor": "SIGNALCRYPT",
+    "successUrl": "",
+    "cancelUrl": ""
+  },
+  "calls": {
+    "enabled": false,
+    "provider": "twilio",
+    "fromNumberAllowlist": [],
+    "toNumberAllowlist": [],
+    "countryAllowlist": [],
+    "twimlUrl": "",
+    "recordCalls": false,
+    "dryRunDefault": true
+  },
+  "execution": {
+    "enabled": false,
+    "allowCommands": [],
+    "maxRuntimeMs": 600000,
+    "allowlistPaths": []
+  },
+  "governance": {
+    "strictApprovalMode": true,
+    "networkApprovalMode": "per_request",
+    "maxNetworkPayloadBytes": 16384
+  },
   "audit": {
     "logPath": "logs/audit.log",
     "redactKeys": [
+      "pass",
       "password",
       "secret",
       "token",
       "api_key",
       "apikey",
-      "authorization"
+      "authorization",
+      "bearer",
+      "smtpPass",
+      "smtpPassword",
+      "stripe",
+      "twilio",
+      "smtp",
+      "cookie",
+      "set-cookie"
     ]
   },
   "permissions": {
-    "writeAllowlist": ["./data"]
+    "writeAllowlist": ["workspace", "data"],
+    "readAllowlist": ["data", "workspace", "docs"],
+    "stripePriceAllowlist": [],
+    "stripeAmountAllowlist": [],
+    "stripeCurrencyAllowlist": ["usd"],
+    "stripeCustomerEmailAllowlist": [],
+    "emailSubjectAllowlist": [],
+    "emailTemplateAllowlist": [],
+    "callIntentAllowlist": ["sales", "support", "follow_up", "payment"],
+    "callTemplateAllowlist": []
   }
 }
