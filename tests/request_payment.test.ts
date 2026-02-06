@@ -9,7 +9,7 @@ const { Governor } = require("../src/core/governor");
 const { AuthorityLevel } = require("../src/core/authority");
 const { requestPaymentSkill } = require("../src/skills/outbound/request_payment");
 
-function buildContext(rootDir, overrides = {}) {
+function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) {
   const config = {
     network: {
       enabled: false,

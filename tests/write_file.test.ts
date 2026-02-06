@@ -1,3 +1,4 @@
+export {};
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("fs");
@@ -5,7 +6,7 @@ const os = require("os");
 const path = require("path");
 const { writeFileSkill } = require("../src/skills/local/write_file");
 
-function buildConfig(rootDir) {
+function buildConfig(rootDir: string) {
   return {
     network: {
       enabled: false,
@@ -69,7 +70,7 @@ function buildConfig(rootDir) {
   };
 }
 
-function buildContext(rootDir) {
+function buildContext(rootDir: string) {
   return {
     config: buildConfig(rootDir),
     actor: "tester",

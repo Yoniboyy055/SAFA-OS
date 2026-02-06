@@ -9,7 +9,7 @@ const { Governor } = require("../src/core/governor");
 const { AuthorityLevel } = require("../src/core/authority");
 const { sendEmailSkill } = require("../src/skills/outbound/send_email");
 
-function buildContext(rootDir, overrides = {}) {
+function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) {
   const config = {
     network: {
       enabled: false,

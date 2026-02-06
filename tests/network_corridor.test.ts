@@ -11,7 +11,7 @@ const { validateUrl } = require("../src/core/network/types");
 const { SkillRegistry } = require("../src/skills/registry");
 const { sendHttpRequestSkill } = require("../src/skills/network/send_http_request");
 
-function buildConfig(rootDir, overrides = {}) {
+function buildConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
   return {
     network: {
       enabled: false,
@@ -90,7 +90,7 @@ function buildRequest(url = "https://example.com") {
   };
 }
 
-function buildSkillContext(rootDir, overrides = {}) {
+function buildSkillContext(rootDir: string, overrides: Record<string, unknown> = {}) {
   const config = buildConfig(rootDir, overrides);
   return {
     actor: "tester",

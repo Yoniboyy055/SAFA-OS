@@ -12,7 +12,7 @@ const { previewSend } = require("../src/core/email/preview");
 const { previewDial } = require("../src/core/calls/preview");
 const { previewPublish } = require("../src/core/post/preview");
 
-function buildContext(rootDir, overrides = {}) {
+function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) {
   const config = {
     network: {
       enabled: false,

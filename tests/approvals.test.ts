@@ -14,7 +14,7 @@ const {
 } = require("../src/core/approvals");
 const { AuditLogger } = require("../src/core/audit");
 
-function buildAudit(rootDir) {
+function buildAudit(rootDir: string) {
   return new AuditLogger({ logPath: path.join(rootDir, "audit.log"), redactKeys: [] });
 }
 

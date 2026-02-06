@@ -10,7 +10,7 @@ const { AuditLogger } = require("../src/core/audit");
 const { Governor } = require("../src/core/governor");
 const { AuthorityLevel } = require("../src/core/authority");
 
-function buildContext(rootDir, overrides = {}) {
+function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) {
   const config = {
     network: {
       enabled: true,

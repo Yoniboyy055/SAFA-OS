@@ -7,7 +7,7 @@ const path = require("path");
 const { LocalTaskRunner } = require("../src/core/runner");
 const { AuditLogger } = require("../src/core/audit");
 
-function buildRunner(rootDir, overrides = {}) {
+function buildRunner(rootDir: string, overrides: Record<string, unknown> = {}) {
   const config = {
     killSwitch: { enabled: false },
     ...overrides

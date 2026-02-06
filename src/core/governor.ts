@@ -201,8 +201,7 @@ export class Governor {
 
     if (
       config.killSwitch.enabled &&
-      (action.category === "network" ||
-        action.category === "outbound_message" ||
+      (action.category === "outbound_message" ||
         action.category === "external_tool")
     ) {
       context.audit.log({
@@ -216,13 +215,6 @@ export class Governor {
       return {
         allowed: false,
         reason: "Kill switch enabled for outbound actions."
-      };
-    }
-
-    if (action.category === "network" && !config.network.enabled) {
-      return {
-        allowed: false,
-        reason: "Network is disabled by default."
       };
     }
 

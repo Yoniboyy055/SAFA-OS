@@ -230,7 +230,7 @@ export async function sendEmail(
   };
 
   const to = normalizeRecipients(message.to);
-  let validation: RecipientValidation;
+  let validation: RecipientValidation = { normalized: [], domains: [] };
   try {
     validation = ensureRecipientsAllowlisted(
       to,

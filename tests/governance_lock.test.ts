@@ -11,7 +11,7 @@ const { assertSafeInput } = require("../src/core/defense");
 const { assertCostWithinBudget } = require("../src/core/cost_guard");
 const { isAutonomous, canInitiate, canSetGoals, canSelfModify } = require("../src/core/identity");
 
-function buildConfig(rootDir) {
+function buildConfig(rootDir: string) {
   return {
     network: {
       enabled: false,

@@ -7,69 +7,71 @@ const path = require("path");
 const { runTestsSkill } = require("../src/skills/local/run_tests");
 const { AuthorityLevel } = require("../src/core/authority");
 
-function buildContext(rootDir) {
-  return {
-    config: {
-      network: {
-        enabled: false,
-        allowlist: [],
-        allowlistDomains: [],
-        allowlistUrls: [],
-        timeoutMs: 10000,
-        maxBytes: 200000
-      },
-      telemetry: { enabled: false },
-      killSwitch: { enabled: false },
-      governance: {
-        strictApprovalMode: false,
-        networkApprovalMode: "per_request",
-        maxNetworkPayloadBytes: 16384
-      },
-      email: {
-        enabled: false,
-        provider: "smtp",
-        fromAllowlist: [],
-        toAllowlist: [],
-        domainAllowlist: [],
-        dryRunDefault: true,
-        from: "",
-        smtp: { host: "smtp.gmail.com", port: 587, secure: false }
-      },
-      stripe: {
-        enabled: false,
-        dryRunDefault: true,
-        apiBase: "https://api.stripe.com",
-        mode: "production",
-        statementDescriptor: "SIGNALCRYPT",
-        successUrl: "",
-        cancelUrl: ""
-      },
-      calls: {
-        enabled: false,
-        provider: "twilio",
-        fromNumberAllowlist: [],
-        toNumberAllowlist: [],
-        countryAllowlist: [],
-        twimlUrl: "",
-        recordCalls: false,
-        dryRunDefault: true
-      },
-      audit: { logPath: path.join(rootDir, "audit.log"), redactKeys: [] },
-      permissions: {
-        writeAllowlist: [],
-        readAllowlist: [],
-        stripePriceAllowlist: [],
-        stripeAmountAllowlist: [],
-        stripeCurrencyAllowlist: ["usd"],
-        stripeCustomerEmailAllowlist: [],
-        emailSubjectAllowlist: [],
-        emailTemplateAllowlist: [],
-        callIntentAllowlist: ["sales", "support", "follow_up", "payment"],
-        callTemplateAllowlist: []
-      },
-      rootDir,
-      configPath: path.join(rootDir, "jarvis.config.json")
+function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) {
+  const config = {
+    network: {
+      enabled: false,
+      allowlist: [],
+      allowlistDomains: [],
+      allowlistUrls: [],
+      timeoutMs: 10000,
+      maxBytes: 200000
     },
+    telemetry: { enabled: false },
+    killSwitch: { enabled: false },
+    governance: {
+      strictApprovalMode: false,
+      networkApprovalMode: "per_request",
+      maxNetworkPayloadBytes: 16384
+    },
+    email: {
+      enabled: false,
+      provider: "smtp",
+      fromAllowlist: [],
+      toAllowlist: [],
+      domainAllowlist: [],
+      dryRunDefault: true,
+      from: "",
+      smtp: { host: "smtp.gmail.com", port: 587, secure: false }
+    },
+    stripe: {
+      enabled: false,
+      dryRunDefault: true,
+      apiBase: "https://api.stripe.com",
+      mode: "production",
+      statementDescriptor: "SIGNALCRYPT",
+      successUrl: "",
+      cancelUrl: ""
+    },
+    calls: {
+      enabled: false,
+      provider: "twilio",
+      fromNumberAllowlist: [],
+      toNumberAllowlist: [],
+      countryAllowlist: [],
+      twimlUrl: "",
+      recordCalls: false,
+      dryRunDefault: true
+    },
+    audit: { logPath: path.join(rootDir, "audit.log"), redactKeys: [] },
+    permissions: {
+      writeAllowlist: [],
+      readAllowlist: [],
+      stripePriceAllowlist: [],
+      stripeAmountAllowlist: [],
+      stripeCurrencyAllowlist: ["usd"],
+      stripeCustomerEmailAllowlist: [],
+      emailSubjectAllowlist: [],
+      emailTemplateAllowlist: [],
+      callIntentAllowlist: ["sales", "support", "follow_up", "payment"],
+      callTemplateAllowlist: []
+    },
+    rootDir,
+    configPath: path.join(rootDir, "jarvis.config.json"),
+    ...overrides
+  };
+  return {
+    config,
     actor: "tester",
     approved: true,
     authority: AuthorityLevel.OWNER,
