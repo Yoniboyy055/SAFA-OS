@@ -1,0 +1,54 @@
+{
+  "tools": [
+    {
+      "name": "read_file",
+      "description": "Read local files from allowlisted paths.",
+      "category": "local",
+      "risk": "LOW",
+      "requiresApproval": false,
+      "networkRequired": false,
+      "costNotes": "Free; local I/O only.",
+      "privacyNotes": "File contents remain local."
+    },
+    {
+      "name": "query_canon_memory",
+      "description": "Search owner-approved canon memory.",
+      "category": "memory",
+      "risk": "LOW",
+      "requiresApproval": false,
+      "networkRequired": false,
+      "costNotes": "Free; local storage.",
+      "privacyNotes": "Canon memory is local-only."
+    },
+    {
+      "name": "write_session_summary",
+      "description": "Write a redacted session summary to Tier 1 memory.",
+      "category": "memory",
+      "risk": "MEDIUM",
+      "requiresApproval": true,
+      "networkRequired": false,
+      "costNotes": "Free; local storage.",
+      "privacyNotes": "Summary redacted before storage."
+    },
+    {
+      "name": "add_knowledge_doc",
+      "description": "Add a redacted document to the knowledge vault.",
+      "category": "knowledge",
+      "risk": "HIGH",
+      "requiresApproval": true,
+      "networkRequired": false,
+      "costNotes": "Free; local storage.",
+      "privacyNotes": "Redaction applied; stored locally."
+    },
+    {
+      "name": "send_http_request",
+      "description": "Stubbed network corridor request (no real I/O by default).",
+      "category": "network",
+      "risk": "HIGH",
+      "requiresApproval": true,
+      "networkRequired": true,
+      "costNotes": "Potential cost if network enabled.",
+      "privacyNotes": "Requests are audited and redacted."
+    }
+  ]
+}

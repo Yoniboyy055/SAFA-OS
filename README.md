@@ -77,6 +77,42 @@ jarvis line --text "JARVIS: RUN read_file {\"path\":\"README.md\"} --dry-run"
 ```
 See `docs/PHONE_UX.md` for more examples.
 
+## Memory (Store-All / Use-Approved)
+Jarvis maintains three memory tiers:
+- Tier 0: `memory/raw/` (append-only, redacted logs; not used for decisions)
+- Tier 1: `memory/work/` (session summaries; approval required)
+- Tier 2: `memory/canon/` (owner-approved facts; used by Jarvis)
+
+Commands:
+```
+node dist/cli/index.js run log_interaction --mode SCRIPT --authority OWNER --input '{"text":"summary event"}'
+node dist/cli/index.js run write_session_summary --mode SCRIPT --authority OWNER --approve --input '{"summary":"day summary"}'
+node dist/cli/index.js run promote_to_canon_memory --mode SCRIPT --authority OWNER --approve --input '{"facts":"approved fact"}'
+node dist/cli/index.js run query_canon_memory --mode SCRIPT --authority OWNER --input '{"query":"approved"}'
+node dist/cli/index.js run search_raw_logs --mode SCRIPT --authority OWNER --approve --input '{"query":"event"}'
+```
+
+## Knowledge Vault (Local-Only)
+Local docs live under `knowledge/` with subfolders: playbooks, prompts, policies,
+ops, references.
+
+Commands:
+```
+node dist/cli/index.js run list_knowledge --mode SCRIPT --authority OWNER --input '{}'
+node dist/cli/index.js run search_knowledge --mode SCRIPT --authority OWNER --input '{"query":"governor"}'
+node dist/cli/index.js run add_knowledge_doc --mode SCRIPT --authority OWNER --approve --input '{"path":"policies/notes.txt","content":"policy notes"}'
+```
+
+## Tool Catalog (Advisory Only)
+Tools are described in `tools/tools.catalog.json`. Recommendations never execute
+or spend without approval.
+
+Commands:
+```
+node dist/cli/index.js run list_tools --mode SCRIPT --authority OWNER --input '{}'
+node dist/cli/index.js run recommend_tool --mode SCRIPT --authority OWNER --approve --input '{"task":"search docs","budgetCapUsd":0}'
+```
+
 ## Jarvis Cockpit v1 (Local UI)
 Open `ui/cockpit/index.html` in a local browser. This UI is static and local-only.
 
