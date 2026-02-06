@@ -1,11 +1,28 @@
 import type { ResolvedConfig } from "./config";
 import type { ActionCategory, RiskLevel } from "../types/skill";
 import type { NetworkRequest } from "./network/types";
+import type { AuditLogger } from "./audit";
+import type { AuthorityLevel } from "./authority";
+import type { CommandMode } from "../cli/command_mode";
 import { validatePayloadSize, validateUrl } from "./network/types";
+import { assertCommandMode } from "../cli/command_mode";
+import { assertOwnerAuthority } from "./authority";
+import { assertBoundedIdentity } from "./identity";
+import { assertMaturityLevel, assertNoRecursivePlanning } from "./maturity";
+import { assertSafeInput } from "./defense";
+import { assertCostWithinBudget } from "./cost_guard";
 
 export interface GovernanceContext {
   actor: string;
   approved: boolean;
+  authority: AuthorityLevel;
+  commandMode: CommandMode;
+  audit: AuditLogger;
+  defenseText?: string;
+  maturityLevel?: number;
+  freshOwnerInput?: boolean;
+  costEstimateUsd?: number;
+  costCapUsd?: number;
 }
 
 export interface GovernedAction {
@@ -28,6 +45,29 @@ export class Governor {
     context: GovernanceContext,
     networkRequest?: NetworkRequest
   ): GovernanceDecision {
+    assertOwnerAuthority(context.authority, context.audit, context.actor);
+    assertBoundedIdentity(context.audit, context.actor);
+    assertCommandMode(context.commandMode, context.audit, context.actor);
+    assertMaturityLevel(
+      context.maturityLevel ?? 5,
+      context.audit,
+      context.actor
+    );
+    assertNoRecursivePlanning(
+      context.freshOwnerInput ?? true,
+      context.audit,
+      context.actor
+    );
+    if (context.defenseText) {
+      assertSafeInput(context.defenseText, context.audit, context.actor);
+    }
+    assertCostWithinBudget(context.costEstimateUsd ?? 0, {
+      actor: context.actor,
+      approved: context.approved,
+      audit: context.audit,
+      costCapUsd: context.costCapUsd
+    });
+
     if (action.category === "network") {
       if (!networkRequest) {
         return {
@@ -91,6 +131,29 @@ export class Governor {
     config: ResolvedConfig,
     context: GovernanceContext
   ): GovernanceDecision {
+    assertOwnerAuthority(context.authority, context.audit, context.actor);
+    assertBoundedIdentity(context.audit, context.actor);
+    assertCommandMode(context.commandMode, context.audit, context.actor);
+    assertMaturityLevel(
+      context.maturityLevel ?? 5,
+      context.audit,
+      context.actor
+    );
+    assertNoRecursivePlanning(
+      context.freshOwnerInput ?? true,
+      context.audit,
+      context.actor
+    );
+    if (context.defenseText) {
+      assertSafeInput(context.defenseText, context.audit, context.actor);
+    }
+    assertCostWithinBudget(context.costEstimateUsd ?? 0, {
+      actor: context.actor,
+      approved: context.approved,
+      audit: context.audit,
+      costCapUsd: context.costCapUsd
+    });
+
     if (config.killSwitch.enabled) {
       return {
         allowed: false,

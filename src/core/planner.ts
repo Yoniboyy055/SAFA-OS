@@ -1,10 +1,31 @@
 import type { PlanOutput, PlanStep } from "../types/plan";
+import type { AuditLogger } from "./audit";
+import type { AuthorityLevel } from "./authority";
+import type { CommandMode } from "../cli/command_mode";
+import { assertSafeInput } from "./defense";
+import { assertNoRecursivePlanning } from "./maturity";
+
+export interface PlannerContext {
+  actor: string;
+  audit: AuditLogger;
+  authority: AuthorityLevel;
+  commandMode: CommandMode;
+  freshOwnerInput?: boolean;
+}
 
 export class Planner {
-  createPlan(task: string): PlanOutput {
+  createPlan(task: string, context?: PlannerContext): PlanOutput {
     const trimmed = task.trim();
     if (!trimmed) {
       throw new Error("Task is required for planning.");
+    }
+    if (context) {
+      assertSafeInput(trimmed, context.audit, context.actor);
+      assertNoRecursivePlanning(
+        context.freshOwnerInput ?? true,
+        context.audit,
+        context.actor
+      );
     }
 
     const steps: PlanStep[] = [

@@ -3,6 +3,8 @@ import type { PlanReviewResult, ReviewedStep } from "./manager";
 import type { SkillExecutionResult } from "../types/skill";
 import type { AuditLogger } from "./audit";
 import type { Governor } from "./governor";
+import type { AuthorityLevel } from "./authority";
+import type { CommandMode } from "../cli/command_mode";
 import { SkillRegistry } from "../skills/registry";
 
 export interface StepExecutionResult {
@@ -21,6 +23,8 @@ export interface ExecutionSummary {
 export interface OperatorContext {
   actor: string;
   approved: boolean;
+  authority: AuthorityLevel;
+  commandMode: CommandMode;
   config: ResolvedConfig;
 }
 
@@ -112,6 +116,8 @@ export class Operator {
       {
         actor: context.actor,
         approved: context.approved,
+        authority: context.authority,
+        commandMode: context.commandMode,
         config: context.config,
         audit: this.audit,
         governor: this.governor

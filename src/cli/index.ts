@@ -6,6 +6,9 @@ import { Planner } from "../core/planner";
 import { Manager } from "../core/manager";
 import { Operator } from "../core/operator";
 import { validatePayloadSize, validateUrl } from "../core/network/types";
+import { AuthorityLevel } from "../core/authority";
+import { assertSafeInput } from "../core/defense";
+import { parseCommandMode } from "./command_mode";
 import { SkillRegistry } from "../skills/registry";
 import { readFileSkill } from "../skills/local/read_file";
 import { writeFileSkill } from "../skills/local/write_file";
@@ -43,6 +46,7 @@ Usage:
   jarvis call:make --approve --input <json> [--config <path>] [--actor <name>]
   jarvis net:preview --method GET --url https://example.com --purpose "..." [--body "..."] [--approve] [--config <path>] [--actor <name>]
   jarvis run <skill> --input <json> [--approve] [--config <path>] [--actor <name>]
+  jarvis <command> --mode <CREATE|BUILD|DECIDE|CLARIFY|SCRIPT> --authority OWNER
   jarvis help
 
 Notes:
@@ -57,6 +61,13 @@ async function main(): Promise<void> {
   const configPath = getFlagValue(args, "--config");
   const actor = getFlagValue(args, "--actor") ?? "local-user";
   const approved = hasFlag(args, "--approve");
+  const modeFlag = getFlagValue(args, "--mode");
+  const commandMode = parseCommandMode(modeFlag);
+  const authorityFlag = getFlagValue(args, "--authority");
+  const authority =
+    authorityFlag && authorityFlag.toUpperCase() === AuthorityLevel.OWNER
+      ? AuthorityLevel.OWNER
+      : undefined;
 
   const config = loadConfig(configPath);
   const audit = new AuditLogger({
@@ -74,6 +85,46 @@ async function main(): Promise<void> {
   registry.register(sendEmailSkill);
   registry.register(requestPaymentSkill);
   registry.register(makeCallSkill);
+
+  const requiresMode = [
+    "exec",
+    "run",
+    "net:preview",
+    "payment:preview",
+    "payment:request",
+    "email:preview",
+    "email:send",
+    "call:preview",
+    "call:make"
+  ].includes(command);
+
+  if (requiresMode && !commandMode) {
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "AUTHORITY_VIOLATION",
+      approved,
+      target: command,
+      result: "Command mode is required."
+    });
+    console.error("Command mode is required via --mode.");
+    process.exit(1);
+    return;
+  }
+
+  if (requiresMode && authority !== AuthorityLevel.OWNER) {
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "AUTHORITY_VIOLATION",
+      approved,
+      target: command,
+      result: "Owner authority is required."
+    });
+    console.error("Owner authority is required via --authority OWNER.");
+    process.exit(1);
+    return;
+  }
 
   if (command === "skills") {
     const skills = registry.list().map((skill) => ({
@@ -110,8 +161,14 @@ async function main(): Promise<void> {
       process.exit(1);
       return;
     }
+    assertSafeInput(task, audit, actor);
     const planner = new Planner();
-    const plan = planner.createPlan(task);
+    const plan = planner.createPlan(task, {
+      actor,
+      audit,
+      authority: AuthorityLevel.OWNER,
+      commandMode: commandMode ?? "CLARIFY"
+    });
     audit.log({
       timestamp: new Date().toISOString(),
       actor,
@@ -178,7 +235,9 @@ async function main(): Promise<void> {
     const execution = await operator.executePlan(review, {
       actor,
       approved,
-      config
+      config,
+      authority: AuthorityLevel.OWNER,
+      commandMode: commandMode ?? "SCRIPT"
     });
     audit.log({
       timestamp: new Date().toISOString(),
@@ -233,9 +292,12 @@ async function main(): Promise<void> {
       }
     }
 
+    assertSafeInput(inputRaw ?? "", audit, actor);
     const result = await registry.execute(skillName, input, {
       actor,
       approved,
+      authority: AuthorityLevel.OWNER,
+      commandMode: commandMode ?? "SCRIPT",
       config,
       audit,
       governor
@@ -293,7 +355,17 @@ async function main(): Promise<void> {
         allowWhenNetworkOff: false
       },
       config,
-      { actor, approved },
+      {
+        actor,
+        approved,
+        authority: AuthorityLevel.OWNER,
+        commandMode: commandMode ?? "DECIDE",
+        audit,
+        defenseText: body,
+        maturityLevel: 5,
+        freshOwnerInput: true,
+        costEstimateUsd: 0
+      },
       {
         id: "preview",
         purpose,
@@ -376,10 +448,13 @@ async function main(): Promise<void> {
       process.exit(1);
       return;
     }
+    assertSafeInput(inputRaw, audit, actor);
     input.dryRun = true;
     const result = await registry.execute("request_payment", input, {
       actor,
       approved,
+      authority: AuthorityLevel.OWNER,
+      commandMode: commandMode ?? "DECIDE",
       config,
       audit,
       governor
@@ -453,10 +528,13 @@ async function main(): Promise<void> {
       process.exit(1);
       return;
     }
+    assertSafeInput(inputRaw, audit, actor);
     input.dryRun = false;
     const result = await registry.execute("request_payment", input, {
       actor,
       approved,
+      authority: AuthorityLevel.OWNER,
+      commandMode: commandMode ?? "DECIDE",
       config,
       audit,
       governor
@@ -517,10 +595,13 @@ async function main(): Promise<void> {
       process.exit(1);
       return;
     }
+    assertSafeInput(inputRaw, audit, actor);
     input.dryRun = true;
     const result = await registry.execute("send_email", input, {
       actor,
       approved,
+      authority: AuthorityLevel.OWNER,
+      commandMode: commandMode ?? "CREATE",
       config,
       audit,
       governor
@@ -594,10 +675,13 @@ async function main(): Promise<void> {
       process.exit(1);
       return;
     }
+    assertSafeInput(inputRaw, audit, actor);
     input.dryRun = false;
     const result = await registry.execute("send_email", input, {
       actor,
       approved,
+      authority: AuthorityLevel.OWNER,
+      commandMode: commandMode ?? "CREATE",
       config,
       audit,
       governor
@@ -658,10 +742,13 @@ async function main(): Promise<void> {
       process.exit(1);
       return;
     }
+    assertSafeInput(inputRaw, audit, actor);
     input.dryRun = true;
     const result = await registry.execute("make_call", input, {
       actor,
       approved,
+      authority: AuthorityLevel.OWNER,
+      commandMode: commandMode ?? "DECIDE",
       config,
       audit,
       governor
@@ -735,10 +822,13 @@ async function main(): Promise<void> {
       process.exit(1);
       return;
     }
+    assertSafeInput(inputRaw, audit, actor);
     input.dryRun = false;
     const result = await registry.execute("make_call", input, {
       actor,
       approved,
+      authority: AuthorityLevel.OWNER,
+      commandMode: commandMode ?? "DECIDE",
       config,
       audit,
       governor
