@@ -151,12 +151,7 @@ node dist/cli/index.js run recommend_tool --mode SCRIPT --authority OWNER --appr
 Open `ui/cockpit/index.html` in a local browser. This UI is static and local-only.
 
 ## Dashboard Server (Local-only)
-The dashboard server refuses to start while the kill switch is enabled, unless an
-explicit owner override is provided. The server only binds to `127.0.0.1`.
-
-```
-node dist/dashboard/server.js --port 3777 --mode SCRIPT --authority OWNER --approve --allow-dashboard-under-kill-switch
-```
+The dashboard server binds only to `127.0.0.1` and exposes a minimal local UI at `/`.
 
 ## Phone Control (Local-Only, Governed)
 The dashboard API exposes local-only endpoints:
@@ -169,7 +164,14 @@ To start the server, set an owner token:
 JARVIS_OWNER_TOKEN="set-a-long-random-token" npm run dashboard
 ```
 
-For `POST /command`, send the token as `x-jarvis-owner-token` or `Authorization: Bearer`.
+For `POST /command`, send the token as `X-Owner-Token`.
+
+Example (dry-run):
+```
+curl -Method POST "http://127.0.0.1:3777/command" `
+  -Headers @{ "Content-Type"="application/json"; "X-Owner-Token"="$env:JARVIS_OWNER_TOKEN" } `
+  -Body '{"line":"JARVIS: STATUS","mode":"SCRIPT","authority":"OWNER","dryRun":true}'
+```
 
 Remote access must be owner-controlled (documentation only):
 - Recommended: Tailscale (VPN)

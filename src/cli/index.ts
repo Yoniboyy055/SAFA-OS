@@ -12,39 +12,7 @@ import { AuthorityLevel } from "../core/authority";
 import { assertSafeInput } from "../core/defense";
 import { parseCommandMode } from "./command_mode";
 import { summarizeJarvisLine } from "./jarvis_line";
-import { SkillRegistry } from "../skills/registry";
-import { readFileSkill } from "../skills/local/read_file";
-import { writeFileSkill } from "../skills/local/write_file";
-import { listFilesSkill } from "../skills/local/list_files";
-import { searchTextSkill } from "../skills/local/search_text";
-import { runTestsSkill } from "../skills/local/run_tests";
-import { logInteractionSkill } from "../skills/memory/log_interaction";
-import { writeSessionSummarySkill } from "../skills/memory/write_session_summary";
-import { promoteToCanonMemorySkill } from "../skills/memory/promote_to_canon_memory";
-import { queryCanonMemorySkill } from "../skills/memory/query_canon_memory";
-import { searchRawLogsSkill } from "../skills/memory/search_raw_logs";
-import { memoryAddSkill } from "../skills/memory/memory_add";
-import { memorySearchSkill } from "../skills/memory/memory_search";
-import { memoryGetSkill } from "../skills/memory/memory_get";
-import { memoryListSkill } from "../skills/memory/memory_list";
-import { listKnowledgeSkill } from "../skills/knowledge/list_knowledge";
-import { searchKnowledgeSkill } from "../skills/knowledge/search_knowledge";
-import { addKnowledgeDocSkill } from "../skills/knowledge/add_knowledge_doc";
-import { listToolsSkill } from "../skills/tools/list_tools";
-import { recommendToolSkill } from "../skills/tools/recommend_tool";
-import { requestWebBuildSkill } from "../skills/requests/request_web_build";
-import { requestDocPackSkill } from "../skills/requests/request_doc_pack";
-import { requestVideoEditSkill } from "../skills/requests/request_video_edit";
-import { requestImageEditSkill } from "../skills/requests/request_image_edit";
-import { runPacketSkill } from "../skills/runner/run_packet";
-import { recommendLlmSkill } from "../skills/llm/recommend_llm";
-import { analyzeInputRiskSkill } from "../skills/security/analyze_input_risk";
-import { sendEmailSkill } from "../skills/outbound/send_email";
-import { sendHttpRequestSkill } from "../skills/network/send_http_request";
-import { sendEmailRequestSkill } from "../skills/outbound/send_email_request";
-import { requestPhoneCallSkill } from "../skills/outbound/request_phone_call";
-import { requestPaymentSkill } from "../skills/outbound/request_payment";
-import { makeCallSkill } from "../skills/outbound/make_call";
+import { buildRegistry } from "../skills/registry_factory";
 import {
   createApprovalRequest,
   approveRequest,
@@ -131,7 +99,7 @@ export async function runWithArgs(
     redactKeys: config.audit.redactKeys
   });
   const governor = new Governor();
-  const registry = new SkillRegistry();
+  const registry = buildRegistry();
 
   const originalExit = process.exit;
   if (options?.exit) {
@@ -143,38 +111,7 @@ export async function runWithArgs(
 
   try {
 
-  registry.register(readFileSkill);
-  registry.register(writeFileSkill);
-  registry.register(listFilesSkill);
-  registry.register(searchTextSkill);
-  registry.register(runTestsSkill);
-  registry.register(logInteractionSkill);
-  registry.register(writeSessionSummarySkill);
-  registry.register(promoteToCanonMemorySkill);
-  registry.register(queryCanonMemorySkill);
-  registry.register(searchRawLogsSkill);
-  registry.register(memoryAddSkill);
-  registry.register(memorySearchSkill);
-  registry.register(memoryGetSkill);
-  registry.register(memoryListSkill);
-  registry.register(listKnowledgeSkill);
-  registry.register(searchKnowledgeSkill);
-  registry.register(addKnowledgeDocSkill);
-  registry.register(listToolsSkill);
-  registry.register(recommendToolSkill);
-  registry.register(requestWebBuildSkill);
-  registry.register(requestDocPackSkill);
-  registry.register(requestVideoEditSkill);
-  registry.register(requestImageEditSkill);
-  registry.register(runPacketSkill);
-  registry.register(recommendLlmSkill);
-  registry.register(analyzeInputRiskSkill);
-  registry.register(sendEmailSkill);
-  registry.register(requestPaymentSkill);
-  registry.register(makeCallSkill);
-  registry.register(sendHttpRequestSkill);
-  registry.register(sendEmailRequestSkill);
-  registry.register(requestPhoneCallSkill);
+  // registry built via factory
 
   const requiresMode = [
     "exec",
