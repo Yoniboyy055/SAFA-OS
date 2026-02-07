@@ -192,7 +192,7 @@ function renderDashboardUi(): string {
       <div id="skills">Loading...</div>
     </div>
     <div class="card">
-      <div class="label">Command Console (Dry-Run)</div>
+      <div class="label">Command Console</div>
       <textarea id="commandInput" rows="4" placeholder="JARVIS: STATUS"></textarea>
       <div class="grid" style="margin-top:12px;">
         <div>
@@ -216,11 +216,15 @@ function renderDashboardUi(): string {
           <input type="checkbox" id="approveCheck" />
         </div>
         <div>
+          <label class="label">Real Run (Local Only)</label>
+          <input type="checkbox" id="realRunCheck" />
+        </div>
+        <div>
           <label class="label">Owner Token</label>
           <input type="password" id="tokenInput" placeholder="X-Owner-Token" />
         </div>
       </div>
-      <button id="sendBtn" style="margin-top:12px;">Send (Dry-Run)</button>
+      <button id="sendBtn" style="margin-top:12px;">Send</button>
     </div>
     <div class="card">
       <div class="label">Response</div>
@@ -247,6 +251,7 @@ function renderDashboardUi(): string {
       const mode = document.getElementById("modeSelect").value;
       const authority = document.getElementById("authoritySelect").value;
       const approve = document.getElementById("approveCheck").checked;
+      const realRun = document.getElementById("realRunCheck").checked;
       const res = await fetch("/command", {
         method: "POST",
         headers: {
@@ -258,7 +263,7 @@ function renderDashboardUi(): string {
           mode,
           authority,
           approve,
-          dryRun: true
+          dryRun: !realRun
         })
       });
       const data = await res.json();
@@ -372,22 +377,6 @@ export function createDashboardServer(
               result: "ERROR: Missing command."
             });
             return sendJson(res, 400, { ok: false, denied: true, reason: "Missing command." });
-          }
-          if (!dryRun) {
-            audit.log({
-              timestamp: new Date().toISOString(),
-              actor,
-              action: "dashboard.command",
-              approved: false,
-              target: "command",
-              result: "DENIED: Dashboard only supports dry-run."
-            });
-            return sendJson(res, 400, {
-              ok: false,
-              denied: true,
-              reason: "Dashboard only supports dry-run.",
-              auditId
-            });
           }
 
           let summary;
@@ -530,7 +519,28 @@ export function createDashboardServer(
           }
 
           const input = extractInputFromArgs(argv);
-          input.dryRun = true;
+          const isLocalSkill = skill.category === "local";
+
+          if (!dryRun && !isLocalSkill) {
+            audit.log({
+              timestamp: new Date().toISOString(),
+              actor,
+              action: "dashboard.command",
+              approved: approvedFlag,
+              target: skillName,
+              result: "DENIED: Dashboard real-run is only allowed for LOCAL skills."
+            });
+            return sendJson(res, 400, {
+              ok: false,
+              denied: true,
+              reason: "Dashboard real-run is only allowed for LOCAL skills.",
+              auditId
+            });
+          }
+
+          if (dryRun) {
+            input.dryRun = true;
+          }
           updateInputArg(argv, input);
 
           let decision;
@@ -580,6 +590,57 @@ export function createDashboardServer(
           }
 
           const allowed = decision.allowed === true;
+
+          if (allowed && !dryRun && isLocalSkill) {
+            try {
+              const result = await registry.execute(skillName, input, {
+                actor,
+                approved: approvedFlag,
+                authority,
+                commandMode,
+                config,
+                audit,
+                governor
+              });
+              audit.log({
+                timestamp: new Date().toISOString(),
+                actor,
+                action: "dashboard.command.execute",
+                approved: approvedFlag,
+                target: skillName,
+                result: JSON.stringify({
+                  inputHash: summary.inputHash,
+                  auditId,
+                  success: result.success
+                })
+              });
+              return sendJson(res, result.success ? 200 : 500, {
+                ok: result.success,
+                denied: false,
+                decision,
+                output: result.output ?? null,
+                error: result.error ?? undefined,
+                auditId
+              });
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              audit.log({
+                timestamp: new Date().toISOString(),
+                actor,
+                action: "dashboard.command.execute",
+                approved: approvedFlag,
+                target: skillName,
+                result: JSON.stringify({ inputHash: summary.inputHash, error: message })
+              });
+              return sendJson(res, 500, {
+                ok: false,
+                denied: false,
+                reason: message,
+                auditId
+              });
+            }
+          }
+
           const preview = {
             skill: skill.name,
             dryRun: true,

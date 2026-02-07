@@ -183,3 +183,35 @@ Remote access must be owner-controlled (documentation only):
 
 ## Live Outbound (Disabled)
 Network corridor remains stub-only and live outbound is disabled by policy.
+
+## Timed Network Window
+Network access is OFF by default. A timed window can be opened to allow
+network/outbound skills for a bounded period (6 or 8 hours). The window state
+is stored durably in `data/network_window.json` so restarts do not bypass it.
+
+### CLI Commands
+```bash
+# Open a 6-hour window (requires OWNER authority + approval)
+jarvis net:open --hours 6 --mode SCRIPT --authority OWNER --approve
+
+# Open an 8-hour window
+jarvis net:open --hours 8 --mode SCRIPT --authority OWNER --approve
+
+# Close the window early
+jarvis net:close --mode SCRIPT --authority OWNER --approve
+
+# Check current window status
+jarvis net:status
+```
+
+### Dashboard Real-Run
+The dashboard can send `dryRun=false`, but execution is restricted to LOCAL
+category skills only (filesystem, memory, knowledge). Network and outbound
+skills are always blocked from dashboard real-run regardless of the window
+state.
+
+### Governor Enforcement
+When a `networkWindow` is provided in the governance context, the Governor
+checks that the current time falls between `startAt` and `endAt`. If the
+window is closed or expired, network actions are denied automatically. All
+open/close/status events are recorded in the audit log.

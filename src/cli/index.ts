@@ -20,6 +20,11 @@ import {
 } from "../core/approvals";
 import { ApprovalStore } from "../core/approval_store";
 import { createPacket, loadPacket } from "../core/packet";
+import {
+  openNetworkWindow,
+  closeNetworkWindow,
+  loadNetworkWindow
+} from "../core/network_window";
 
 function getFlagValue(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
@@ -52,6 +57,9 @@ Usage:
   jarvis call:preview --input <json> [--config <path>] [--actor <name>]
   jarvis call:make --approve --input <json> [--config <path>] [--actor <name>]
   jarvis net:preview --method GET --url https://example.com --purpose "..." [--body "..."] [--approve] [--config <path>] [--actor <name>]
+  jarvis net:open --hours <6|8> --mode SCRIPT --authority OWNER --approve
+  jarvis net:close --mode SCRIPT --authority OWNER --approve
+  jarvis net:status
   jarvis run <skill> --input <json> --mode SCRIPT --authority OWNER [--approve]
   jarvis <command> --mode <CREATE|BUILD|DECIDE|CLARIFY|SCRIPT> --authority OWNER
   jarvis help
@@ -117,6 +125,8 @@ export async function runWithArgs(
     "exec",
     "run",
     "net:preview",
+    "net:open",
+    "net:close",
     "payment:preview",
     "payment:request",
     "email:preview",
@@ -1187,6 +1197,89 @@ export async function runWithArgs(
       result: "SUCCESS"
     });
     console.log(JSON.stringify(result.output ?? null, null, 2));
+    return;
+  }
+
+  if (command === "net:open") {
+    if (!approved) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "net.open",
+        approved,
+        target: "network_window",
+        result: "DENIED: Approval required."
+      });
+      console.error("Approval required. Re-run with --approve.");
+      process.exit(1);
+      return;
+    }
+    const hoursRaw = getFlagValue(args, "--hours");
+    const hours = hoursRaw ? Number.parseInt(hoursRaw, 10) : 0;
+    if (hours !== 6 && hours !== 8) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "net.open",
+        approved,
+        target: "network_window",
+        result: "DENIED: --hours must be 6 or 8."
+      });
+      console.error("--hours must be 6 or 8.");
+      process.exit(1);
+      return;
+    }
+    const state = openNetworkWindow(config.rootDir, hours, actor);
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "net.open",
+      approved,
+      target: "network_window",
+      result: JSON.stringify({ startAt: state.startAt, endAt: state.endAt })
+    });
+    console.log(JSON.stringify(state, null, 2));
+    return;
+  }
+
+  if (command === "net:close") {
+    if (!approved) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "net.close",
+        approved,
+        target: "network_window",
+        result: "DENIED: Approval required."
+      });
+      console.error("Approval required. Re-run with --approve.");
+      process.exit(1);
+      return;
+    }
+    const state = closeNetworkWindow(config.rootDir, actor);
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "net.close",
+      approved,
+      target: "network_window",
+      result: "Network window closed."
+    });
+    console.log(JSON.stringify(state, null, 2));
+    return;
+  }
+
+  if (command === "net:status") {
+    const state = loadNetworkWindow(config.rootDir);
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "net.status",
+      approved,
+      target: "network_window",
+      result: JSON.stringify(state)
+    });
+    console.log(JSON.stringify(state, null, 2));
     return;
   }
 

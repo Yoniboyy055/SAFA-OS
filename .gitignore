@@ -7,6 +7,9 @@
 logs/
 *.log
 
+# runtime state
+data/network_window.json
+
 # node
 node_modules/
 dist/
