@@ -36,6 +36,25 @@ test("dashboard start requires owner token", async () => {
   assert.equal(exitCode, 1);
 });
 
+test("dashboard denies start when kill switch is off", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-dashboard-"));
+  const configPath = writeConfig(rootDir, { killSwitch: { enabled: false } });
+  process.env.JARVIS_OWNER_TOKEN = "token";
+  let exitCode: number | undefined;
+  try {
+    await startDashboardServer(["--config", configPath, "--port", "0"], {
+      exit: (code: number) => {
+        exitCode = code;
+      }
+    });
+  } catch (error) {
+    if (!String(error).includes("__EXIT__")) {
+      throw error;
+    }
+  }
+  assert.equal(exitCode, 1);
+});
+
 test("dashboard can start with kill switch enabled", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-dashboard-"));
   const configPath = writeConfig(rootDir, { killSwitch: { enabled: true } });

@@ -55,6 +55,6 @@ test("dashboard UI returns HTML", async () => {
   await withServer(config, async (port) => {
     const response = await request("/", port);
     assert.equal(response.statusCode, 200);
-    assert.ok(response.body.includes("JARVIS OS"));
+    assert.ok(response.body.includes("JARVAS OS"));
   });
 });

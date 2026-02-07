@@ -82,7 +82,7 @@ test("dashboard dry-run read_file returns preview", async () => {
 
 test("dashboard denies network command when network OFF", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-cmd-"));
-  const config = writeConfig(rootDir, { killSwitch: { enabled: false } });
+  const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
     const response = await postCommand(
       port,
@@ -97,7 +97,27 @@ test("dashboard denies network command when network OFF", async () => {
       }
     );
     assert.equal(response.body.denied, true);
-    assert.match(response.body.reason, /network is disabled/i);
+    assert.match(response.body.reason, /safe mode|read-only|network/i);
+  });
+});
+
+test("dashboard denies high-risk skills in safe mode", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-cmd-"));
+  const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
+  await withServer(config, async (port) => {
+    const response = await postCommand(
+      port,
+      { "X-Owner-Token": "token" },
+      {
+        line: 'JARVIS: RUN request_web_build {"projectName":"demo","description":"site"}',
+        mode: "SCRIPT",
+        authority: "OWNER",
+        approve: true,
+        dryRun: true
+      }
+    );
+    assert.equal(response.body.denied, true);
+    assert.match(response.body.reason, /safe mode|read-only/i);
   });
 });
 

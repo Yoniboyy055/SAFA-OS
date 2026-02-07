@@ -61,12 +61,18 @@ async function withServer(
 
 test("dashboard command appends audit entry", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-audit-"));
-  const config = writeConfig(rootDir, { killSwitch: { enabled: false } });
+  const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
     const response = await postCommand(
       port,
       { "X-Owner-Token": "token" },
-      { line: "JARVIS: STATUS", mode: "SCRIPT", authority: "OWNER" }
+      {
+        line: "JARVIS: STATUS",
+        mode: "SCRIPT",
+        authority: "OWNER",
+        approve: true,
+        dryRun: true
+      }
     );
     assert.equal(response.statusCode, 200);
   });

@@ -156,25 +156,31 @@ function renderDashboardUi(): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JARVIS OS</title>
+  <title>JARVAS OS</title>
   <style>
     body { font-family: "Segoe UI", sans-serif; background: #0b0e14; color: #e6e6e6; margin: 0; }
-    header { padding: 24px 32px; background: #111827; border-bottom: 1px solid #1f2937; }
-    h1 { margin: 0; font-size: 24px; letter-spacing: 1px; }
+    header { padding: 24px 32px; background: #0f172a; border-bottom: 1px solid #1f2937; }
+    h1 { margin: 0; font-size: 26px; letter-spacing: 2px; }
     main { padding: 24px 32px; display: grid; gap: 16px; }
-    .card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; }
+    .card { background: #0f172a; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .card:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(15, 23, 42, 0.4); }
     .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
     .label { font-size: 12px; color: #9ca3af; text-transform: uppercase; }
     textarea, input, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #374151; background: #0f172a; color: #e5e7eb; }
     button { background: #2563eb; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
     button:disabled { background: #4b5563; }
-    pre { background: #0f172a; padding: 12px; border-radius: 8px; overflow: auto; }
+    pre { background: #0b1220; padding: 12px; border-radius: 8px; overflow: auto; }
     .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #1f2937; }
+    .feed { max-height: 220px; overflow: auto; display: grid; gap: 8px; }
+    .feed-item { padding: 8px; border-radius: 8px; background: #111827; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #1f2937; font-size: 13px; }
+    th { color: #9ca3af; font-weight: 600; }
   </style>
 </head>
 <body>
   <header>
-    <h1>JARVIS OS</h1>
+    <h1>JARVAS OS</h1>
   </header>
   <main>
     <div class="grid">
@@ -188,7 +194,7 @@ function renderDashboardUi(): string {
       </div>
     </div>
     <div class="card">
-      <div class="label">Skills</div>
+      <div class="label">Skill Matrix</div>
       <div id="skills">Loading...</div>
     </div>
     <div class="card">
@@ -222,6 +228,24 @@ function renderDashboardUi(): string {
       </div>
       <button id="sendBtn" style="margin-top:12px;">Send (Dry-Run)</button>
     </div>
+    <div class="grid">
+      <div class="card">
+        <div class="label">Parsed Packet</div>
+        <pre id="packetPanel">{}</pre>
+      </div>
+      <div class="card">
+        <div class="label">Governor Decision</div>
+        <pre id="decisionPanel">{}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">Evidence Panel</div>
+      <pre id="evidencePanel">{}</pre>
+    </div>
+    <div class="card">
+      <div class="label">Activity / Audit Feed</div>
+      <div class="feed" id="auditFeed"></div>
+    </div>
     <div class="card">
       <div class="label">Response</div>
       <pre id="responsePanel">{}</pre>
@@ -234,12 +258,33 @@ function renderDashboardUi(): string {
       document.getElementById("status").textContent =
         "killSwitch=" + data.killSwitchEnabled +
         " | network=" + data.networkEnabled +
-        " | strictApproval=" + data.strictApprovalMode;
+        " | strictApproval=" + data.strictApprovalMode +
+        " | phase=" + data.phase;
     }
     async function loadSkills() {
       const res = await fetch("/skills");
       const data = await res.json();
-      document.getElementById("skills").textContent = JSON.stringify(data, null, 2);
+      const rows = data.skills.map((skill) => \`
+        <tr title="\${skill.description ?? ""}">
+          <td>\${skill.name}</td>
+          <td>\${skill.riskLevel}</td>
+          <td>\${skill.requiresApproval}</td>
+          <td>\${skill.networkRequired}</td>
+        </tr>
+      \`).join("");
+      document.getElementById("skills").innerHTML = \`
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Risk</th>
+              <th>Approval</th>
+              <th>Network</th>
+            </tr>
+          </thead>
+          <tbody>\${rows}</tbody>
+        </table>
+      \`;
     }
     async function sendCommand() {
       const token = document.getElementById("tokenInput").value.trim();
@@ -262,9 +307,22 @@ function renderDashboardUi(): string {
         })
       });
       const data = await res.json();
+      document.getElementById("packetPanel").textContent = JSON.stringify(data.packet ?? {}, null, 2);
+      document.getElementById("decisionPanel").textContent = JSON.stringify(data.decision ?? {}, null, 2);
+      document.getElementById("evidencePanel").textContent = JSON.stringify(data.evidence ?? {}, null, 2);
       document.getElementById("responsePanel").textContent = JSON.stringify(data, null, 2);
+      const feed = document.getElementById("auditFeed");
+      const entry = document.createElement("div");
+      entry.className = "feed-item";
+      entry.textContent = new Date().toISOString() + " • " + (data.denied ? "DENIED" : "OK") + " • " + (data.reason || "Allowed");
+      feed.prepend(entry);
     }
     document.getElementById("sendBtn").addEventListener("click", sendCommand);
+    document.getElementById("commandInput").addEventListener("keydown", (event) => {
+      if (event.ctrlKey && event.key === "Enter") {
+        sendCommand();
+      }
+    });
     loadStatus();
     loadSkills();
   </script>
@@ -276,7 +334,8 @@ function sanitizedStatus(config: ResolvedConfig): Record<string, unknown> {
   return {
     networkEnabled: config.network.enabled,
     killSwitchEnabled: config.killSwitch.enabled,
-    strictApprovalMode: config.governance.strictApprovalMode
+    strictApprovalMode: config.governance.strictApprovalMode,
+    phase: "7A"
   };
 }
 
@@ -315,9 +374,11 @@ export function createDashboardServer(
     if (req.method === "GET" && pathName === "/skills") {
       const skills = registry.list().map((skill) => ({
         name: skill.name,
+        description: skill.description,
         riskLevel: skill.riskLevel,
         requiresApproval: skill.requiresApproval,
-        allowWhenNetworkOff: skill.allowWhenNetworkOff
+        allowWhenNetworkOff: skill.allowWhenNetworkOff,
+        networkRequired: skill.category === "network"
       }));
       return sendJson(res, 200, { skills });
     }
@@ -448,51 +509,7 @@ export function createDashboardServer(
             });
           }
 
-          if (summary.command === "status") {
-            const response = {
-              ok: true,
-              denied: false,
-              decision: { allowed: true, reason: "Allowed." },
-              preview: sanitizedStatus(config),
-              auditId
-            };
-            audit.log({
-              timestamp: new Date().toISOString(),
-              actor,
-              action: "dashboard.command",
-              approved: approvedFlag,
-              target: summary.command,
-              result: JSON.stringify({ inputHash: summary.inputHash, auditId })
-            });
-            return sendJson(res, 200, response);
-          }
-
-          if (summary.command === "skills") {
-            const skills = registry.list().map((skill) => ({
-              name: skill.name,
-              riskLevel: skill.riskLevel,
-              requiresApproval: skill.requiresApproval,
-              allowWhenNetworkOff: skill.allowWhenNetworkOff
-            }));
-            const response = {
-              ok: true,
-              denied: false,
-              decision: { allowed: true, reason: "Allowed." },
-              preview: { skills },
-              auditId
-            };
-            audit.log({
-              timestamp: new Date().toISOString(),
-              actor,
-              action: "dashboard.command",
-              approved: approvedFlag,
-              target: summary.command,
-              result: JSON.stringify({ inputHash: summary.inputHash, auditId })
-            });
-            return sendJson(res, 200, response);
-          }
-
-          if (summary.command !== "run") {
+          if (summary.command !== "run" && summary.command !== "status" && summary.command !== "skills") {
             audit.log({
               timestamp: new Date().toISOString(),
               actor,
@@ -509,89 +526,174 @@ export function createDashboardServer(
             });
           }
 
-          const skillName = argv[1];
-          if (!skillName) {
-            return sendJson(res, 400, {
-              ok: false,
-              denied: true,
-              reason: "Missing skill name.",
-              auditId
-            });
-          }
-
-          const skill = registry.get(skillName);
-          if (!skill) {
-            return sendJson(res, 404, {
-              ok: false,
-              denied: true,
-              reason: "Unknown skill.",
-              auditId
-            });
-          }
-
-          const input = extractInputFromArgs(argv);
-          input.dryRun = true;
-          updateInputArg(argv, input);
+          const commandContext = {
+            actor,
+            approved: approvedFlag,
+            authority,
+            commandMode,
+            audit,
+            defenseText: JSON.stringify({ line }),
+            maturityLevel: 5,
+            freshOwnerInput: true,
+            costEstimateUsd: 0
+          };
 
           let decision;
-          try {
-            const allowWhenNetworkOff = buildAllowWhenNetworkOff(skill, input);
+          let preview: Record<string, unknown> = {};
+          let packet: Record<string, unknown> = {
+            id: `packet-${Date.now()}`,
+            command: summary.command,
+            argv,
+            inputHash: summary.inputHash,
+            dryRun: true
+          };
+          let isReadOnly = summary.command === "status" || summary.command === "skills";
+
+          if (summary.command === "status") {
             decision = governor.evaluate(
               {
-                type: skill.name,
-                category: skill.category,
-                riskLevel: skill.riskLevel,
-                requiresApproval: skill.requiresApproval,
-                allowWhenNetworkOff
+                type: "dashboard.status",
+                category: "local",
+                riskLevel: "LOW",
+                requiresApproval: false,
+                allowWhenNetworkOff: true
               },
               config,
-              {
-                actor,
-                approved: approvedFlag,
-                authority,
-                commandMode,
-                audit,
-                defenseText:
-                  skill.name === "analyze_input_risk"
-                    ? ""
-                    : JSON.stringify(input ?? {}),
-                maturityLevel: 5,
-                freshOwnerInput: true,
-                costEstimateUsd: 0
-              },
-              buildNetworkRequest(skill, input)
+              commandContext
             );
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            audit.log({
-              timestamp: new Date().toISOString(),
-              actor,
-              action: "dashboard.command",
-              approved: approvedFlag,
-              target: skillName,
-              result: JSON.stringify({ inputHash: summary.inputHash, error: message })
-            });
-            return sendJson(res, 400, {
-              ok: false,
-              denied: true,
-              reason: message,
-              auditId
-            });
+            preview = sanitizedStatus(config);
+          } else if (summary.command === "skills") {
+            decision = governor.evaluate(
+              {
+                type: "dashboard.skills",
+                category: "local",
+                riskLevel: "LOW",
+                requiresApproval: false,
+                allowWhenNetworkOff: true
+              },
+              config,
+              commandContext
+            );
+            const skills = registry.list().map((skill) => ({
+              name: skill.name,
+              riskLevel: skill.riskLevel,
+              requiresApproval: skill.requiresApproval,
+              allowWhenNetworkOff: skill.allowWhenNetworkOff,
+              networkRequired: skill.category === "network"
+            }));
+            preview = { skills };
+          } else {
+            const skillName = argv[1];
+            if (!skillName) {
+              return sendJson(res, 400, {
+                ok: false,
+                denied: true,
+                reason: "Missing skill name.",
+                auditId
+              });
+            }
+            const skill = registry.get(skillName);
+            if (!skill) {
+              return sendJson(res, 404, {
+                ok: false,
+                denied: true,
+                reason: "Unknown skill.",
+                auditId
+              });
+            }
+            const input = extractInputFromArgs(argv);
+            input.dryRun = true;
+            updateInputArg(argv, input);
+            packet = {
+              ...packet,
+              skill: skill.name,
+              inputKeys: Object.keys(input)
+            };
+            isReadOnly =
+              skill.category === "local" &&
+              skill.riskLevel === "LOW" &&
+              skill.requiresApproval === false;
+
+            if (config.killSwitch.enabled && !isReadOnly) {
+              decision = {
+                allowed: false,
+                reason: "Kill switch safe mode allows read-only dry-runs only."
+              };
+            } else {
+              try {
+                const allowWhenNetworkOff = buildAllowWhenNetworkOff(skill, input);
+                decision = governor.evaluate(
+                  {
+                    type: skill.name,
+                    category: skill.category,
+                    riskLevel: skill.riskLevel,
+                    requiresApproval: skill.requiresApproval,
+                    allowWhenNetworkOff
+                  },
+                  config,
+                  {
+                    ...commandContext,
+                    defenseText:
+                      skill.name === "analyze_input_risk"
+                        ? ""
+                        : JSON.stringify(input ?? {})
+                  },
+                  buildNetworkRequest(skill, input)
+                );
+              } catch (error) {
+                const message =
+                  error instanceof Error ? error.message : String(error);
+                audit.log({
+                  timestamp: new Date().toISOString(),
+                  actor,
+                  action: "dashboard.command",
+                  approved: approvedFlag,
+                  target: skill.name,
+                  result: JSON.stringify({ inputHash: summary.inputHash, error: message })
+                });
+                return sendJson(res, 400, {
+                  ok: false,
+                  denied: true,
+                  reason: message,
+                  auditId
+                });
+              }
+            }
+            preview = {
+              skill: skill.name,
+              dryRun: true,
+              note: "Simulation only; no execution from dashboard."
+            };
+          }
+
+          if (config.killSwitch.enabled && !isReadOnly && decision.allowed) {
+            decision = {
+              allowed: false,
+              reason: "Kill switch safe mode allows read-only dry-runs only."
+            };
           }
 
           const allowed = decision.allowed === true;
-          const preview = {
-            skill: skill.name,
-            dryRun: true,
-            inputKeys: Object.keys(input),
-            note: "Simulation only; no execution from dashboard."
+          const reason = allowed ? "" : decision.reason;
+          const evidence = {
+            intent: summary.command,
+            decision: decision.reason,
+            wouldHappen: "Dry-run preview only. No execution.",
+            blocked: allowed ? "None" : decision.reason,
+            suggestedNextAction: reason.includes("approval")
+              ? "Provide explicit approval."
+              : reason.includes("authority")
+                ? "Use --authority OWNER."
+                : reason.includes("mode")
+                  ? "Provide --mode SCRIPT."
+                  : "Review inputs and governance constraints."
           };
           audit.log({
             timestamp: new Date().toISOString(),
             actor,
             action: "dashboard.command",
             approved: approvedFlag,
-            target: skillName,
+            target: summary.command,
             result: JSON.stringify({
               inputHash: summary.inputHash,
               auditId,
@@ -601,9 +703,11 @@ export function createDashboardServer(
           return sendJson(res, allowed ? 200 : 403, {
             ok: allowed,
             denied: !allowed,
-            reason: allowed ? "" : decision.reason,
+            reason,
             decision,
             preview,
+            packet,
+            evidence,
             auditId
           });
         })
@@ -649,29 +753,21 @@ export async function startDashboardServer(
     process.exit(1);
   }
 
-  const override = hasFlag(args, "--allow-dashboard-under-kill-switch");
-  if (override) {
-    const approved = hasFlag(args, "--approve");
-    const commandMode = parseCommandMode(getFlagValue(args, "--mode"));
-    const authority = resolveAuthority(getFlagValue(args, "--authority"));
-    if (!approved || commandMode !== "SCRIPT" || authority !== AuthorityLevel.OWNER) {
-      logger.error(
-        "DENIED: Kill switch override requires --mode SCRIPT --authority OWNER --approve."
-      );
-      if (options?.exit) {
-        options.exit(1);
-        return undefined;
-      }
-      process.exit(1);
-    }
+  if (!config.killSwitch.enabled) {
     audit.log({
       timestamp: new Date().toISOString(),
       actor,
-      action: "dashboard.start.override_killswitch",
-      approved: true,
+      action: "dashboard.start.denied",
+      approved: false,
       target: "dashboard",
-      result: "SUCCESS"
+      result: "Kill switch must be enabled to start the dashboard."
     });
+    logger.error("DENIED: Kill switch must be enabled to start the dashboard.");
+    if (options?.exit) {
+      options.exit(1);
+      return undefined;
+    }
+    process.exit(1);
   }
 
   const hostFlag = getFlagValue(args, "--host");
