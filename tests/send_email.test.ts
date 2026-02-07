@@ -210,7 +210,7 @@ test("deny when kill switch enabled", async () => {
   );
 });
 
-test("real email send is blocked in Phase 3", async () => {
+test("real email send is blocked when Phase 7B is locked", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
   const context = buildContext(rootDir, {
     email: {
@@ -243,7 +243,7 @@ test("real email send is blocked in Phase 3", async () => {
         },
         context
       ),
-    /disabled in Phase 3/i
+    /LOCKED: Phase 7B not activated/i
   );
 });
 

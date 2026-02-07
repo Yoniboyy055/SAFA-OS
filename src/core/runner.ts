@@ -1,5 +1,6 @@
 import type { AuditLogger } from "./audit";
 import type { ResolvedConfig } from "./config";
+import { readFreezeState } from "./freeze";
 
 export type IntentStatus =
   | "PENDING"
@@ -117,6 +118,20 @@ export class LocalTaskRunner {
   async runNext(
     executor: (intent: Intent) => Promise<void>
   ): Promise<Intent | null> {
+    const freezeState = readFreezeState(this.context.config.rootDir);
+    if (freezeState.enabled) {
+      const reason = "Freeze engaged. Actions halted.";
+      this.context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: this.context.actor,
+        action: "freeze.blocked",
+        approved: false,
+        target: "runner",
+        result: reason
+      });
+      throw new Error(reason);
+    }
+
     if (this.context.config.killSwitch.enabled) {
       const reason = "Kill switch enabled.";
       this.context.audit.log({

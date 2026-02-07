@@ -27,6 +27,7 @@ export interface GovernanceContext {
   approval?: ApprovalRequest;
   planHash?: string;
   payloadHash?: string;
+  freezeEnabled?: boolean;
 }
 
 export interface GovernedAction {
@@ -35,6 +36,7 @@ export interface GovernedAction {
   riskLevel: RiskLevel;
   requiresApproval: boolean;
   allowWhenNetworkOff: boolean;
+  allowWhenFrozen?: boolean;
 }
 
 export interface GovernanceDecision {
@@ -195,6 +197,19 @@ export class Governor {
       audit: context.audit,
       costCapUsd: context.costCapUsd
     });
+
+    if (context.freezeEnabled && !action.allowWhenFrozen) {
+      const reason = "Freeze engaged. Actions halted.";
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "freeze.blocked",
+        approved: context.approved,
+        target: action.type,
+        result: reason
+      });
+      return { allowed: false, reason };
+    }
 
     if (action.category === "network") {
       if (config.killSwitch.enabled) {

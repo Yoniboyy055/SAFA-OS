@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import type { SkillDefinition } from "../../types/skill";
+import { assertPhase7bUnlocked } from "../../core/phase7b/locked";
 
 interface WriteFileInput {
   path: string;
@@ -9,11 +10,13 @@ interface WriteFileInput {
   encoding?: string;
   overwrite?: boolean;
   createDirs?: boolean;
+  dryRun?: boolean;
 }
 
 interface WriteFileOutput {
   path: string;
   bytes: number;
+  preview?: boolean;
 }
 
 const DENY_DIRECTORIES = new Set([
@@ -141,6 +144,10 @@ export const writeFileSkill: SkillDefinition<WriteFileInput, WriteFileOutput> = 
       createDirs: {
         type: "boolean",
         description: "Create parent directories when missing."
+      },
+      dryRun: {
+        type: "boolean",
+        description: "Preview only without writing."
       }
     }
   },
@@ -178,10 +185,21 @@ export const writeFileSkill: SkillDefinition<WriteFileInput, WriteFileOutput> = 
     const encoding = input.encoding ?? "utf8";
     const overwrite = input.overwrite ?? false;
     const createDirs = input.createDirs ?? false;
+    const dryRun = input.dryRun === true;
 
     if (fs.existsSync(canonicalTarget) && !overwrite) {
       throw new Error("Target file exists. Set overwrite to true to replace.");
     }
+
+    if (dryRun) {
+      return {
+        path: canonicalTarget,
+        bytes: Buffer.byteLength(input.content),
+        preview: true
+      };
+    }
+
+    assertPhase7bUnlocked();
 
     if (createDirs) {
       const dir = path.dirname(canonicalTarget);

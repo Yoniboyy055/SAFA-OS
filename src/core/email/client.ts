@@ -5,7 +5,9 @@ import * as path from "node:path";
 import type { AuditLogger } from "../audit";
 import type { ResolvedConfig } from "../config";
 import type { Governor } from "../governor";
+import { getPhase7bLockMessage } from "../phase7b/locked";
 import type { EmailMessage, EmailSendResult } from "./types";
+import { readFreezeState } from "../freeze";
 
 export interface EmailClientContext {
   actor: string;
@@ -253,6 +255,7 @@ export async function sendEmail(
     deny("Email provider is not supported.");
   }
 
+  const freezeEnabled = readFreezeState(context.config.rootDir).enabled;
   const governorDecision = context.governor.evaluate(
     {
       type: "send_email",
@@ -268,6 +271,7 @@ export async function sendEmail(
       authority: context.authority,
       commandMode: context.commandMode,
       audit: context.audit,
+      freezeEnabled,
       defenseText: message.body,
       maturityLevel: 5,
       freshOwnerInput: true,
@@ -342,7 +346,7 @@ export async function sendEmail(
     };
   }
 
-  const reason = "Email live execution is disabled in Phase 3.";
+  const reason = getPhase7bLockMessage();
   context.audit.log({
     timestamp: new Date().toISOString(),
     actor: context.actor,

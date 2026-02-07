@@ -3,6 +3,8 @@ import * as crypto from "node:crypto";
 import type { AuditLogger } from "../audit";
 import type { ResolvedConfig } from "../config";
 import type { Governor } from "../governor";
+import { getPhase7bLockMessage } from "../phase7b/locked";
+import { readFreezeState } from "../freeze";
 
 export interface CallRequest {
   toNumber: string;
@@ -79,6 +81,7 @@ export async function makeCall(
       ? request.dryRun
       : context.config.calls.dryRunDefault;
 
+  const freezeEnabled = readFreezeState(context.config.rootDir).enabled;
   const governorDecision = context.governor.evaluate(
     {
       type: "make_call",
@@ -94,6 +97,7 @@ export async function makeCall(
       authority: context.authority,
       commandMode: context.commandMode,
       audit: context.audit,
+      freezeEnabled,
       defenseText: request.notes ?? "",
       maturityLevel: 5,
       freshOwnerInput: true,
@@ -217,7 +221,7 @@ export async function makeCall(
     throw new Error(reason);
   }
 
-  const reason = "Call live execution is disabled in Phase 3.";
+  const reason = getPhase7bLockMessage();
   context.audit.log({
     timestamp: new Date().toISOString(),
     actor: context.actor,

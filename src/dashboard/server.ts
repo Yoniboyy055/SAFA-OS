@@ -9,6 +9,13 @@ import { summarizeJarvisLine } from "../cli/jarvis_line";
 import { AuthorityLevel } from "../core/authority";
 import { buildRegistry } from "../skills/registry_factory";
 import type { SkillDefinition } from "../types/skill";
+import { readFreezeState } from "../core/freeze";
+import type { FreezeState } from "../core/freeze";
+import { getLayerDefinitions } from "../core/layers";
+import {
+  getPhase7bLockMessage,
+  isPhase7bLockedSkill
+} from "../core/phase7b/locked";
 
 type Logger = {
   log: (...args: unknown[]) => void;
@@ -150,6 +157,93 @@ function buildNetworkRequest(
   };
 }
 
+function resolveSkillAvailability(
+  skill: SkillDefinition,
+  config: ResolvedConfig
+): { state: "ENABLED" | "DISABLED" | "LOCKED"; enabled: boolean; lockReason?: string } {
+  if (isPhase7bLockedSkill(skill.name)) {
+    return {
+      state: "LOCKED",
+      enabled: false,
+      lockReason: `Capability Present — Locked (${getPhase7bLockMessage()})`
+    };
+  }
+  if (skill.name === "run_packet" && !config.execution.enabled) {
+    return { state: "DISABLED", enabled: false, lockReason: "Execution disabled." };
+  }
+  if (skill.category === "network" && !config.network.enabled) {
+    return { state: "DISABLED", enabled: false, lockReason: "Network disabled." };
+  }
+  if (skill.name === "send_email" && !config.email.enabled) {
+    return { state: "DISABLED", enabled: false, lockReason: "Email disabled." };
+  }
+  if (skill.name === "make_call" && !config.calls.enabled) {
+    return { state: "DISABLED", enabled: false, lockReason: "Calls disabled." };
+  }
+  if (skill.name === "request_payment" && !config.stripe.enabled) {
+    return { state: "DISABLED", enabled: false, lockReason: "Stripe disabled." };
+  }
+  return { state: "ENABLED", enabled: true };
+}
+
+function resolveSkillLayer(skill: SkillDefinition): number {
+  if (skill.name === "analyze_input_risk") {
+    return 1;
+  }
+  if (
+    skill.category === "network" ||
+    skill.category === "external_tool" ||
+    skill.category === "outbound_message"
+  ) {
+    return 3;
+  }
+  return 2;
+}
+
+function safeUrlSummary(value: string): string {
+  try {
+    const parsed = new URL(value);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return "url";
+  }
+}
+
+function summarizeTouchedTargets(
+  skillName: string,
+  input: Record<string, unknown>
+): string[] {
+  const touched: string[] = [];
+  if (typeof input.path === "string") {
+    touched.push(`path:${input.path}`);
+  }
+  if (typeof input.url === "string") {
+    touched.push(`url:${safeUrlSummary(input.url)}`);
+  }
+  if (input.to || input.customerEmail || input.from) {
+    touched.push("email:[redacted]");
+  }
+  if (input.toNumber || input.fromNumber) {
+    touched.push("phone:[redacted]");
+  }
+  if (skillName === "freeze_system") {
+    touched.push("system:freeze");
+  }
+  if (skillName === "unfreeze_system") {
+    touched.push("system:unfreeze");
+  }
+  return touched;
+}
+
+function sanitizeArgv(argv: string[]): string[] {
+  const sanitized = [...argv];
+  const inputIndex = sanitized.indexOf("--input");
+  if (inputIndex !== -1 && inputIndex + 1 < sanitized.length) {
+    sanitized[inputIndex + 1] = "[REDACTED]";
+  }
+  return sanitized;
+}
+
 function renderDashboardUi(): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -158,39 +252,144 @@ function renderDashboardUi(): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>JARVAS OS</title>
   <style>
-    body { font-family: "Segoe UI", sans-serif; background: #0b0e14; color: #e6e6e6; margin: 0; }
-    header { padding: 24px 32px; background: #0f172a; border-bottom: 1px solid #1f2937; }
-    h1 { margin: 0; font-size: 26px; letter-spacing: 2px; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #0f172a 0%, #020617 60%);
+      color: #e6e6e6;
+      margin: 0;
+      min-height: 100vh;
+    }
+    header {
+      padding: 24px 32px;
+      background: rgba(15, 23, 42, 0.9);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    h1 { margin: 0; font-size: 26px; letter-spacing: 3px; }
+    .subtitle {
+      color: #94a3b8;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-top: 6px;
+    }
+    .banner {
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid #334155;
+      color: #cbd5f5;
+      background: rgba(30, 41, 59, 0.7);
+    }
+    .banner.safe {
+      border-color: #2563eb;
+      color: #93c5fd;
+      background: rgba(37, 99, 235, 0.15);
+    }
     main { padding: 24px 32px; display: grid; gap: 16px; }
-    .card { background: #0f172a; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
-    .card:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(15, 23, 42, 0.4); }
-    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-    .label { font-size: 12px; color: #9ca3af; text-transform: uppercase; }
-    textarea, input, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #374151; background: #0f172a; color: #e5e7eb; }
-    button { background: #2563eb; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
-    button:disabled { background: #4b5563; }
+    .card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 14px;
+      padding: 16px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 10px 30px rgba(2, 6, 23, 0.4);
+      backdrop-filter: blur(12px);
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 18px 40px rgba(2, 6, 23, 0.55); }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+    .status-grid { display: grid; gap: 6px; margin-top: 8px; font-size: 13px; }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #0b1220;
+      border: 1px solid #1f2937;
+      font-size: 12px;
+      color: #e2e8f0;
+    }
+    .badge.safe { border-color: #2563eb; color: #93c5fd; }
+    .badge.locked { border-color: #f97316; color: #fdba74; }
+    .badge.disabled { border-color: #64748b; color: #cbd5f5; }
+    textarea, input, select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #0b1220;
+      color: #e5e7eb;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.2s ease;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35); }
+    button:disabled { background: #4b5563; box-shadow: none; }
+    button.secondary { background: #0b1220; border: 1px solid #334155; color: #e2e8f0; }
+    button.danger { background: #dc2626; }
+    .control-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
     pre { background: #0b1220; padding: 12px; border-radius: 8px; overflow: auto; }
     .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #1f2937; }
     .feed { max-height: 220px; overflow: auto; display: grid; gap: 8px; }
-    .feed-item { padding: 8px; border-radius: 8px; background: #111827; font-size: 12px; }
+    .feed-item { padding: 8px; border-radius: 8px; background: rgba(15, 23, 42, 0.7); font-size: 12px; border: 1px solid rgba(148, 163, 184, 0.2); }
     table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #1f2937; font-size: 13px; }
-    th { color: #9ca3af; font-weight: 600; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid rgba(148, 163, 184, 0.2); font-size: 13px; }
+    th { color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
+    .state-pill { padding: 2px 8px; border-radius: 999px; font-size: 11px; border: 1px solid; }
+    .state-enabled { border-color: #10b981; color: #6ee7b7; }
+    .state-locked { border-color: #f97316; color: #fdba74; }
+    .state-disabled { border-color: #64748b; color: #cbd5f5; }
   </style>
 </head>
 <body>
   <header>
-    <h1>JARVAS OS</h1>
+    <div class="header-row">
+      <div>
+        <h1>JARVAS OS</h1>
+        <div class="subtitle">Governed Command Center</div>
+      </div>
+      <div id="safeBanner" class="banner">SAFE MODE — Kill Switch Enabled</div>
+    </div>
   </header>
   <main>
     <div class="grid">
       <div class="card">
-        <div class="label">Status</div>
-        <div id="status">Loading...</div>
+        <div class="label">Status Core</div>
+        <div class="status-grid" id="status">Loading...</div>
+        <div class="badge-row" id="statusBadges"></div>
+        <div class="control-row">
+          <button id="freezeBtn" class="danger">Freeze System</button>
+          <button id="unfreezeBtn" class="secondary">Unfreeze</button>
+        </div>
       </div>
       <div class="card">
-        <div class="label">Audit</div>
-        <div class="pill">All requests are logged. Secrets redacted.</div>
+        <div class="label">Evidence & Audit</div>
+        <div class="badge-row">
+          <span class="badge safe">Evidence Mode: ON</span>
+          <span class="badge safe">Shadow Run: ON</span>
+          <span class="badge">Audit Logs: Redacted</span>
+        </div>
+        <div style="margin-top:10px; font-size:12px; color:#94a3b8;">
+          Every command is logged with redaction markers. No secrets are exposed.
+        </div>
       </div>
     </div>
     <div class="card">
@@ -225,6 +424,14 @@ function renderDashboardUi(): string {
           <label class="label">Owner Token</label>
           <input type="password" id="tokenInput" placeholder="X-Owner-Token" />
         </div>
+        <div>
+          <label class="label">Evidence Mode</label>
+          <input type="checkbox" id="evidenceCheck" checked />
+        </div>
+        <div>
+          <label class="label">Shadow Run</label>
+          <input type="checkbox" id="shadowCheck" checked />
+        </div>
       </div>
       <button id="sendBtn" style="margin-top:12px;">Send (Dry-Run)</button>
     </div>
@@ -252,26 +459,73 @@ function renderDashboardUi(): string {
     </div>
   </main>
   <script>
+    function renderBadge(label, className) {
+      const span = document.createElement("span");
+      span.className = "badge " + (className || "");
+      span.textContent = label;
+      return span;
+    }
     async function loadStatus() {
       const res = await fetch("/status");
       const data = await res.json();
-      document.getElementById("status").textContent =
-        "killSwitch=" + data.killSwitchEnabled +
-        " | network=" + data.networkEnabled +
-        " | strictApproval=" + data.strictApprovalMode +
-        " | phase=" + data.phase;
+      const statusEl = document.getElementById("status");
+      statusEl.innerHTML = \`
+        <div>killSwitchEnabled: <strong>\${data.killSwitchEnabled}</strong></div>
+        <div>networkEnabled: <strong>\${data.networkEnabled}</strong></div>
+        <div>strictApprovalMode: <strong>\${data.strictApprovalMode}</strong></div>
+        <div>freezeEnabled: <strong>\${data.freezeEnabled}</strong></div>
+        <div>phase: <strong>\${data.phase}</strong></div>
+      \`;
+      const banner = document.getElementById("safeBanner");
+      if (data.killSwitchEnabled) {
+        banner.textContent = "SAFE MODE — Kill Switch Enabled";
+        banner.classList.add("safe");
+      } else {
+        banner.textContent = "Kill Switch OFF (blocked)";
+        banner.classList.remove("safe");
+      }
+      const badges = document.getElementById("statusBadges");
+      badges.innerHTML = "";
+      if (data.killSwitchEnabled) {
+        badges.appendChild(renderBadge("SAFE MODE", "safe"));
+      }
+      if (data.freezeEnabled) {
+        badges.appendChild(renderBadge("FREEZE ACTIVE", "locked"));
+      }
+      if (data.phase7b) {
+        badges.appendChild(renderBadge("PHASE 7B: " + data.phase7b, "locked"));
+      }
+      if (data.phase7c) {
+        badges.appendChild(renderBadge("PHASE 7C: " + data.phase7c, "disabled"));
+      }
+      if (Array.isArray(data.layers)) {
+        const summary = data.layers.map((layer) => layer.id + ":" + layer.state).join(" ");
+        badges.appendChild(renderBadge("Layers " + summary, "safe"));
+      }
     }
     async function loadSkills() {
       const res = await fetch("/skills");
       const data = await res.json();
-      const rows = data.skills.map((skill) => \`
-        <tr title="\${skill.description ?? ""}">
-          <td>\${skill.name}</td>
-          <td>\${skill.riskLevel}</td>
-          <td>\${skill.requiresApproval}</td>
-          <td>\${skill.networkRequired}</td>
-        </tr>
-      \`).join("");
+      const rows = data.skills.map((skill) => {
+        const stateClass =
+          skill.state === "LOCKED"
+            ? "state-locked"
+            : skill.state === "DISABLED"
+              ? "state-disabled"
+              : "state-enabled";
+        const title = [skill.description, skill.lockReason].filter(Boolean).join(" — ");
+        const enabledLabel = skill.enabled ? "ENABLED" : "DISABLED";
+        return \`
+          <tr title="\${title}">
+            <td>\${skill.name}</td>
+            <td>\${skill.riskLevel}</td>
+            <td>\${skill.requiresApproval}</td>
+            <td>\${skill.networkRequired}</td>
+            <td>\${enabledLabel}</td>
+            <td><span class="state-pill \${stateClass}">\${skill.state}</span></td>
+          </tr>
+        \`;
+      }).join("");
       document.getElementById("skills").innerHTML = \`
         <table>
           <thead>
@@ -280,18 +534,24 @@ function renderDashboardUi(): string {
               <th>Risk</th>
               <th>Approval</th>
               <th>Network</th>
+              <th>Enabled</th>
+              <th>State</th>
             </tr>
           </thead>
           <tbody>\${rows}</tbody>
         </table>
       \`;
     }
-    async function sendCommand() {
+    async function sendCommand(lineOverride) {
       const token = document.getElementById("tokenInput").value.trim();
-      const line = document.getElementById("commandInput").value.trim();
+      const line = typeof lineOverride === "string"
+        ? lineOverride
+        : document.getElementById("commandInput").value.trim();
       const mode = document.getElementById("modeSelect").value;
       const authority = document.getElementById("authoritySelect").value;
       const approve = document.getElementById("approveCheck").checked;
+      const evidenceMode = document.getElementById("evidenceCheck").checked;
+      const shadowRun = document.getElementById("shadowCheck").checked;
       const res = await fetch("/command", {
         method: "POST",
         headers: {
@@ -303,7 +563,9 @@ function renderDashboardUi(): string {
           mode,
           authority,
           approve,
-          dryRun: true
+          dryRun: true,
+          evidenceMode,
+          shadowRun
         })
       });
       const data = await res.json();
@@ -314,10 +576,23 @@ function renderDashboardUi(): string {
       const feed = document.getElementById("auditFeed");
       const entry = document.createElement("div");
       entry.className = "feed-item";
-      entry.textContent = new Date().toISOString() + " • " + (data.denied ? "DENIED" : "OK") + " • " + (data.reason || "Allowed");
+      entry.textContent =
+        new Date().toISOString() +
+        " • " + (data.denied ? "DENIED" : "OK") +
+        " • " + (data.reason || "Allowed") +
+        (data.redacted ? " • redacted" : "");
       feed.prepend(entry);
+      if (data.freezeUpdated) {
+        await loadStatus();
+      }
     }
     document.getElementById("sendBtn").addEventListener("click", sendCommand);
+    document.getElementById("freezeBtn").addEventListener("click", () => {
+      sendCommand('JARVIS: RUN freeze_system {"reason":"dashboard"}');
+    });
+    document.getElementById("unfreezeBtn").addEventListener("click", () => {
+      sendCommand('JARVIS: RUN unfreeze_system {"reason":"dashboard"} --approve');
+    });
     document.getElementById("commandInput").addEventListener("keydown", (event) => {
       if (event.ctrlKey && event.key === "Enter") {
         sendCommand();
@@ -330,12 +605,24 @@ function renderDashboardUi(): string {
 </html>`;
 }
 
-function sanitizedStatus(config: ResolvedConfig): Record<string, unknown> {
+function sanitizedStatus(
+  config: ResolvedConfig,
+  freezeState?: FreezeState
+): Record<string, unknown> {
+  const freeze = freezeState ?? readFreezeState(config.rootDir);
   return {
     networkEnabled: config.network.enabled,
     killSwitchEnabled: config.killSwitch.enabled,
     strictApprovalMode: config.governance.strictApprovalMode,
-    phase: "7A"
+    phase: "7A",
+    phase7b: "LOCKED",
+    phase7c: "PLANNED",
+    safeMode: config.killSwitch.enabled,
+    freezeEnabled: freeze.enabled,
+    freezeReason: freeze.reason ?? null,
+    evidenceMode: true,
+    shadowRun: true,
+    layers: getLayerDefinitions()
   };
 }
 
@@ -369,17 +656,25 @@ export function createDashboardServer(
       return sendJson(res, 200, { status: "ok" });
     }
     if (req.method === "GET" && pathName === "/status") {
-      return sendJson(res, 200, sanitizedStatus(config));
+      const freezeState = readFreezeState(config.rootDir);
+      return sendJson(res, 200, sanitizedStatus(config, freezeState));
     }
     if (req.method === "GET" && pathName === "/skills") {
-      const skills = registry.list().map((skill) => ({
-        name: skill.name,
-        description: skill.description,
-        riskLevel: skill.riskLevel,
-        requiresApproval: skill.requiresApproval,
-        allowWhenNetworkOff: skill.allowWhenNetworkOff,
-        networkRequired: skill.category === "network"
-      }));
+      const skills = registry.list().map((skill) => {
+        const availability = resolveSkillAvailability(skill, config);
+        return {
+          name: skill.name,
+          description: skill.description,
+          riskLevel: skill.riskLevel,
+          requiresApproval: skill.requiresApproval,
+          allowWhenNetworkOff: skill.allowWhenNetworkOff,
+          networkRequired: skill.category === "network",
+          enabled: availability.enabled,
+          state: availability.state,
+          lockReason: availability.lockReason,
+          layer: resolveSkillLayer(skill)
+        };
+      });
       return sendJson(res, 200, { skills });
     }
     if (req.method === "POST" && pathName === "/command") {
@@ -404,6 +699,8 @@ export function createDashboardServer(
             authority?: string;
             approve?: boolean;
             dryRun?: boolean;
+            shadowRun?: boolean;
+            evidenceMode?: boolean;
           };
           try {
             payload = JSON.parse(body);
@@ -421,7 +718,10 @@ export function createDashboardServer(
 
           const line = (payload.line ?? payload.text ?? "").trim();
           const dryRun = payload.dryRun !== false;
+          const shadowRun = payload.shadowRun !== false;
+          const evidenceMode = payload.evidenceMode !== false;
           const auditId = `dash-${Date.now()}`;
+          const freezeState = readFreezeState(config.rootDir);
 
           if (!line) {
             audit.log({
@@ -532,6 +832,7 @@ export function createDashboardServer(
             authority,
             commandMode,
             audit,
+            freezeEnabled: freezeState.enabled,
             defenseText: JSON.stringify({ line }),
             maturityLevel: 5,
             freshOwnerInput: true,
@@ -543,11 +844,15 @@ export function createDashboardServer(
           let packet: Record<string, unknown> = {
             id: `packet-${Date.now()}`,
             command: summary.command,
-            argv,
+            argv: sanitizeArgv(argv),
             inputHash: summary.inputHash,
-            dryRun: true
+            dryRun: true,
+            shadowRun,
+            evidenceMode
           };
           let isReadOnly = summary.command === "status" || summary.command === "skills";
+          let executedControl = false;
+          let controlResult: Record<string, unknown> | undefined;
 
           if (summary.command === "status") {
             decision = governor.evaluate(
@@ -556,12 +861,13 @@ export function createDashboardServer(
                 category: "local",
                 riskLevel: "LOW",
                 requiresApproval: false,
-                allowWhenNetworkOff: true
+                allowWhenNetworkOff: true,
+                allowWhenFrozen: true
               },
               config,
               commandContext
             );
-            preview = sanitizedStatus(config);
+            preview = sanitizedStatus(config, freezeState);
           } else if (summary.command === "skills") {
             decision = governor.evaluate(
               {
@@ -569,18 +875,26 @@ export function createDashboardServer(
                 category: "local",
                 riskLevel: "LOW",
                 requiresApproval: false,
-                allowWhenNetworkOff: true
+                allowWhenNetworkOff: true,
+                allowWhenFrozen: true
               },
               config,
               commandContext
             );
-            const skills = registry.list().map((skill) => ({
-              name: skill.name,
-              riskLevel: skill.riskLevel,
-              requiresApproval: skill.requiresApproval,
-              allowWhenNetworkOff: skill.allowWhenNetworkOff,
-              networkRequired: skill.category === "network"
-            }));
+            const skills = registry.list().map((skill) => {
+              const availability = resolveSkillAvailability(skill, config);
+              return {
+                name: skill.name,
+                riskLevel: skill.riskLevel,
+                requiresApproval: skill.requiresApproval,
+                allowWhenNetworkOff: skill.allowWhenNetworkOff,
+                networkRequired: skill.category === "network",
+                enabled: availability.enabled,
+                state: availability.state,
+                lockReason: availability.lockReason,
+                layer: resolveSkillLayer(skill)
+              };
+            });
             preview = { skills };
           } else {
             const skillName = argv[1];
@@ -606,15 +920,19 @@ export function createDashboardServer(
             updateInputArg(argv, input);
             packet = {
               ...packet,
+              argv: sanitizeArgv(argv),
               skill: skill.name,
               inputKeys: Object.keys(input)
             };
+            const isControlAction = ["freeze_system", "unfreeze_system"].includes(
+              skill.name
+            );
             isReadOnly =
               skill.category === "local" &&
               skill.riskLevel === "LOW" &&
               skill.requiresApproval === false;
 
-            if (config.killSwitch.enabled && !isReadOnly) {
+            if (config.killSwitch.enabled && !isReadOnly && !isControlAction) {
               decision = {
                 allowed: false,
                 reason: "Kill switch safe mode allows read-only dry-runs only."
@@ -628,7 +946,8 @@ export function createDashboardServer(
                     category: skill.category,
                     riskLevel: skill.riskLevel,
                     requiresApproval: skill.requiresApproval,
-                    allowWhenNetworkOff
+                    allowWhenNetworkOff,
+                    allowWhenFrozen: isControlAction
                   },
                   config,
                   {
@@ -659,14 +978,43 @@ export function createDashboardServer(
                 });
               }
             }
+            if (decision && decision.allowed && isControlAction) {
+              const execResult = await registry.execute(skill.name, input, {
+                actor,
+                approved: approvedFlag,
+                authority,
+                commandMode,
+                config,
+                audit,
+                governor,
+                freezeEnabled: freezeState.enabled
+              });
+              if (!execResult.success) {
+                decision = {
+                  allowed: false,
+                  reason: execResult.error ?? "Control action failed."
+                };
+              } else {
+                executedControl = true;
+                controlResult =
+                  execResult.output && typeof execResult.output === "object"
+                    ? (execResult.output as Record<string, unknown>)
+                    : { result: execResult.output };
+              }
+            }
+
             preview = {
               skill: skill.name,
               dryRun: true,
-              note: "Simulation only; no execution from dashboard."
+              shadowRun,
+              note: isControlAction
+                ? "Control action executed (freeze safety override)."
+                : "Simulation only; no execution from dashboard.",
+              controlResult
             };
           }
 
-          if (config.killSwitch.enabled && !isReadOnly && decision.allowed) {
+          if (config.killSwitch.enabled && !isReadOnly && decision.allowed && !executedControl) {
             decision = {
               allowed: false,
               reason: "Kill switch safe mode allows read-only dry-runs only."
@@ -675,11 +1023,18 @@ export function createDashboardServer(
 
           const allowed = decision.allowed === true;
           const reason = allowed ? "" : decision.reason;
+          const touched =
+            summary.command === "run" && packet && "skill" in packet
+              ? summarizeTouchedTargets(String(packet.skill ?? ""), extractInputFromArgs(argv))
+              : [];
           const evidence = {
             intent: summary.command,
+            outcome: allowed ? "ALLOWED" : "DENIED",
             decision: decision.reason,
             wouldHappen: "Dry-run preview only. No execution.",
             blocked: allowed ? "None" : decision.reason,
+            touched,
+            mode: { evidenceMode, shadowRun },
             suggestedNextAction: reason.includes("approval")
               ? "Provide explicit approval."
               : reason.includes("authority")
@@ -688,6 +1043,9 @@ export function createDashboardServer(
                   ? "Provide --mode SCRIPT."
                   : "Review inputs and governance constraints."
           };
+          const nextFreezeState = executedControl
+            ? readFreezeState(config.rootDir)
+            : freezeState;
           audit.log({
             timestamp: new Date().toISOString(),
             actor,
@@ -708,7 +1066,12 @@ export function createDashboardServer(
             preview,
             packet,
             evidence,
-            auditId
+            auditId,
+            redacted: true,
+            shadowRun,
+            evidenceMode,
+            freezeUpdated: executedControl,
+            freezeState: executedControl ? nextFreezeState : undefined
           });
         })
         .catch((error) => {

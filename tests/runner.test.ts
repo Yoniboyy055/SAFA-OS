@@ -5,10 +5,12 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { LocalTaskRunner } = require("../src/core/runner");
+const { enableFreeze } = require("../src/core/freeze");
 const { AuditLogger } = require("../src/core/audit");
 
 function buildRunner(rootDir: string, overrides: Record<string, unknown> = {}) {
   const config = {
+    rootDir,
     killSwitch: { enabled: false },
     ...overrides
   };
@@ -47,6 +49,13 @@ test("runner blocks when kill switch enabled", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-runner-"));
   const runner = buildRunner(rootDir, { killSwitch: { enabled: true } });
   await assert.rejects(() => runner.runNext(async () => {}), /Kill switch/i);
+});
+
+test("runner blocks when freeze enabled", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-runner-"));
+  enableFreeze(rootDir, "owner", "test");
+  const runner = buildRunner(rootDir);
+  await assert.rejects(() => runner.runNext(async () => {}), /Freeze engaged/i);
 });
 
 test("runner can be interrupted during execution", async () => {

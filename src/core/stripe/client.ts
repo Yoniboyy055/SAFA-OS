@@ -3,6 +3,8 @@ import * as crypto from "node:crypto";
 import type { AuditLogger } from "../audit";
 import type { ResolvedConfig } from "../config";
 import type { Governor } from "../governor";
+import { getPhase7bLockMessage } from "../phase7b/locked";
+import { readFreezeState } from "../freeze";
 
 export interface StripePaymentRequest {
   priceId?: string;
@@ -148,6 +150,7 @@ export async function requestPayment(
       : context.config.stripe.dryRunDefault;
 
   const currency = (request.currency ?? "usd").toLowerCase();
+  const freezeEnabled = readFreezeState(context.config.rootDir).enabled;
   const governorDecision = context.governor.evaluate(
     {
       type: "request_payment",
@@ -163,6 +166,7 @@ export async function requestPayment(
       authority: context.authority,
       commandMode: context.commandMode,
       audit: context.audit,
+      freezeEnabled,
       defenseText: request.description ?? "",
       maturityLevel: 5,
       freshOwnerInput: true,
@@ -232,7 +236,7 @@ export async function requestPayment(
     };
   }
 
-  const reason = "Stripe live execution is disabled in Phase 3.";
+  const reason = getPhase7bLockMessage();
   context.audit.log({
     timestamp: new Date().toISOString(),
     actor: context.actor,

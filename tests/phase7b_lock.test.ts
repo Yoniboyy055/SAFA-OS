@@ -10,9 +10,9 @@ const {
 } = require("../src/core/phase7b/locked");
 
 test("phase 7B modules are locked", () => {
-  assert.throws(() => createOutreachPlan(), /Phase 7B is locked/i);
-  assert.throws(() => createMessageFlow(), /Phase 7B is locked/i);
-  assert.throws(() => initiateCallFlow(), /Phase 7B is locked/i);
-  assert.throws(() => negotiateIntent(), /Phase 7B is locked/i);
-  assert.throws(() => switchIdentityContext(), /Phase 7B is locked/i);
+  assert.throws(() => createOutreachPlan(), /LOCKED: Phase 7B not activated/i);
+  assert.throws(() => createMessageFlow(), /LOCKED: Phase 7B not activated/i);
+  assert.throws(() => initiateCallFlow(), /LOCKED: Phase 7B not activated/i);
+  assert.throws(() => negotiateIntent(), /LOCKED: Phase 7B not activated/i);
+  assert.throws(() => switchIdentityContext(), /LOCKED: Phase 7B not activated/i);
 });

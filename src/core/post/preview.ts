@@ -3,6 +3,7 @@ import * as crypto from "node:crypto";
 import type { AuditLogger } from "../audit";
 import type { ResolvedConfig } from "../config";
 import type { Governor } from "../governor";
+import { readFreezeState } from "../freeze";
 
 export interface PostPreviewContext {
   actor: string;
@@ -33,6 +34,7 @@ export function previewPublish(
   input: { channel: string; content: string },
   context: PostPreviewContext
 ): PostPreviewResult {
+  const freezeEnabled = readFreezeState(context.config.rootDir).enabled;
   const decision = context.governor.evaluate(
     {
       type: "post.preview",
@@ -48,6 +50,7 @@ export function previewPublish(
       authority: context.authority,
       commandMode: context.commandMode,
       audit: context.audit,
+      freezeEnabled,
       defenseText: input.content,
       maturityLevel: 5,
       freshOwnerInput: true,

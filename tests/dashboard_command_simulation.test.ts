@@ -77,6 +77,8 @@ test("dashboard dry-run read_file returns preview", async () => {
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.ok, true);
     assert.ok(response.body.preview);
+    assert.ok(response.body.evidence);
+    assert.ok(Array.isArray(response.body.evidence.touched));
   });
 });
 
@@ -137,5 +139,39 @@ test("dashboard denies when dryRun is false", async () => {
     );
     assert.equal(response.body.denied, true);
     assert.match(response.body.reason, /dry-run/i);
+  });
+});
+
+test("dashboard freeze blocks further activity", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-freeze-"));
+  const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
+  await withServer(config, async (port) => {
+    const freezeResponse = await postCommand(
+      port,
+      { "X-Owner-Token": "token" },
+      {
+        line: 'JARVIS: RUN freeze_system {"reason":"test"}',
+        mode: "SCRIPT",
+        authority: "OWNER",
+        approve: true,
+        dryRun: true
+      }
+    );
+    assert.equal(freezeResponse.body.ok, true);
+    assert.equal(freezeResponse.body.freezeUpdated, true);
+
+    const response = await postCommand(
+      port,
+      { "X-Owner-Token": "token" },
+      {
+        line: 'JARVIS: RUN read_file {"path":"README.md"}',
+        mode: "SCRIPT",
+        authority: "OWNER",
+        approve: true,
+        dryRun: true
+      }
+    );
+    assert.equal(response.body.denied, true);
+    assert.match(response.body.reason, /freeze/i);
   });
 });

@@ -26,6 +26,7 @@ export interface SkillExecutionContext {
   config: ResolvedConfig;
   audit: AuditLogger;
   governor: Governor;
+  freezeEnabled?: boolean;
 }
 
 export interface SkillDefinition<I = unknown, O = unknown> {

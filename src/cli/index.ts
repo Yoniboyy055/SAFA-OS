@@ -10,6 +10,8 @@ import { validatePayloadSize, validateUrl } from "../core/network/types";
 import { buildNetworkPolicy, validateMethod } from "../core/network/policy";
 import { AuthorityLevel } from "../core/authority";
 import { assertSafeInput } from "../core/defense";
+import { readFreezeState } from "../core/freeze";
+import { getLayerDefinitions } from "../core/layers";
 import { parseCommandMode } from "./command_mode";
 import { summarizeJarvisLine } from "./jarvis_line";
 import { buildRegistry } from "../skills/registry_factory";
@@ -94,6 +96,7 @@ export async function runWithArgs(
       : undefined;
 
   const config = loadConfig(configPath);
+  const freezeState = readFreezeState(config.rootDir);
   const audit = new AuditLogger({
     logPath: config.audit.logPath,
     redactKeys: config.audit.redactKeys
@@ -264,6 +267,11 @@ export async function runWithArgs(
       networkEnabled: config.network.enabled,
       killSwitchEnabled: config.killSwitch.enabled,
       strictApprovalMode: config.governance.strictApprovalMode,
+      freezeEnabled: freezeState.enabled,
+      phase: "7A",
+      phase7b: "LOCKED",
+      phase7c: "PLANNED",
+      layers: getLayerDefinitions(),
       configPath: config.configPath
     };
     audit.log({
@@ -625,7 +633,8 @@ export async function runWithArgs(
       commandMode: commandMode ?? "SCRIPT",
       config,
       audit,
-      governor
+      governor,
+      freezeEnabled: freezeState.enabled
     });
     if (result.success) {
       if (typeof result.output === "string") {
@@ -688,6 +697,7 @@ export async function runWithArgs(
         authority: AuthorityLevel.OWNER,
         commandMode: commandMode ?? "DECIDE",
         audit,
+        freezeEnabled: freezeState.enabled,
         defenseText: body,
         maturityLevel: 5,
         freshOwnerInput: true,
@@ -789,7 +799,8 @@ export async function runWithArgs(
       commandMode: commandMode ?? "DECIDE",
       config,
       audit,
-      governor
+      governor,
+      freezeEnabled: freezeState.enabled
     });
     if (!result.success) {
       audit.log({
@@ -869,7 +880,8 @@ export async function runWithArgs(
       commandMode: commandMode ?? "DECIDE",
       config,
       audit,
-      governor
+      governor,
+      freezeEnabled: freezeState.enabled
     });
     if (!result.success) {
       audit.log({
@@ -936,7 +948,8 @@ export async function runWithArgs(
       commandMode: commandMode ?? "CREATE",
       config,
       audit,
-      governor
+      governor,
+      freezeEnabled: freezeState.enabled
     });
     if (!result.success) {
       audit.log({
@@ -1016,7 +1029,8 @@ export async function runWithArgs(
       commandMode: commandMode ?? "CREATE",
       config,
       audit,
-      governor
+      governor,
+      freezeEnabled: freezeState.enabled
     });
     if (!result.success) {
       audit.log({
@@ -1083,7 +1097,8 @@ export async function runWithArgs(
       commandMode: commandMode ?? "DECIDE",
       config,
       audit,
-      governor
+      governor,
+      freezeEnabled: freezeState.enabled
     });
     if (!result.success) {
       audit.log({
@@ -1163,7 +1178,8 @@ export async function runWithArgs(
       commandMode: commandMode ?? "DECIDE",
       config,
       audit,
-      governor
+      governor,
+      freezeEnabled: freezeState.enabled
     });
     if (!result.success) {
       audit.log({

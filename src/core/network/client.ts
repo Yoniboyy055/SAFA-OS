@@ -4,6 +4,7 @@ import type { Governor } from "../governor";
 import type { NetworkRequest, NetworkResponseMeta } from "./types";
 import { auditNetworkRequest, auditNetworkResult } from "../audit";
 import { buildNetworkPolicy, validateMethod } from "./policy";
+import { readFreezeState } from "../freeze";
 
 export interface NetworkClientContext {
   actor: string;
@@ -41,6 +42,7 @@ export async function requestNetwork(
     throw new Error(methodDecision.reason);
   }
 
+  const freezeEnabled = readFreezeState(context.config.rootDir).enabled;
   const decision = context.governor.evaluate(
     {
       type: "network_request",
@@ -56,6 +58,7 @@ export async function requestNetwork(
       authority: context.authority,
       commandMode: context.commandMode,
       audit: context.audit,
+      freezeEnabled,
       defenseText: request.bodySummary,
       maturityLevel: 5,
       freshOwnerInput: true,
