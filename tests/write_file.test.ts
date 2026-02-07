@@ -105,11 +105,20 @@ test("write_file rejects traversal paths", () => {
   }, /traversal/i);
 });
 
-test("write_file rejects symlink escapes", () => {
+test("write_file rejects symlink escapes", (t: any) => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-write-"));
   const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-outside-"));
   fs.mkdirSync(path.join(rootDir, "data"), { recursive: true });
-  fs.symlinkSync(outsideDir, path.join(rootDir, "data", "escape"), "dir");
+  try {
+    fs.symlinkSync(outsideDir, path.join(rootDir, "data", "escape"), "dir");
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === "EPERM" || code === "EACCES") {
+      t.skip("Symlink creation not permitted on this platform.");
+      return;
+    }
+    throw err;
+  }
   const context = buildContext(rootDir);
   assert.throws(() => {
     writeFileSkill.handler(

@@ -12,7 +12,7 @@
     "dashboard": "node dist/dashboard/server.js",
     "dashboard:dev": "node dist/src/dashboard/server.js",
     "dashboard:prod": "node dist/dashboard/server.js",
-    "test": "npm run build && node scripts/run-node-tests.js"
+    "test": "npm run build && node --test dist/tests/**/*.test.js"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
