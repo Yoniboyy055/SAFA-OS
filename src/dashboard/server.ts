@@ -14,6 +14,16 @@ import { Operator } from "../core/operator";
 import { buildRegistry } from "../skills/registry_factory";
 import type { SkillDefinition } from "../types/skill";
 import { AuthorityLevel } from "../core/authority";
+import { listModels, isModelId, type ModelId } from "../core/llm/model_registry";
+import {
+  selectModel,
+  type RouterPolicyInput,
+  type RouterMode,
+  type TaskType,
+  type Sensitivity,
+  type LatencyPref,
+  type BudgetPref
+} from "../core/llm/router_policy";
 import {
   approveRequest,
   createApprovalRequest,
@@ -26,6 +36,8 @@ const MAX_BODY_BYTES = 32 * 1024;
 const DEFAULT_PORT = 3777;
 const HOST = "127.0.0.1";
 const STATIC_ROOT = path.resolve(__dirname, "..", "..", "dashboard");
+const DEFAULT_ROUTER_MODE: RouterMode = "auto";
+const DEFAULT_ROUTER_MODEL: ModelId = "openai:gpt-4o-mini";
 
 interface RuntimeOverrides {
   killSwitchEnabled?: boolean;
@@ -37,6 +49,11 @@ interface ApprovalRecord {
   status: ApprovalStatus;
   key: string;
   summary: string;
+}
+
+interface RouterDefaults {
+  mode: RouterMode;
+  model: ModelId;
 }
 
 class ApprovalQueue {
@@ -203,6 +220,52 @@ function buildAllowWhenNetworkOff(
   );
 }
 
+function resolveRouterDefaults(): RouterDefaults {
+  const modeRaw = process.env.ROUTER_DEFAULT_MODE;
+  const modelRaw = process.env.ROUTER_DEFAULT_MODEL;
+  const mode = modeRaw === "manual" ? "manual" : DEFAULT_ROUTER_MODE;
+  const model = modelRaw && isModelId(modelRaw) ? modelRaw : DEFAULT_ROUTER_MODEL;
+  return { mode, model };
+}
+
+function normalizeRouterInput(
+  body: Record<string, unknown>,
+  defaults: RouterDefaults
+): RouterPolicyInput {
+  const mode =
+    body.routerMode === "manual" || body.routerMode === "auto"
+      ? (body.routerMode as RouterMode)
+      : defaults.mode;
+  const explicitModel =
+    typeof body.explicitModel === "string" && isModelId(body.explicitModel)
+      ? body.explicitModel
+      : defaults.model;
+  const taskType =
+    body.taskType === "vision" || body.taskType === "code" || body.taskType === "admin"
+      ? (body.taskType as TaskType)
+      : ("chat" as TaskType);
+  const sensitivity =
+    body.sensitivity === "low" || body.sensitivity === "high"
+      ? (body.sensitivity as Sensitivity)
+      : ("med" as Sensitivity);
+  const latencyPref =
+    body.latencyPref === "fast" || body.latencyPref === "deep"
+      ? (body.latencyPref as LatencyPref)
+      : ("balanced" as LatencyPref);
+  const budgetPref =
+    body.budgetPref === "cheap" || body.budgetPref === "premium"
+      ? (body.budgetPref as BudgetPref)
+      : ("balanced" as BudgetPref);
+  return {
+    mode,
+    explicit_model: explicitModel,
+    task_type: taskType,
+    sensitivity,
+    latency_pref: latencyPref,
+    budget_pref: budgetPref
+  };
+}
+
 function buildNetworkRequest(
   skill: SkillDefinition,
   input: Record<string, unknown>
@@ -315,6 +378,7 @@ export function createDashboardServer(options?: {
     }
 
     const config = buildRuntimeConfig(options?.configPath, overrides);
+    const routerDefaults = resolveRouterDefaults();
     const audit = new AuditLogger({
       logPath: config.audit.logPath,
       redactKeys: config.audit.redactKeys
@@ -326,8 +390,20 @@ export function createDashboardServer(options?: {
         killSwitchEnabled: config.killSwitch.enabled,
         strictApprovalMode: config.governance.strictApprovalMode,
         actorDefault,
-        version
+        version,
+        routerDefaults
       });
+    }
+
+    if (req.method === "GET" && pathName === "/api/models") {
+      const models = listModels().map((model) => ({
+        id: model.id,
+        provider: model.provider,
+        tags: model.tags,
+        est_cost_tier: model.est_cost_tier,
+        max_tokens_hint: model.max_tokens_hint
+      }));
+      return sendJson(res, 200, { models });
     }
 
     if (req.method === "GET" && pathName === "/api/skills") {
@@ -410,6 +486,8 @@ export function createDashboardServer(options?: {
         const body = parseJsonBody(await readRequestBody(req));
         const commandText = body.commandText;
         const actor = resolveActor(body, actorDefault);
+        const routerInput = normalizeRouterInput(body, routerDefaults);
+        const policy = selectModel(routerInput);
         if (typeof commandText !== "string" || !commandText.trim()) {
           return sendJson(res, 400, { error: "commandText is required" });
         }
@@ -439,7 +517,10 @@ export function createDashboardServer(options?: {
           plan,
           planHash,
           valid: review.valid,
-          requiresApproval: review.approvalRequired
+          requiresApproval: review.approvalRequired,
+          model_used: policy.selected_model,
+          policy_reason: policy.reason,
+          policy_trace: policy.policy_trace
         });
       } catch (error) {
         return sendJson(res, 400, { error: String(error) });
@@ -453,6 +534,8 @@ export function createDashboardServer(options?: {
         const approve = body.approve === true;
         const approvalId = typeof body.approvalId === "string" ? body.approvalId : undefined;
         const actor = resolveActor(body, actorDefault);
+        const routerInput = normalizeRouterInput(body, routerDefaults);
+        const policy = selectModel(routerInput);
         if (typeof planHash !== "string" || !planHash.trim()) {
           return sendJson(res, 400, { error: "planHash is required" });
         }
@@ -475,7 +558,10 @@ export function createDashboardServer(options?: {
             return sendJson(res, 202, {
               status: "PENDING_APPROVAL",
               approvalId: record.request.id,
-              summary: record.summary
+              summary: record.summary,
+              model_used: policy.selected_model,
+              policy_reason: policy.reason,
+              policy_trace: policy.policy_trace
             });
           }
           const approvedRecord = ensureApproved(approvals, approvalKey, approvalId);
@@ -502,7 +588,10 @@ export function createDashboardServer(options?: {
         });
         return sendJson(res, execution.success ? 200 : 500, {
           status: execution.success ? "OK" : "FAILED",
-          results: execution.results
+          results: execution.results,
+          model_used: policy.selected_model,
+          policy_reason: policy.reason,
+          policy_trace: policy.policy_trace
         });
       } catch (error) {
         return sendJson(res, 400, { error: String(error) });

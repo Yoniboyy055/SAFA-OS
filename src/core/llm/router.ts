@@ -1,7 +1,7 @@
 import type { ChatMessage } from "./providers/openai_client";
 import { runChat } from "./providers/openai_client";
 import { getModel } from "./model_registry";
-import type { RouterPolicyInput } from "./router_policy";
+import type { PolicyTrace, RouterPolicyInput } from "./router_policy";
 import { selectModel } from "./router_policy";
 
 export interface RouteAndRunInput extends RouterPolicyInput {
@@ -11,7 +11,7 @@ export interface RouteAndRunInput extends RouterPolicyInput {
 
 export interface RouteAndRunResult {
   model_used: string;
-  policy_trace: Record<string, unknown>;
+  policy_trace: PolicyTrace;
   output_text: string;
   output_json?: unknown;
 }

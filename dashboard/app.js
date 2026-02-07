@@ -2,7 +2,9 @@ const state = {
   planHash: null,
   approvalId: null,
   pendingKillApproval: null,
-  pendingNetworkApproval: null
+  pendingNetworkApproval: null,
+  routerDefaultsApplied: false,
+  routerDefaults: null
 };
 
 function applyCardAttributes(card) {
@@ -31,12 +33,15 @@ const els = {
   actorInput: document.getElementById("actorInput"),
   skillSelect: document.getElementById("skillSelect"),
   approveToggle: document.getElementById("approveToggle"),
+  modeSelect: document.getElementById("modeSelect"),
+  modelSelect: document.getElementById("modelSelect"),
   planBtn: document.getElementById("planBtn"),
   execBtn: document.getElementById("execBtn"),
   runBtn: document.getElementById("runBtn"),
   viewApprovalsBtn: document.getElementById("viewApprovalsBtn"),
   planOutput: document.getElementById("planOutput"),
   commandOutput: document.getElementById("commandOutput"),
+  policyOutput: document.getElementById("policyOutput"),
   approvalsList: document.getElementById("approvalsList"),
   auditOutput: document.getElementById("auditOutput"),
   systemState: document.getElementById("systemState"),
@@ -77,6 +82,17 @@ async function loadState() {
   if (!els.actorInput.value) {
     els.actorInput.value = data.actorDefault || "owner";
   }
+  if (data.routerDefaults && !state.routerDefaultsApplied) {
+    state.routerDefaults = data.routerDefaults;
+    if (data.routerDefaults.mode) {
+      els.modeSelect.value = data.routerDefaults.mode;
+    }
+    if (data.routerDefaults.model) {
+      els.modelSelect.value = data.routerDefaults.model;
+    }
+    state.routerDefaultsApplied = true;
+  }
+  updateRouterControls();
 }
 
 async function loadSkills() {
@@ -88,6 +104,39 @@ async function loadSkills() {
     option.textContent = `${skill.name} (${skill.risk})`;
     els.skillSelect.appendChild(option);
   });
+}
+
+async function loadModels() {
+  const data = await api("/api/models");
+  els.modelSelect.innerHTML = "";
+  data.models.forEach((model) => {
+    const option = document.createElement("option");
+    option.value = model.id;
+    option.textContent = `${model.id} (${model.est_cost_tier})`;
+    els.modelSelect.appendChild(option);
+  });
+  if (state.routerDefaults && state.routerDefaults.model) {
+    els.modelSelect.value = state.routerDefaults.model;
+  }
+  updateRouterControls();
+}
+
+function updateRouterControls() {
+  const isManual = els.modeSelect.value === "manual";
+  els.modelSelect.disabled = !isManual;
+}
+
+function renderPolicySummary(data) {
+  if (!data || !data.policy_trace) {
+    els.policyOutput.textContent = JSON.stringify({ note: "No policy data." }, null, 2);
+    return;
+  }
+  const summary = {
+    model_used: data.model_used,
+    reason: data.policy_reason,
+    policy_trace: data.policy_trace
+  };
+  els.policyOutput.textContent = JSON.stringify(summary, null, 2);
 }
 
 async function loadApprovals() {
@@ -150,7 +199,9 @@ function parseSkillInput() {
 els.planBtn.addEventListener("click", async () => {
   const payload = {
     commandText: els.commandText.value,
-    actor: els.actorInput.value
+    actor: els.actorInput.value,
+    routerMode: els.modeSelect.value,
+    explicitModel: els.modelSelect.value
   };
   const data = await api("/api/plan", {
     method: "POST",
@@ -158,6 +209,7 @@ els.planBtn.addEventListener("click", async () => {
   });
   state.planHash = data.planHash;
   els.planOutput.textContent = JSON.stringify(data, null, 2);
+  renderPolicySummary(data);
   els.execBtn.disabled = !data.planHash;
 });
 
@@ -171,13 +223,16 @@ els.execBtn.addEventListener("click", async () => {
       planHash: state.planHash,
       approve: els.approveToggle.checked,
       approvalId: state.approvalId,
-      actor: els.actorInput.value
+      actor: els.actorInput.value,
+      routerMode: els.modeSelect.value,
+      explicitModel: els.modelSelect.value
     })
   });
   if (data.status === "PENDING_APPROVAL") {
     state.approvalId = data.approvalId;
   }
   els.commandOutput.textContent = JSON.stringify(data, null, 2);
+  renderPolicySummary(data);
   await loadApprovals();
 });
 
@@ -241,6 +296,7 @@ async function boot() {
   initCards();
   await loadState();
   await loadSkills();
+  await loadModels();
   await loadApprovals();
   await loadAudit();
   setInterval(loadAudit, 4000);
@@ -249,3 +305,5 @@ async function boot() {
 }
 
 boot();
+
+els.modeSelect.addEventListener("change", updateRouterControls);

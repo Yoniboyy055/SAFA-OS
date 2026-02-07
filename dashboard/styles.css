@@ -73,13 +73,14 @@
   --card-radius: var(--radius-md);
   --card-padding: var(--space-4);
   --card-border: var(--color-card-border);
+  --card-shadow: var(--shadow-2);
+  --card-blur: var(--blur-md);
   --card-glass: var(--color-card-glass);
   --card-ink: var(--color-card-text);
   --card-overlay: linear-gradient(120deg, var(--color-card-overlay-sheen), var(--color-transparent) 40%),
     repeating-linear-gradient(90deg, var(--color-card-overlay-grid) 0, var(--color-card-overlay-grid) 1px, var(--color-transparent) 1px, var(--color-transparent) 3px);
-  --card-image: radial-gradient(circle at 20% 20%, var(--color-context-orb-primary), var(--color-transparent) 55%),
-    radial-gradient(circle at 80% 30%, var(--color-context-orb-secondary), var(--color-transparent) 45%),
-    radial-gradient(circle at 40% 80%, var(--color-context-orb-tertiary), var(--color-transparent) 50%);
+  --card-image: url("/ambient/room.svg");
+  --card-image-overlay: linear-gradient(180deg, rgba(5, 7, 12, 0.55), rgba(5, 7, 12, 0.85));
   --card-media-system: repeating-linear-gradient(0deg, var(--color-system-grid), var(--color-system-grid) 1px, var(--color-transparent) 1px, var(--color-transparent) 6px),
     radial-gradient(circle at 20% 15%, var(--color-system-orb), var(--color-transparent) 45%);
   --card-media-assistant: radial-gradient(circle at 30% 20%, var(--color-assistant-orb), var(--color-transparent) 45%),
@@ -198,7 +199,7 @@ body {
   color: var(--card-ink);
   background: var(--card-glass);
   backdrop-filter: blur(var(--card-blur, 12px));
-  box-shadow: var(--shadow-2);
+  box-shadow: var(--card-shadow);
   transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
 
@@ -267,7 +268,7 @@ body {
 .card[data-variant="context"] {
   --card-glass: var(--color-card-context-glass);
   --card-border: var(--color-card-context-border);
-  --card-media: var(--card-image);
+  --card-media: var(--card-image-overlay), var(--card-image);
   --card-media-opacity: 0.7;
   --card-media-blur: var(--blur-context);
 }
@@ -298,7 +299,7 @@ body {
 }
 
 .card[data-media="image"] {
-  --card-media: var(--card-image);
+  --card-media: var(--card-image-overlay), var(--card-image);
   --card-media-opacity: 0.7;
   --card-media-blur: var(--blur-media-strong);
 }
