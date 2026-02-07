@@ -56,5 +56,6 @@ test("dashboard UI returns HTML", async () => {
     const response = await request("/", port);
     assert.equal(response.statusCode, 200);
     assert.ok(response.body.includes("JARVAS OS"));
+    assert.ok(response.body.includes("SAFE MODE"));
   });
 });

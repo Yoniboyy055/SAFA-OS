@@ -2,7 +2,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import type { SkillDefinition } from "../../types/skill";
-import { assertPhase7bUnlocked } from "../../core/phase7b/locked";
 
 interface WriteFileInput {
   path: string;
@@ -198,8 +197,6 @@ export const writeFileSkill: SkillDefinition<WriteFileInput, WriteFileOutput> = 
         preview: true
       };
     }
-
-    assertPhase7bUnlocked();
 
     if (createDirs) {
       const dir = path.dirname(canonicalTarget);

@@ -106,7 +106,7 @@ test("deny real Stripe execution when Phase 7B is locked", async () => {
         { priceId: "price_basic", currency: "usd", customerEmail: "user@allow.com", dryRun: false },
         context
       ),
-    /LOCKED: Phase 7B not activated/i
+    /PHASE_7B_LOCKED/i
   );
 });
 

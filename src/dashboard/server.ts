@@ -16,6 +16,8 @@ import {
   getPhase7bLockMessage,
   isPhase7bLockedSkill
 } from "../core/phase7b/locked";
+import { redactSensitiveText } from "../core/sensitive";
+import { armVr, disarmVr, readVrState } from "../core/vr";
 
 type Logger = {
   log: (...args: unknown[]) => void;
@@ -244,6 +246,57 @@ function sanitizeArgv(argv: string[]): string[] {
   return sanitized;
 }
 
+function redactOutput(
+  value: unknown,
+  redactKeys: string[]
+): { redacted: unknown; hadSecrets: boolean; hadPii: boolean } {
+  const keys = new Set(redactKeys.map((entry) => entry.toLowerCase()));
+  let hadSecrets = false;
+  let hadPii = false;
+
+  if (typeof value === "string") {
+    const result = redactSensitiveText(value, {
+      allowPii: false,
+      redactKeys
+    });
+    hadSecrets = hadSecrets || result.hadSecrets;
+    hadPii = hadPii || result.hadPii;
+    return { redacted: result.redactedText, hadSecrets, hadPii };
+  }
+
+  if (value === null || value === undefined) {
+    return { redacted: value, hadSecrets, hadPii };
+  }
+
+  if (Array.isArray(value)) {
+    const redactedArray = value.map((item) => {
+      const result = redactOutput(item, redactKeys);
+      hadSecrets = hadSecrets || result.hadSecrets;
+      hadPii = hadPii || result.hadPii;
+      return result.redacted;
+    });
+    return { redacted: redactedArray, hadSecrets, hadPii };
+  }
+
+  if (typeof value === "object") {
+    const output: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      if (keys.has(key.toLowerCase())) {
+        output[key] = "[REDACTED]";
+        hadSecrets = true;
+        continue;
+      }
+      const result = redactOutput(entry, redactKeys);
+      output[key] = result.redacted;
+      hadSecrets = hadSecrets || result.hadSecrets;
+      hadPii = hadPii || result.hadPii;
+    }
+    return { redacted: output, hadSecrets, hadPii };
+  }
+
+  return { redacted: value, hadSecrets, hadPii };
+}
+
 function renderDashboardUi(): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -295,7 +348,7 @@ function renderDashboardUi(): string {
       color: #93c5fd;
       background: rgba(37, 99, 235, 0.15);
     }
-    main { padding: 24px 32px; display: grid; gap: 16px; }
+    main { padding: 24px 32px; display: grid; gap: 16px; min-height: calc(100vh - 140px); }
     .card {
       background: rgba(15, 23, 42, 0.6);
       border: 1px solid rgba(148, 163, 184, 0.2);
@@ -396,8 +449,35 @@ function renderDashboardUi(): string {
       <div class="label">Skill Matrix</div>
       <div id="skills">Loading...</div>
     </div>
+    <div class="grid">
+      <div class="card">
+        <div class="label">VR Control</div>
+        <div id="vrStatus" class="status-grid">Loading...</div>
+        <div class="badge-row" style="margin-top:8px;">
+          <span class="badge safe">VR Module: Enabled</span>
+          <span class="badge">Hardware: Disarmed by default</span>
+        </div>
+        <div class="control-row">
+          <label class="badge">
+            <input type="checkbox" id="vrOverrideCheck" />
+            Override Kill Switch (VR only)
+          </label>
+        </div>
+        <div class="control-row">
+          <button id="vrArmBtn">Arm VR</button>
+          <button id="vrDisarmBtn" class="secondary">Disarm VR</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">3D / VR Pipeline</div>
+        <div class="pill">Scaffold Active (No heavy render)</div>
+        <div style="margin-top:10px; font-size:12px; color:#94a3b8;">
+          Three.js placeholder ready. No device calls until VR is armed.
+        </div>
+      </div>
+    </div>
     <div class="card">
-      <div class="label">Command Console (Dry-Run)</div>
+      <div class="label">Command Console (Governed)</div>
       <textarea id="commandInput" rows="4" placeholder="JARVIS: STATUS"></textarea>
       <div class="grid" style="margin-top:12px;">
         <div>
@@ -419,6 +499,10 @@ function renderDashboardUi(): string {
         <div>
           <label class="label">Approve</label>
           <input type="checkbox" id="approveCheck" />
+        </div>
+        <div>
+          <label class="label">Dry-Run</label>
+          <input type="checkbox" id="dryRunCheck" checked />
         </div>
         <div>
           <label class="label">Owner Token</label>
@@ -472,8 +556,11 @@ function renderDashboardUi(): string {
       statusEl.innerHTML = \`
         <div>killSwitchEnabled: <strong>\${data.killSwitchEnabled}</strong></div>
         <div>networkEnabled: <strong>\${data.networkEnabled}</strong></div>
+        <div>telemetryEnabled: <strong>\${data.telemetryEnabled}</strong></div>
         <div>strictApprovalMode: <strong>\${data.strictApprovalMode}</strong></div>
         <div>freezeEnabled: <strong>\${data.freezeEnabled}</strong></div>
+        <div>vrEnabled: <strong>\${data.vrEnabled}</strong></div>
+        <div>vrArmed: <strong>\${data.vrArmed}</strong></div>
         <div>phase: <strong>\${data.phase}</strong></div>
       \`;
       const banner = document.getElementById("safeBanner");
@@ -542,6 +629,48 @@ function renderDashboardUi(): string {
         </table>
       \`;
     }
+    async function loadVrStatus() {
+      const res = await fetch("/vr/status");
+      const data = await res.json();
+      const vrEl = document.getElementById("vrStatus");
+      vrEl.innerHTML = \`
+        <div>enabled: <strong>\${data.enabled}</strong></div>
+        <div>armed: <strong>\${data.armed}</strong></div>
+        <div>armedBy: <strong>\${data.armedBy || "n/a"}</strong></div>
+        <div>lastChanged: <strong>\${data.armedAt || "n/a"}</strong></div>
+      \`;
+    }
+    async function sendVrAction(path) {
+      const token = document.getElementById("tokenInput").value.trim();
+      const mode = document.getElementById("modeSelect").value;
+      const authority = document.getElementById("authoritySelect").value;
+      const approve = document.getElementById("approveCheck").checked;
+      const overrideKillSwitch = document.getElementById("vrOverrideCheck").checked;
+      const res = await fetch(path, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Owner-Token": token
+        },
+        body: JSON.stringify({
+          mode,
+          authority,
+          approve,
+          overrideKillSwitch
+        })
+      });
+      const data = await res.json();
+      const feed = document.getElementById("auditFeed");
+      const entry = document.createElement("div");
+      entry.className = "feed-item";
+      entry.textContent =
+        new Date().toISOString() +
+        " • " + (data.denied ? "DENIED" : "OK") +
+        " • " + (data.reason || "VR updated");
+      feed.prepend(entry);
+      await loadVrStatus();
+      await loadStatus();
+    }
     async function sendCommand(lineOverride) {
       const token = document.getElementById("tokenInput").value.trim();
       const line = typeof lineOverride === "string"
@@ -550,6 +679,7 @@ function renderDashboardUi(): string {
       const mode = document.getElementById("modeSelect").value;
       const authority = document.getElementById("authoritySelect").value;
       const approve = document.getElementById("approveCheck").checked;
+      const dryRun = document.getElementById("dryRunCheck").checked;
       const evidenceMode = document.getElementById("evidenceCheck").checked;
       const shadowRun = document.getElementById("shadowCheck").checked;
       const res = await fetch("/command", {
@@ -563,7 +693,7 @@ function renderDashboardUi(): string {
           mode,
           authority,
           approve,
-          dryRun: true,
+          dryRun,
           evidenceMode,
           shadowRun
         })
@@ -585,13 +715,31 @@ function renderDashboardUi(): string {
       if (data.freezeUpdated) {
         await loadStatus();
       }
+      if (data.vrUpdated) {
+        await loadVrStatus();
+      }
     }
     document.getElementById("sendBtn").addEventListener("click", sendCommand);
+    const dryRunToggle = document.getElementById("dryRunCheck");
+    const sendBtn = document.getElementById("sendBtn");
+    function updateSendLabel() {
+      sendBtn.textContent = dryRunToggle.checked
+        ? "Send (Dry-Run)"
+        : "Send (Execute Local)";
+    }
+    dryRunToggle.addEventListener("change", updateSendLabel);
+    updateSendLabel();
     document.getElementById("freezeBtn").addEventListener("click", () => {
       sendCommand('JARVIS: RUN freeze_system {"reason":"dashboard"}');
     });
     document.getElementById("unfreezeBtn").addEventListener("click", () => {
       sendCommand('JARVIS: RUN unfreeze_system {"reason":"dashboard"} --approve');
+    });
+    document.getElementById("vrArmBtn").addEventListener("click", () => {
+      sendVrAction("/vr/arm");
+    });
+    document.getElementById("vrDisarmBtn").addEventListener("click", () => {
+      sendVrAction("/vr/disarm");
     });
     document.getElementById("commandInput").addEventListener("keydown", (event) => {
       if (event.ctrlKey && event.key === "Enter") {
@@ -600,6 +748,7 @@ function renderDashboardUi(): string {
     });
     loadStatus();
     loadSkills();
+    loadVrStatus();
   </script>
 </body>
 </html>`;
@@ -610,10 +759,12 @@ function sanitizedStatus(
   freezeState?: FreezeState
 ): Record<string, unknown> {
   const freeze = freezeState ?? readFreezeState(config.rootDir);
+  const vr = readVrState(config.rootDir);
   return {
     networkEnabled: config.network.enabled,
     killSwitchEnabled: config.killSwitch.enabled,
     strictApprovalMode: config.governance.strictApprovalMode,
+    telemetryEnabled: config.telemetry.enabled,
     phase: "7A",
     phase7b: "LOCKED",
     phase7c: "PLANNED",
@@ -622,6 +773,9 @@ function sanitizedStatus(
     freezeReason: freeze.reason ?? null,
     evidenceMode: true,
     shadowRun: true,
+    vrEnabled: vr.enabled,
+    vrArmed: vr.armed,
+    vrArmedBy: vr.armedBy ?? null,
     layers: getLayerDefinitions()
   };
 }
@@ -676,6 +830,165 @@ export function createDashboardServer(
         };
       });
       return sendJson(res, 200, { skills });
+    }
+    if (req.method === "GET" && pathName === "/vr/status") {
+      const vrState = readVrState(config.rootDir);
+      return sendJson(res, 200, {
+        enabled: vrState.enabled,
+        armed: vrState.armed,
+        armedBy: vrState.armedBy ?? null,
+        armedAt: vrState.armedAt ?? null
+      });
+    }
+    if (
+      req.method === "POST" &&
+      (pathName === "/vr/arm" || pathName === "/vr/disarm")
+    ) {
+      const token = resolveHeaderValue(req.headers["x-owner-token"]);
+      if (!token || token !== ownerToken) {
+        audit.log({
+          timestamp: new Date().toISOString(),
+          actor,
+          action: "vr.command",
+          approved: false,
+          target: pathName,
+          result: "DENIED: Unauthorized."
+        });
+        return sendJson(res, 401, { ok: false, denied: true, reason: "Unauthorized." });
+      }
+      readRequestBody(req)
+        .then((body) => {
+          let payload: {
+            mode?: string;
+            authority?: string;
+            approve?: boolean;
+            overrideKillSwitch?: boolean;
+          };
+          try {
+            payload = JSON.parse(body);
+          } catch {
+            audit.log({
+              timestamp: new Date().toISOString(),
+              actor,
+              action: "vr.command",
+              approved: false,
+              target: pathName,
+              result: "ERROR: Invalid JSON payload."
+            });
+            return sendJson(res, 400, { ok: false, denied: true, reason: "Invalid JSON payload." });
+          }
+
+          const commandMode = parseCommandMode(payload.mode);
+          const authority = resolveAuthority(payload.authority);
+          const approvedFlag = payload.approve === true;
+          const overrideKillSwitch = payload.overrideKillSwitch === true;
+          const freezeState = readFreezeState(config.rootDir);
+
+          if (!commandMode) {
+            return sendJson(res, 400, {
+              ok: false,
+              denied: true,
+              reason: "Command mode is required."
+            });
+          }
+          if (authority !== AuthorityLevel.OWNER) {
+            return sendJson(res, 403, {
+              ok: false,
+              denied: true,
+              reason: "Owner authority is required."
+            });
+          }
+          if (!approvedFlag) {
+            return sendJson(res, 403, {
+              ok: false,
+              denied: true,
+              reason: "Approval is required."
+            });
+          }
+          if (pathName === "/vr/arm" && config.killSwitch.enabled && !overrideKillSwitch) {
+            return sendJson(res, 403, {
+              ok: false,
+              denied: true,
+              reason: "Kill switch override required to arm VR."
+            });
+          }
+
+          let decision;
+          try {
+            decision = governor.evaluate(
+              {
+                type: pathName === "/vr/arm" ? "vr.arm" : "vr.disarm",
+                category: "external_tool",
+                riskLevel: pathName === "/vr/arm" ? "HIGH" : "MEDIUM",
+                requiresApproval: true,
+                allowWhenNetworkOff: true,
+                allowWhenKillSwitch: pathName === "/vr/arm" ? overrideKillSwitch : true,
+                allowWhenFrozen: pathName === "/vr/disarm"
+              },
+              config,
+              {
+                actor,
+                approved: approvedFlag,
+                authority,
+                commandMode,
+                audit,
+                freezeEnabled: freezeState.enabled,
+                defenseText: pathName,
+                maturityLevel: 5,
+                freshOwnerInput: true,
+                costEstimateUsd: 0
+              }
+            );
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return sendJson(res, 400, { ok: false, denied: true, reason: message });
+          }
+
+          if (!decision.allowed) {
+            return sendJson(res, 403, {
+              ok: false,
+              denied: true,
+              reason: decision.reason
+            });
+          }
+
+          try {
+            const state =
+              pathName === "/vr/arm"
+                ? armVr(config.rootDir, actor)
+                : disarmVr(config.rootDir, actor);
+            audit.log({
+              timestamp: new Date().toISOString(),
+              actor,
+              action: pathName === "/vr/arm" ? "vr.arm" : "vr.disarm",
+              approved: approvedFlag,
+              target: "vr",
+              result: JSON.stringify({ armed: state.armed })
+            });
+            return sendJson(res, 200, {
+              ok: true,
+              denied: false,
+              state,
+              vrUpdated: true
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            audit.log({
+              timestamp: new Date().toISOString(),
+              actor,
+              action: pathName === "/vr/arm" ? "vr.arm" : "vr.disarm",
+              approved: approvedFlag,
+              target: "vr",
+              result: `ERROR: ${message}`
+            });
+            return sendJson(res, 403, { ok: false, denied: true, reason: message });
+          }
+        })
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          return sendJson(res, 413, { ok: false, denied: true, reason: message });
+        });
+      return;
     }
     if (req.method === "POST" && pathName === "/command") {
       const token = resolveHeaderValue(req.headers["x-owner-token"]);
@@ -734,23 +1047,6 @@ export function createDashboardServer(
             });
             return sendJson(res, 400, { ok: false, denied: true, reason: "Missing command." });
           }
-          if (!dryRun) {
-            audit.log({
-              timestamp: new Date().toISOString(),
-              actor,
-              action: "dashboard.command",
-              approved: false,
-              target: "command",
-              result: "DENIED: Dashboard only supports dry-run."
-            });
-            return sendJson(res, 400, {
-              ok: false,
-              denied: true,
-              reason: "Dashboard only supports dry-run.",
-              auditId
-            });
-          }
-
           let summary;
           try {
             summary = summarizeJarvisLine(line);
@@ -841,17 +1137,18 @@ export function createDashboardServer(
 
           let decision;
           let preview: Record<string, unknown> = {};
+          let executionRedacted = false;
           let packet: Record<string, unknown> = {
             id: `packet-${Date.now()}`,
             command: summary.command,
             argv: sanitizeArgv(argv),
             inputHash: summary.inputHash,
-            dryRun: true,
+            dryRun,
             shadowRun,
             evidenceMode
           };
-          let isReadOnly = summary.command === "status" || summary.command === "skills";
           let executedControl = false;
+          let executedLocal = false;
           let controlResult: Record<string, unknown> | undefined;
 
           if (summary.command === "status") {
@@ -915,8 +1212,13 @@ export function createDashboardServer(
                 auditId
               });
             }
+            const availability = resolveSkillAvailability(skill, config);
+            const isExternal =
+              skill.category === "network" ||
+              skill.category === "outbound_message" ||
+              skill.category === "external_tool";
             const input = extractInputFromArgs(argv);
-            input.dryRun = true;
+            input.dryRun = dryRun;
             updateInputArg(argv, input);
             packet = {
               ...packet,
@@ -927,57 +1229,48 @@ export function createDashboardServer(
             const isControlAction = ["freeze_system", "unfreeze_system"].includes(
               skill.name
             );
-            isReadOnly =
-              skill.category === "local" &&
-              skill.riskLevel === "LOW" &&
-              skill.requiresApproval === false;
 
-            if (config.killSwitch.enabled && !isReadOnly && !isControlAction) {
-              decision = {
-                allowed: false,
-                reason: "Kill switch safe mode allows read-only dry-runs only."
-              };
-            } else {
-              try {
-                const allowWhenNetworkOff = buildAllowWhenNetworkOff(skill, input);
+            try {
+              const allowWhenNetworkOff = buildAllowWhenNetworkOff(skill, input);
                 decision = governor.evaluate(
-                  {
-                    type: skill.name,
-                    category: skill.category,
-                    riskLevel: skill.riskLevel,
-                    requiresApproval: skill.requiresApproval,
+                {
+                  type: skill.name,
+                  category: skill.category,
+                  riskLevel: skill.riskLevel,
+                  requiresApproval: skill.requiresApproval,
                     allowWhenNetworkOff,
                     allowWhenFrozen: isControlAction
-                  },
-                  config,
-                  {
-                    ...commandContext,
-                    defenseText:
-                      skill.name === "analyze_input_risk"
-                        ? ""
-                        : JSON.stringify(input ?? {})
-                  },
-                  buildNetworkRequest(skill, input)
-                );
-              } catch (error) {
-                const message =
-                  error instanceof Error ? error.message : String(error);
-                audit.log({
-                  timestamp: new Date().toISOString(),
-                  actor,
-                  action: "dashboard.command",
-                  approved: approvedFlag,
-                  target: skill.name,
-                  result: JSON.stringify({ inputHash: summary.inputHash, error: message })
-                });
-                return sendJson(res, 400, {
-                  ok: false,
-                  denied: true,
-                  reason: message,
-                  auditId
-                });
-              }
+                },
+                config,
+                {
+                  ...commandContext,
+                  defenseText:
+                    skill.name === "analyze_input_risk"
+                      ? ""
+                      : JSON.stringify(input ?? {})
+                },
+                buildNetworkRequest(skill, input)
+              );
+            } catch (error) {
+              const message =
+                error instanceof Error ? error.message : String(error);
+              audit.log({
+                timestamp: new Date().toISOString(),
+                actor,
+                action: "dashboard.command",
+                approved: approvedFlag,
+                target: skill.name,
+                result: JSON.stringify({ inputHash: summary.inputHash, error: message })
+              });
+              return sendJson(res, 400, {
+                ok: false,
+                denied: true,
+                reason: message,
+                auditId
+              });
             }
+            let executionOutput: unknown;
+
             if (decision && decision.allowed && isControlAction) {
               const execResult = await registry.execute(skill.name, input, {
                 actor,
@@ -1001,37 +1294,76 @@ export function createDashboardServer(
                     ? (execResult.output as Record<string, unknown>)
                     : { result: execResult.output };
               }
+            } else if (!dryRun && isExternal) {
+              decision = {
+                allowed: false,
+                reason: "External execution is disabled."
+              };
+            } else if (
+              !dryRun &&
+              decision &&
+              decision.allowed &&
+              availability.state === "ENABLED" &&
+              skill.category === "local"
+            ) {
+              const execResult = await registry.execute(skill.name, input, {
+                actor,
+                approved: approvedFlag,
+                authority,
+                commandMode,
+                config,
+                audit,
+                governor,
+                freezeEnabled: freezeState.enabled
+              });
+              if (!execResult.success) {
+                decision = {
+                  allowed: false,
+                  reason: execResult.error ?? "Execution failed."
+                };
+              } else {
+                executedLocal = true;
+                const redaction = redactOutput(
+                  execResult.output ?? null,
+                  config.audit.redactKeys
+                );
+                executionOutput = redaction.redacted;
+                executionRedacted = redaction.hadSecrets || redaction.hadPii;
+              }
             }
 
             preview = {
               skill: skill.name,
-              dryRun: true,
+              dryRun,
               shadowRun,
               note: isControlAction
                 ? "Control action executed (freeze safety override)."
-                : "Simulation only; no execution from dashboard.",
-              controlResult
-            };
-          }
-
-          if (config.killSwitch.enabled && !isReadOnly && decision.allowed && !executedControl) {
-            decision = {
-              allowed: false,
-              reason: "Kill switch safe mode allows read-only dry-runs only."
+                : dryRun
+                  ? "Simulation only; no execution from dashboard."
+                  : "Executed locally under governance.",
+              controlResult,
+              executionOutput,
+              executionRedacted
             };
           }
 
           const allowed = decision.allowed === true;
           const reason = allowed ? "" : decision.reason;
+          const executed = executedControl || executedLocal;
           const touched =
             summary.command === "run" && packet && "skill" in packet
               ? summarizeTouchedTargets(String(packet.skill ?? ""), extractInputFromArgs(argv))
               : [];
+          const wouldHappen = dryRun
+            ? "Dry-run preview only. No execution."
+            : executed
+              ? "Executed locally under governance."
+              : "Execution blocked.";
           const evidence = {
             intent: summary.command,
             outcome: allowed ? "ALLOWED" : "DENIED",
             decision: decision.reason,
-            wouldHappen: "Dry-run preview only. No execution.",
+            wouldHappen,
             blocked: allowed ? "None" : decision.reason,
             touched,
             mode: { evidenceMode, shadowRun },
@@ -1067,7 +1399,7 @@ export function createDashboardServer(
             packet,
             evidence,
             auditId,
-            redacted: true,
+            redacted: executionRedacted,
             shadowRun,
             evidenceMode,
             freezeUpdated: executedControl,

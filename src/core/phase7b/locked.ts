@@ -1,6 +1,5 @@
-const LOCKED_MESSAGE = "LOCKED: Phase 7B not activated";
+const LOCKED_MESSAGE = "PHASE_7B_LOCKED — IMPLEMENTED BUT NOT ACTIVATED";
 const LOCKED_SKILLS = new Set([
-  "write_file",
   "send_email",
   "make_call",
   "request_payment",
@@ -27,11 +26,23 @@ export function createMessageFlow(): never {
   throw new Error(LOCKED_MESSAGE);
 }
 
+export function scheduleWorkflow(): never {
+  throw new Error(LOCKED_MESSAGE);
+}
+
+export function startScheduler(): never {
+  throw new Error(LOCKED_MESSAGE);
+}
+
 export function initiateCallFlow(): never {
   throw new Error(LOCKED_MESSAGE);
 }
 
 export function negotiateIntent(): never {
+  throw new Error(LOCKED_MESSAGE);
+}
+
+export function executeBusinessLogic(): never {
   throw new Error(LOCKED_MESSAGE);
 }
 

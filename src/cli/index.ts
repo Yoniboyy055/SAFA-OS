@@ -12,6 +12,7 @@ import { AuthorityLevel } from "../core/authority";
 import { assertSafeInput } from "../core/defense";
 import { readFreezeState } from "../core/freeze";
 import { getLayerDefinitions } from "../core/layers";
+import { readVrState } from "../core/vr";
 import { parseCommandMode } from "./command_mode";
 import { summarizeJarvisLine } from "./jarvis_line";
 import { buildRegistry } from "../skills/registry_factory";
@@ -263,11 +264,14 @@ export async function runWithArgs(
   }
 
   if (command === "status") {
+    const vrState = readVrState(config.rootDir);
     const status = {
       networkEnabled: config.network.enabled,
       killSwitchEnabled: config.killSwitch.enabled,
       strictApprovalMode: config.governance.strictApprovalMode,
       freezeEnabled: freezeState.enabled,
+      vrEnabled: vrState.enabled,
+      vrArmed: vrState.armed,
       phase: "7A",
       phase7b: "LOCKED",
       phase7c: "PLANNED",

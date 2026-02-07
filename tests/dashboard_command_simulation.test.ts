@@ -99,11 +99,11 @@ test("dashboard denies network command when network OFF", async () => {
       }
     );
     assert.equal(response.body.denied, true);
-    assert.match(response.body.reason, /safe mode|read-only|network/i);
+    assert.match(response.body.reason, /kill switch|network/i);
   });
 });
 
-test("dashboard denies high-risk skills in safe mode", async () => {
+test("dashboard allows high-risk local skills with approval", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-cmd-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
@@ -118,12 +118,12 @@ test("dashboard denies high-risk skills in safe mode", async () => {
         dryRun: true
       }
     );
-    assert.equal(response.body.denied, true);
-    assert.match(response.body.reason, /safe mode|read-only/i);
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.denied, false);
   });
 });
 
-test("dashboard denies when dryRun is false", async () => {
+test("dashboard allows local execution when dryRun is false", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-cmd-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
@@ -131,14 +131,16 @@ test("dashboard denies when dryRun is false", async () => {
       port,
       { "X-Owner-Token": "token" },
       {
-        line: "JARVIS: STATUS",
+        line: 'JARVIS: RUN write_file {"path":"data/local.txt","content":"ok","createDirs":true}',
         mode: "SCRIPT",
         authority: "OWNER",
+        approve: true,
         dryRun: false
       }
     );
-    assert.equal(response.body.denied, true);
-    assert.match(response.body.reason, /dry-run/i);
+    assert.equal(response.body.ok, true);
+    const filePath = path.join(rootDir, "data", "local.txt");
+    assert.ok(fs.existsSync(filePath));
   });
 });
 

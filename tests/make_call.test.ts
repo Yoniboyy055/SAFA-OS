@@ -98,7 +98,7 @@ test("deny real call execution when Phase 7B is locked", async () => {
         { toNumber: "+15550002222", intent: "sales", dryRun: false },
         context
       ),
-    /LOCKED: Phase 7B not activated/i
+    /PHASE_7B_LOCKED/i
   );
 });
 

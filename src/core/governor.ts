@@ -37,6 +37,7 @@ export interface GovernedAction {
   requiresApproval: boolean;
   allowWhenNetworkOff: boolean;
   allowWhenFrozen?: boolean;
+  allowWhenKillSwitch?: boolean;
 }
 
 export interface GovernanceDecision {
@@ -251,7 +252,8 @@ export class Governor {
     if (
       config.killSwitch.enabled &&
       (action.category === "outbound_message" ||
-        action.category === "external_tool")
+        action.category === "external_tool") &&
+      !action.allowWhenKillSwitch
     ) {
       context.audit.log({
         timestamp: new Date().toISOString(),

@@ -243,7 +243,7 @@ test("real email send is blocked when Phase 7B is locked", async () => {
         },
         context
       ),
-    /LOCKED: Phase 7B not activated/i
+    /PHASE_7B_LOCKED/i
   );
 });
 
