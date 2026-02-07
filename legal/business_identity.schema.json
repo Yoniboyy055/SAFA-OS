@@ -1,0 +1,11 @@
+{
+  "schema": "business_identity_v1",
+  "version": "0.1.0",
+  "fields": [
+    { "key": "legal_name", "type": "string", "required": true },
+    { "key": "jurisdiction", "type": "string", "required": true },
+    { "key": "registration_id", "type": "string", "required": false },
+    { "key": "representative", "type": "string", "required": false }
+  ],
+  "notes": "Phase 7C schema only. No runtime usage."
+}

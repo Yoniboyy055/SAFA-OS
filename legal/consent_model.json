@@ -1,0 +1,11 @@
+{
+  "schema": "consent_model_v1",
+  "version": "0.1.0",
+  "fields": [
+    { "key": "subject_id", "type": "string", "required": true },
+    { "key": "consent_type", "type": "string", "required": true },
+    { "key": "granted_at", "type": "string", "required": true },
+    { "key": "revoked_at", "type": "string", "required": false }
+  ],
+  "notes": "Phase 7C schema only. No runtime usage."
+}
