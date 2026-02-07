@@ -216,10 +216,6 @@ function renderDashboardUi(): string {
           <input type="checkbox" id="approveCheck" />
         </div>
         <div>
-          <label class="label">Allow Under Kill Switch</label>
-          <input type="checkbox" id="killSwitchCheck" />
-        </div>
-        <div>
           <label class="label">Owner Token</label>
           <input type="password" id="tokenInput" placeholder="X-Owner-Token" />
         </div>
@@ -251,21 +247,18 @@ function renderDashboardUi(): string {
       const mode = document.getElementById("modeSelect").value;
       const authority = document.getElementById("authoritySelect").value;
       const approve = document.getElementById("approveCheck").checked;
-      const allowUnderKillSwitch = document.getElementById("killSwitchCheck").checked;
       const res = await fetch("/command", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Owner-Token": token,
-          "X-Allow-Under-KillSwitch": allowUnderKillSwitch ? "1" : "0"
+          "X-Owner-Token": token
         },
         body: JSON.stringify({
           line,
           mode,
           authority,
           approve,
-          dryRun: true,
-          allowUnderKillSwitch
+          dryRun: true
         })
       });
       const data = await res.json();
@@ -350,7 +343,6 @@ export function createDashboardServer(
             authority?: string;
             approve?: boolean;
             dryRun?: boolean;
-            allowUnderKillSwitch?: boolean;
           };
           try {
             payload = JSON.parse(body);
@@ -456,10 +448,6 @@ export function createDashboardServer(
             });
           }
 
-          const allowUnderKillSwitch =
-            payload.allowUnderKillSwitch === true &&
-            resolveHeaderValue(req.headers["x-allow-under-killswitch"]) === "1";
-
           if (summary.command === "status") {
             const response = {
               ok: true,
@@ -544,28 +532,6 @@ export function createDashboardServer(
           const input = extractInputFromArgs(argv);
           input.dryRun = true;
           updateInputArg(argv, input);
-
-          if (config.killSwitch.enabled && !allowUnderKillSwitch) {
-            if (skill.category !== "local") {
-              audit.log({
-                timestamp: new Date().toISOString(),
-                actor,
-                action: "dashboard.command",
-                approved: approvedFlag,
-                target: skillName,
-                result: JSON.stringify({
-                  inputHash: summary.inputHash,
-                  error: "Kill switch enabled."
-                })
-              });
-              return sendJson(res, 403, {
-                ok: false,
-                denied: true,
-                reason: "Kill switch enabled for outbound actions.",
-                auditId
-              });
-            }
-          }
 
           let decision;
           try {

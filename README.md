@@ -152,6 +152,8 @@ Open `ui/cockpit/index.html` in a local browser. This UI is static and local-onl
 
 ## Dashboard Server (Local-only)
 The dashboard server binds only to `127.0.0.1` and exposes a minimal local UI at `/`.
+When the kill switch is ON, the dashboard runs in safe mode: GET endpoints remain
+available, and POST /command only supports dry-run previews.
 
 ## Phone Control (Local-Only, Governed)
 The dashboard API exposes local-only endpoints:
