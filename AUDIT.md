@@ -263,7 +263,7 @@
 ### Summary
 
 - **Total Skills:** 32
-- **REAL side effects (local filesystem):** 12 (write_file, run_tests, log_interaction, memory_add, promote_to_canon_memory, write_session_summary, add_knowledge_doc, request_doc_pack, request_image_edit, request_video_edit, request_web_build, run_tests)
+- **REAL side effects (local filesystem):** 11 (write_file, run_tests, log_interaction, memory_add, promote_to_canon_memory, write_session_summary, add_knowledge_doc, request_doc_pack, request_image_edit, request_video_edit, request_web_build)
 - **SIMULATION-ONLY:** 20 (all outbound, network, runner, analysis, advisory skills)
 - **Network-dependent:** 4 (send_email, request_payment, make_call, send_http_request) — all blocked
 - **Approval-required:** 21 of 32
