@@ -2,7 +2,8 @@
 
 Goal: wrap the local dashboard UI in a desktop window without system‑level privileges.
 
-Status: **Prep complete**. The Electron shell only loads `http://127.0.0.1:3777`.
+Status: **Prep complete**. The Electron shell only loads `http://127.0.0.1:3777`
+in a fullscreen window (no browser chrome). 3D/VR pipeline is a placeholder only.
 
 ## Run locally
 1. Start dashboard server (kill switch must be ON):

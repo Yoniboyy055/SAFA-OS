@@ -21,7 +21,9 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
     height: 820,
+    fullscreen: true,
     backgroundColor: "#0b0e14",
+    autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,

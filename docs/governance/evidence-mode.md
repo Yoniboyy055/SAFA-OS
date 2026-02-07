@@ -6,6 +6,8 @@ Evidence Mode:
   - touched targets (redacted)
   - recommended next safe action
 
+Responses redact secrets and PII before rendering in the UI.
+
 Shadow Run:
 - Risky actions are simulated only.
 - No external execution is performed.

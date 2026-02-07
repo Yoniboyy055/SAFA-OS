@@ -14,9 +14,10 @@ This is documentation only. No auto‑enable.
 - Set `JARVIS_OWNER_TOKEN` on the host.
 - Send `X-Owner-Token` for `POST /command`.
 
-## Phone Capabilities (Dry-Run Only)
+## Phone Capabilities (Local Only)
 - View status (`GET /status`)
 - View skills (`GET /skills`)
-- Send dry‑run commands (`POST /command`)
+- Send governed commands (`POST /command`)
 
-No file writes. No execution. No provider activation.
+Execution parity matches desktop (local-only, governed). External actions remain
+disabled. Dry-run is recommended by default.
