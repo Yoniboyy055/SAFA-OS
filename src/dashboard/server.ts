@@ -1,6 +1,7 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as http from "node:http";
+import type { Server } from "http";
 import * as path from "node:path";
 
 import { loadConfig } from "../core/config";
@@ -291,7 +292,7 @@ export function createDashboardServer(options?: {
   configPath?: string;
   actorDefault?: string;
   overrides?: RuntimeOverrides;
-}) {
+}): Server {
   const registry = buildRegistry();
   const governor = new Governor();
   const approvals = new ApprovalQueue();
@@ -730,8 +731,8 @@ export function startDashboardServer(options?: {
   port?: number;
   configPath?: string;
   actorDefault?: string;
-}) {
-  const server = createDashboardServer({
+}): Server {
+  let server: Server = createDashboardServer({
     configPath: options?.configPath,
     actorDefault: options?.actorDefault
   });

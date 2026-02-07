@@ -14,6 +14,24 @@ async function startServer(configPath: string) {
   return { server, port };
 }
 
+async function readJson(res: any) {
+  const reader = res.body?.getReader?.();
+  if (!reader) {
+    return {};
+  }
+  const chunks: Uint8Array[] = [];
+  while (true) {
+    const { value, done } = await reader.read();
+    if (value) {
+      chunks.push(value);
+    }
+    if (done) {
+      break;
+    }
+  }
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
 async function api(
   port: number,
   method: string,
@@ -25,7 +43,7 @@ async function api(
     headers: { "Content-Type": "application/json" },
     body: payload ? JSON.stringify(payload) : undefined
   });
-  return res.json();
+  return readJson(res);
 }
 
 test("dashboard api enforces approval and redaction", async () => {

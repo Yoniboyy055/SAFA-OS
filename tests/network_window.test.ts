@@ -342,13 +342,31 @@ function writeConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
   return loadConfig(configPath);
 }
 
+async function readJson(res: any) {
+  const reader = res.body?.getReader?.();
+  if (!reader) {
+    return {};
+  }
+  const chunks: Uint8Array[] = [];
+  while (true) {
+    const { value, done } = await reader.read();
+    if (value) {
+      chunks.push(value);
+    }
+    if (done) {
+      break;
+    }
+  }
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
 async function api(port: number, pathName: string, body?: Record<string, unknown>) {
   const res = await fetch(`http://127.0.0.1:${port}${pathName}`, {
     method: body ? "POST" : "GET",
     headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined
   });
-  return { statusCode: res.status, body: await res.json() };
+  return { statusCode: res.status, body: await readJson(res) };
 }
 
 async function withServer(
