@@ -38,7 +38,7 @@ async function withServer(
   config: ReturnType<typeof writeConfig>,
   handler: (port: number) => Promise<void>
 ) {
-  const server = createDashboardServer(config, { ownerToken: "token" });
+  const server = createDashboardServer({ configPath: config.configPath });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   const port = typeof address === "object" ? address.port : 0;
@@ -55,6 +55,6 @@ test("dashboard UI returns HTML", async () => {
   await withServer(config, async (port) => {
     const response = await request("/", port);
     assert.equal(response.statusCode, 200);
-    assert.ok(response.body.includes("JARVIS OS"));
+    assert.ok(response.body.includes("JARVIS"));
   });
 });

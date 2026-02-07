@@ -10,11 +10,18 @@
     "postbuild": "node scripts/postbuild.js",
     "start": "node dist/cli/index.js",
     "dashboard": "node dist/dashboard/server.js",
+    "dev:dashboard": "node --watch dist/dashboard/server.js",
     "dashboard:dev": "node dist/src/dashboard/server.js",
     "dashboard:prod": "node dist/dashboard/server.js",
-    "test": "npm run build && node --test dist/tests/**/*.test.js"
+    "test": "npm run build && node --test dist/tests/**/*.test.js",
+    "tui": "node dist/ui/tui/app.js"
+  },
+  "dependencies": {
+    "ink": "^3.2.0",
+    "react": "^17.0.2"
   },
   "devDependencies": {
+    "@types/react": "^17.0.83",
     "typescript": "^5.9.3"
   }
 }

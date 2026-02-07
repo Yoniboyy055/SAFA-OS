@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jarvis OS Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="nav card" data-variant="system" data-depth="2" data-media="abstract" data-blur="10">
+        <div class="brand">
+          <div class="brand-title">JARVIS</div>
+          <div class="brand-sub">Local Dashboard</div>
+        </div>
+        <nav class="nav-list">
+          <button class="nav-item active" data-panel="home">Home</button>
+          <button class="nav-item" data-panel="approvals">Approvals</button>
+          <button class="nav-item" data-panel="audit">Audit</button>
+          <button class="nav-item" data-panel="system">System</button>
+        </nav>
+        <div class="nav-footer">
+          <div class="pill">NETWORK: OFF</div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <section class="panel panel-active card" id="panel-home" data-variant="context" data-depth="1" data-media="image" data-blur="20">
+          <h2>Command Center</h2>
+          <div class="glass card" data-variant="command" data-depth="3" data-media="none" data-blur="16">
+            <label>Command Text</label>
+            <textarea id="commandText" rows="3" placeholder="Describe the task or command"></textarea>
+            <div class="row">
+              <div>
+                <label>Actor</label>
+                <input id="actorInput" type="text" placeholder="owner" />
+              </div>
+              <div>
+                <label>Skill</label>
+                <select id="skillSelect"></select>
+              </div>
+              <div>
+                <label>Approve</label>
+                <input id="approveToggle" type="checkbox" />
+              </div>
+            </div>
+            <div class="row">
+              <button id="planBtn">PLAN</button>
+              <button id="execBtn" disabled>EXECUTE</button>
+              <button id="runBtn">RUN SKILL</button>
+              <button id="viewApprovalsBtn">VIEW APPROVALS</button>
+            </div>
+          </div>
+
+          <div class="glass card" data-variant="command" data-depth="2" data-media="none" data-blur="12">
+            <label>Plan Preview</label>
+            <pre id="planOutput">{}</pre>
+          </div>
+          <div class="glass card" data-variant="command" data-depth="2" data-media="none" data-blur="12">
+            <label>Command Output</label>
+            <pre id="commandOutput">{}</pre>
+          </div>
+        </section>
+
+        <section class="panel card" id="panel-approvals" data-variant="context" data-depth="1" data-media="image" data-blur="20">
+          <h2>Approvals</h2>
+          <div class="glass card" data-variant="system" data-depth="2" data-media="abstract" data-blur="10">
+            <div id="approvalsList"></div>
+          </div>
+        </section>
+
+        <section class="panel card" id="panel-audit" data-variant="context" data-depth="1" data-media="image" data-blur="20">
+          <h2>Audit Tail</h2>
+          <div class="glass card" data-variant="audit" data-depth="2" data-media="none" data-blur="8">
+            <pre id="auditOutput">Loading...</pre>
+          </div>
+        </section>
+
+        <section class="panel card" id="panel-system" data-variant="context" data-depth="1" data-media="image" data-blur="20">
+          <h2>System Controls</h2>
+          <div class="glass card" data-variant="system" data-depth="2" data-media="abstract" data-blur="10">
+            <div class="row">
+              <button id="killToggleBtn">Toggle Kill Switch</button>
+              <button id="networkToggleBtn">Toggle Network</button>
+            </div>
+            <div class="row">
+              <div class="pill" id="killStatus">Kill Switch: --</div>
+              <div class="pill" id="networkStatus">Network: OFF</div>
+              <div class="pill" id="strictStatus">Strict Mode: --</div>
+            </div>
+            <div class="note">Kill/network changes require approval.</div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="status card" data-variant="system" data-depth="2" data-media="abstract" data-blur="10">
+        <div class="glass card" data-variant="system" data-depth="2" data-media="abstract" data-blur="8">
+          <h3>System State</h3>
+          <div id="systemState">Loading...</div>
+        </div>
+        <div class="glass card" data-variant="command" data-depth="2" data-media="none" data-blur="12">
+          <h3>Input JSON</h3>
+          <textarea id="skillInput" rows="8" placeholder='{"path":"README.md"}'></textarea>
+        </div>
+        <div class="glass card" data-variant="assistant" data-depth="2" data-media="image" data-blur="14">
+          <h3>Guidance</h3>
+          <div class="note">Use PLAN first, then EXECUTE. Queue approvals live in the approvals tab.</div>
+        </div>
+        <div class="glass card" data-variant="system" data-depth="1" data-media="abstract" data-blur="6">
+          <h3>Approvals Queue</h3>
+          <div id="queueSummary">0 pending</div>
+        </div>
+      </aside>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

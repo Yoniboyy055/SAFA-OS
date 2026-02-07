@@ -6,10 +6,11 @@
     "outDir": "dist",
     "rootDir": ".",
     "strict": true,
+    "jsx": "react",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts"],
   "exclude": ["dist", "node_modules"]
 }

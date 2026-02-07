@@ -150,30 +150,58 @@ node dist/cli/index.js run recommend_tool --mode SCRIPT --authority OWNER --appr
 ## Jarvis Cockpit v1 (Local UI)
 Open `ui/cockpit/index.html` in a local browser. This UI is static and local-only.
 
+## Jarvis TUI (Phase 8)
+Terminal UI for local-only control. It uses existing governed code paths and keeps
+network disabled by default.
+
+```
+npm install
+npm run build
+npm run tui
+```
+
+Optional flags:
+```
+npm run tui -- --config jarvis.config.json --actor local-user
+npm run tui -- --no-boot
+```
+
+Key bindings:
+- 1 Home
+- 2 Approvals
+- 3 Audit
+- 4 Command
+- 5 Settings
+- k palette
+- t theme
+- r refresh
+- ? help
+- q quit
+
+Reduced motion:
+- Set `JARVIS_REDUCED_MOTION=1` to disable animations.
+
 ## Dashboard Server (Local-only)
-The dashboard server binds only to `127.0.0.1` and exposes a minimal local UI at `/`.
-When the kill switch is ON, the dashboard runs in safe mode: GET endpoints remain
-available, and POST /command only supports dry-run previews.
+The dashboard server binds only to `127.0.0.1` and serves a local UI at `/`.
+All actions are governed and audit-logged. Approvals are required when strict
+mode or skill risk demands it. Network stays OFF by default.
 
-## Phone Control (Local-Only, Governed)
-The dashboard API exposes local-only endpoints:
-- `GET /health`
-- `GET /status`
-- `POST /command` (accepts `JARVIS: ...` line input)
-
-To start the server, set an owner token:
+Start the server:
 ```
-JARVIS_OWNER_TOKEN="set-a-long-random-token" npm run dashboard
+npm run dashboard
 ```
 
-For `POST /command`, send the token as `X-Owner-Token`.
-
-Example (dry-run):
-```
-curl -Method POST "http://127.0.0.1:3777/command" `
-  -Headers @{ "Content-Type"="application/json"; "X-Owner-Token"="$env:JARVIS_OWNER_TOKEN" } `
-  -Body '{"line":"JARVIS: STATUS","mode":"SCRIPT","authority":"OWNER","dryRun":true}'
-```
+Local API endpoints:
+- `GET /api/state`
+- `GET /api/skills`
+- `POST /api/plan`
+- `POST /api/exec`
+- `POST /api/run`
+- `GET /api/audit/tail`
+- `GET /api/approvals`
+- `POST /api/approve`
+- `POST /api/kill`
+- `POST /api/network`
 
 Remote access must be owner-controlled (documentation only):
 - Recommended: Tailscale (VPN)
@@ -204,11 +232,9 @@ jarvis net:close --mode SCRIPT --authority OWNER --approve
 jarvis net:status
 ```
 
-### Dashboard Real-Run
-The dashboard can send `dryRun=false`, but execution is restricted to LOCAL
-category skills only (filesystem, memory, knowledge). Network and outbound
-skills are always blocked from dashboard real-run regardless of the window
-state.
+### Dashboard Execution
+Dashboard actions route through the same governor/audit path as the CLI. When
+strict approval mode is enabled, every action requires approval first.
 
 ### Governor Enforcement
 When a `networkWindow` is provided in the governance context, the Governor

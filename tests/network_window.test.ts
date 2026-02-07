@@ -342,41 +342,20 @@ function writeConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
   return loadConfig(configPath);
 }
 
-function postCommand(
-  port: number,
-  headers: Record<string, string>,
-  body: Record<string, unknown>
-): Promise<{ statusCode: number; body: any }> {
-  return new Promise((resolve, reject) => {
-    const req = http.request(
-      {
-        hostname: "127.0.0.1",
-        port,
-        path: "/command",
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...headers }
-      },
-      (res: any) => {
-        let data = "";
-        res.on("data", (chunk: any) => {
-          data += String(chunk);
-        });
-        res.on("end", () => {
-          resolve({ statusCode: res.statusCode ?? 0, body: JSON.parse(data) });
-        });
-      }
-    );
-    req.on("error", reject);
-    req.write(JSON.stringify(body));
-    req.end();
+async function api(port: number, pathName: string, body?: Record<string, unknown>) {
+  const res = await fetch(`http://127.0.0.1:${port}${pathName}`, {
+    method: body ? "POST" : "GET",
+    headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined
   });
+  return { statusCode: res.status, body: await res.json() };
 }
 
 async function withServer(
   config: ReturnType<typeof writeConfig>,
   handler: (port: number) => Promise<void>
 ) {
-  const server = createDashboardServer(config, { ownerToken: "token" });
+  const server = createDashboardServer({ configPath: config.configPath });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   const port = typeof address === "object" ? address.port : 0;
@@ -387,7 +366,7 @@ async function withServer(
   }
 }
 
-test("dashboard allows dryRun=false for LOCAL skills (read_file)", async () => {
+test("dashboard allows local run when strict approval is off", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-nw-dash-"));
   fs.writeFileSync(path.join(rootDir, "test.txt"), "hello world");
   const config = writeConfig(rootDir, {
@@ -399,58 +378,58 @@ test("dashboard allows dryRun=false for LOCAL skills (read_file)", async () => {
     }
   });
   await withServer(config, async (port) => {
-    const response = await postCommand(
-      port,
-      { "X-Owner-Token": "token" },
-      {
-        line: `JARVIS: RUN read_file {"path":"test.txt"} --approve`,
-        mode: "SCRIPT",
-        authority: "OWNER",
-        approve: true,
-        dryRun: false
-      }
-    );
-    assert.equal(response.body.denied, false);
-    assert.equal(response.body.ok, true);
+    const response = await api(port, "/api/run", {
+      skill: "read_file",
+      input: { path: "test.txt" },
+      approve: true,
+      actor: "tester"
+    });
+    assert.equal(response.body.status, "OK");
   });
 });
 
-test("dashboard refuses dryRun=false for non-local skills (send_http_request)", async () => {
+test("dashboard denies network run when network is off", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-nw-dash-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: false } });
   await withServer(config, async (port) => {
-    const response = await postCommand(
-      port,
-      { "X-Owner-Token": "token" },
-      {
-        line: 'JARVIS: RUN send_http_request {"method":"GET","url":"https://example.com"}',
-        mode: "SCRIPT",
-        authority: "OWNER",
-        approve: true,
-        dryRun: false
-      }
-    );
-    assert.equal(response.body.denied, true);
-    assert.match(response.body.reason, /local/i);
+    const pending = await api(port, "/api/run", {
+      skill: "send_http_request",
+      input: { method: "GET", url: "https://example.com" },
+      approve: false,
+      actor: "tester"
+    });
+    const approved = await api(port, "/api/approve", {
+      approvalId: pending.body.approvalId,
+      decision: "APPROVE",
+      actor: "tester"
+    });
+    assert.equal(approved.body.status, "APPROVED");
+    const response = await api(port, "/api/run", {
+      skill: "send_http_request",
+      input: { method: "GET", url: "https://example.com" },
+      approve: true,
+      approvalId: pending.body.approvalId,
+      actor: "tester"
+    });
+    assert.equal(response.statusCode, 403);
+    assert.match(response.body.error, /network is disabled/i);
   });
 });
 
-test("dashboard still allows dryRun=true (backward compat)", async () => {
+test("dashboard returns pending approval in strict mode", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-nw-dash-"));
-  const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
+  const config = writeConfig(rootDir, {
+    killSwitch: { enabled: true },
+    governance: { strictApprovalMode: true }
+  });
   await withServer(config, async (port) => {
-    const response = await postCommand(
-      port,
-      { "X-Owner-Token": "token" },
-      {
-        line: 'JARVIS: RUN read_file {"path":"README.md"} --approve',
-        mode: "SCRIPT",
-        authority: "OWNER",
-        approve: true,
-        dryRun: true
-      }
-    );
-    assert.equal(response.statusCode, 200);
-    assert.equal(response.body.ok, true);
+    const response = await api(port, "/api/run", {
+      skill: "read_file",
+      input: { path: "README.md" },
+      approve: false,
+      actor: "tester"
+    });
+    assert.equal(response.statusCode, 202);
+    assert.equal(response.body.status, "PENDING_APPROVAL");
   });
 });
