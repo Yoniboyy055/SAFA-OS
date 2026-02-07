@@ -12,6 +12,8 @@ import { assertBoundedIdentity } from "./identity";
 import { assertMaturityLevel, assertNoRecursivePlanning } from "./maturity";
 import { assertSafeInput } from "./defense";
 import { assertCostWithinBudget } from "./cost_guard";
+import type { NetworkWindowState } from "./network_window";
+import { isNetworkWindowActive } from "./network_window";
 
 export interface GovernanceContext {
   actor: string;
@@ -27,6 +29,7 @@ export interface GovernanceContext {
   approval?: ApprovalRequest;
   planHash?: string;
   payloadHash?: string;
+  networkWindow?: NetworkWindowState;
 }
 
 export interface GovernedAction {
@@ -217,6 +220,12 @@ export class Governor {
           reason: "Network is disabled by default."
         };
       }
+      if (context.networkWindow && !isNetworkWindowActive(context.networkWindow)) {
+        return {
+          allowed: false,
+          reason: "Network window is closed or expired."
+        };
+      }
       const approvalState = this.resolveApproval(action, config, context);
       if (!approvalState.approved) {
         return {
@@ -320,6 +329,13 @@ export class Governor {
       return {
         allowed: false,
         reason: "Network is disabled by default."
+      };
+    }
+
+    if (context.networkWindow && !isNetworkWindowActive(context.networkWindow)) {
+      return {
+        allowed: false,
+        reason: "Network window is closed or expired."
       };
     }
 

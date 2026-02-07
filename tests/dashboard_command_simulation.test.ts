@@ -101,21 +101,22 @@ test("dashboard denies network command when network OFF", async () => {
   });
 });
 
-test("dashboard denies when dryRun is false", async () => {
+test("dashboard denies when dryRun is false for non-local skills", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-cmd-"));
-  const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
+  const config = writeConfig(rootDir, { killSwitch: { enabled: false } });
   await withServer(config, async (port) => {
     const response = await postCommand(
       port,
       { "X-Owner-Token": "token" },
       {
-        line: "JARVIS: STATUS",
+        line: 'JARVIS: RUN send_http_request {"method":"GET","url":"https://example.com"}',
         mode: "SCRIPT",
         authority: "OWNER",
+        approve: true,
         dryRun: false
       }
     );
     assert.equal(response.body.denied, true);
-    assert.match(response.body.reason, /dry-run/i);
+    assert.match(response.body.reason, /local/i);
   });
 });
