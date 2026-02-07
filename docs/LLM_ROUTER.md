@@ -37,6 +37,8 @@ Decision flow:
 
 Each decision returns `selected_model`, a short `reason`, and a `policy_trace` object.
 
+`policy_trace` includes the resolved inputs, the matched rule, and whether a fallback was used.
+
 ## Environment Variables
 
 - `OPENAI_API_KEY`: required for provider calls.
