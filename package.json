@@ -12,9 +12,11 @@
     "dashboard": "node dist/dashboard/server.js",
     "dashboard:dev": "node dist/src/dashboard/server.js",
     "dashboard:prod": "node dist/dashboard/server.js",
+    "desktop": "electron desktop/main.js",
     "test": "npm run build && node scripts/run-node-tests.js"
   },
   "devDependencies": {
+    "electron": "^40.2.1",
     "typescript": "^5.9.3"
   }
 }

@@ -5,11 +5,14 @@
 - GET endpoints: `/health`, `/status`, `/skills`
 - POST `/command` for **dry-run only** simulation
 - Governed pipeline: parser → packet → governor → decision → preview
+- SAFE MODE banner with kill switch enforced
+- One-button freeze control (safety override)
 
 ## What is forbidden
 - Real execution (no live calls, no outbound network)
 - Public binding (no 0.0.0.0)
 - Any action without owner authority, mode, and approvals
+- Phase 7B capabilities remain locked
 
 ## Why gates exist
 Strict governance prevents accidental execution and protects sensitive data.

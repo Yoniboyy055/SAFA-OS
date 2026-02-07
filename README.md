@@ -153,7 +153,15 @@ Open `ui/cockpit/index.html` in a local browser. This UI is static and local-onl
 ## Dashboard Server (Local-only)
 The dashboard server binds only to `127.0.0.1` and exposes a minimal local UI at `/`.
 It requires the kill switch to remain **ON**. In safe mode, GET endpoints remain
-available, and POST /command only supports dry-run previews.
+available, and POST /command only supports dry-run previews. The UI includes a
+one-button freeze control and evidence-mode output.
+
+## Desktop Shell (Electron)
+Run the local dashboard in a desktop window:
+```
+npm run desktop
+```
+The shell is restricted to `127.0.0.1` only.
 
 ## Phone Control (Local-Only, Governed)
 The dashboard API exposes local-only endpoints:
