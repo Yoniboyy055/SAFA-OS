@@ -93,6 +93,38 @@ test("governor blocks outbound when kill switch enabled", () => {
   assert.match(decision.reason, /kill switch/i);
 });
 
+test("governor blocks category when release lock enabled", () => {
+  const audit = new AuditLogger({ logPath: "/tmp/audit.log", redactKeys: [] });
+  const governor = new Governor();
+  const decision = governor.evaluate(
+    {
+      type: "run_packet",
+      category: "external_tool",
+      riskLevel: "LOW",
+      requiresApproval: false,
+      allowWhenNetworkOff: true
+    },
+    {
+      ...baseConfig,
+      releaseLock: {
+        enabled: true,
+        blockedCategories: ["external_tool"]
+      }
+    },
+    {
+      actor: "tester",
+      approved: true,
+      authority: AuthorityLevel.OWNER,
+      commandMode: "DECIDE",
+      audit,
+      maturityLevel: 5,
+      freshOwnerInput: true
+    }
+  );
+  assert.equal(decision.allowed, false);
+  assert.match(decision.reason, /release lock/i);
+});
+
 test("governor requires approval for risky actions", () => {
   const audit = new AuditLogger({ logPath: "/tmp/audit.log", redactKeys: [] });
   const governor = new Governor();

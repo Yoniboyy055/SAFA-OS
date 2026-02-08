@@ -262,6 +262,24 @@ export class Governor {
       costCapUsd: context.costCapUsd
     });
 
+    if (
+      config.releaseLock?.enabled &&
+      config.releaseLock.blockedCategories.includes(action.category)
+    ) {
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "release_lock.triggered",
+        approved: false,
+        target: action.type,
+        result: `Release lock blocked ${action.category}.`
+      });
+      return {
+        allowed: false,
+        reason: "Release lock enabled for this category."
+      };
+    }
+
     if (action.category === "network") {
       if (config.killSwitch.enabled) {
         context.audit.log({
@@ -372,6 +390,24 @@ export class Governor {
       audit: context.audit,
       costCapUsd: context.costCapUsd
     });
+
+    if (
+      config.releaseLock?.enabled &&
+      config.releaseLock.blockedCategories.includes("network")
+    ) {
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "release_lock.triggered",
+        approved: false,
+        target: request.url,
+        result: "Release lock blocked network requests."
+      });
+      return {
+        allowed: false,
+        reason: "Release lock enabled for network."
+      };
+    }
 
     if (config.killSwitch.enabled) {
       context.audit.log({

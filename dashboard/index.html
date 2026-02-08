@@ -14,7 +14,9 @@
           <div class="brand-sub">Local Dashboard</div>
         </div>
         <nav class="nav-list">
+          <button class="nav-item" data-panel="world">World</button>
           <button class="nav-item active" data-panel="home">Home</button>
+          <button class="nav-item" data-panel="command">Command</button>
           <button class="nav-item" data-panel="plan">Plan Viewer</button>
           <button class="nav-item" data-panel="approvals">Approvals</button>
           <button class="nav-item" data-panel="executions">Timeline</button>
@@ -27,7 +29,109 @@
       </aside>
 
       <main class="main">
+        <section class="panel card" id="panel-world" data-variant="context" data-depth="1" data-media="image" data-blur="20">
+          <h2>World Map</h2>
+          <div class="wireframe">
+            <div class="wire-room" data-room="audit">
+              <div class="wire-title">Audit Room</div>
+              <div class="wire-note">Timeline + forensic trail</div>
+            </div>
+            <div class="wire-room" data-room="control">
+              <div class="wire-title">Control Core</div>
+              <div class="wire-note">Kill switch + network gates</div>
+            </div>
+            <div class="wire-room" data-room="approvals">
+              <div class="wire-title">Approval Gate</div>
+              <div class="wire-note">Queue + decisions</div>
+            </div>
+            <div class="wire-link" data-link="audit"></div>
+            <div class="wire-link" data-link="control"></div>
+            <div class="wire-link" data-link="approvals"></div>
+          </div>
+          <div class="world-grid">
+            <div class="glass card zone-card" data-zone="home" data-variant="command" data-depth="3" data-media="none" data-blur="12">
+              <div class="zone-title">Conversation Atrium</div>
+              <div class="zone-note">Natural language intake and presence.</div>
+              <button class="zone-action" data-zone="home">Enter</button>
+            </div>
+            <div class="glass card zone-card" data-zone="command" data-variant="command" data-depth="3" data-media="none" data-blur="12">
+              <div class="zone-title">Command Deck</div>
+              <div class="zone-note">Plan, run, and monitor commands.</div>
+              <button class="zone-action" data-zone="command">Enter</button>
+            </div>
+            <div class="glass card zone-card" data-zone="plan" data-variant="system" data-depth="2" data-media="abstract" data-blur="10">
+              <div class="zone-title">Planning Bay</div>
+              <div class="zone-note">Inspect steps and approvals.</div>
+              <button class="zone-action" data-zone="plan">Enter</button>
+            </div>
+            <div class="glass card zone-card" data-zone="approvals" data-variant="system" data-depth="2" data-media="abstract" data-blur="10">
+              <div class="zone-title">Approval Gate</div>
+              <div class="zone-note">Review and approve actions.</div>
+              <button class="zone-action" data-zone="approvals">Enter</button>
+            </div>
+            <div class="glass card zone-card" data-zone="executions" data-variant="audit" data-depth="2" data-media="none" data-blur="8">
+              <div class="zone-title">Execution Hall</div>
+              <div class="zone-note">Timeline of governed actions.</div>
+              <button class="zone-action" data-zone="executions">Enter</button>
+            </div>
+            <div class="glass card zone-card" data-zone="audit" data-variant="audit" data-depth="2" data-media="none" data-blur="8">
+              <div class="zone-title">Audit Gallery</div>
+              <div class="zone-note">Trace every decision.</div>
+              <button class="zone-action" data-zone="audit">Enter</button>
+            </div>
+            <div class="glass card zone-card" data-zone="system" data-variant="system" data-depth="2" data-media="abstract" data-blur="10">
+              <div class="zone-title">Systems Core</div>
+              <div class="zone-note">Kill switch and network controls.</div>
+              <button class="zone-action" data-zone="system">Enter</button>
+            </div>
+          </div>
+          <div class="glass card" data-variant="assistant" data-depth="2" data-media="image" data-blur="14">
+            <h3>Agent Avatars</h3>
+            <div class="avatar-grid">
+              <div class="avatar-card">
+                <div class="avatar-title">Governor</div>
+                <div class="avatar-note">Enforces approvals and kill switch.</div>
+                <div class="avatar-tags">Authority Boundary</div>
+              </div>
+              <div class="avatar-card">
+                <div class="avatar-title">Manager</div>
+                <div class="avatar-note">Validates plans and risk.</div>
+                <div class="avatar-tags">Plan Integrity</div>
+              </div>
+              <div class="avatar-card">
+                <div class="avatar-title">Operator</div>
+                <div class="avatar-note">Executes approved steps only.</div>
+                <div class="avatar-tags">Execution Gate</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="panel panel-active card" id="panel-home" data-variant="context" data-depth="1" data-media="image" data-blur="20">
+          <h2>Conversation</h2>
+          <div class="glass card conversation-shell" data-variant="assistant" data-depth="3" data-media="image" data-blur="16">
+            <div class="presence-row">
+              <div>
+                <div class="presence-greeting" id="greetingText">Good day.</div>
+                <div class="presence-note" id="presenceNote">Local dashboard ready.</div>
+              </div>
+              <div class="pill presence-pill" id="presencePill">LOCAL ONLY</div>
+            </div>
+            <div id="chatStream" class="chat-stream"></div>
+            <div class="composer">
+              <textarea id="chatInput" rows="2" placeholder="What are we doing today?"></textarea>
+              <button id="chatSend">Send</button>
+            </div>
+            <div class="hint-row">
+              <button class="hint" data-hint="Run tests">Run tests</button>
+              <button class="hint" data-hint="Show approvals">Approvals</button>
+              <button class="hint" data-hint="Show audit tail">Audit tail</button>
+              <button class="hint" data-hint="Plan a quick status report">Plan report</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel card" id="panel-command" data-variant="context" data-depth="1" data-media="image" data-blur="20">
           <h2>Command Center</h2>
           <div class="glass card" data-variant="command" data-depth="3" data-media="none" data-blur="16">
             <label>Command Text</label>
@@ -68,6 +172,11 @@
           </div>
 
           <div class="glass card" data-variant="command" data-depth="2" data-media="none" data-blur="12">
+            <h3>Input JSON</h3>
+            <textarea id="skillInput" rows="8" placeholder='{"path":"README.md"}'></textarea>
+          </div>
+
+          <div class="glass card" data-variant="command" data-depth="2" data-media="none" data-blur="12">
             <label>Plan Preview</label>
             <pre id="planOutput">{}</pre>
           </div>
@@ -78,6 +187,10 @@
           <div class="glass card" data-variant="system" data-depth="2" data-media="abstract" data-blur="10">
             <label>Policy Summary</label>
             <pre id="policyOutput">{}</pre>
+          </div>
+          <div class="glass card" data-variant="assistant" data-depth="2" data-media="image" data-blur="14">
+            <h3>Guidance</h3>
+            <div class="note">Command mode keeps explicit PLAN/EXECUTE controls available when needed.</div>
           </div>
         </section>
 
@@ -102,7 +215,7 @@
         <section class="panel card" id="panel-executions" data-variant="context" data-depth="1" data-media="image" data-blur="20">
           <h2>Execution Timeline</h2>
           <div class="glass card" data-variant="audit" data-depth="2" data-media="none" data-blur="8">
-            <div id="executionList">Loading...</div>
+            <div id="executionList" class="timeline-list">Loading...</div>
           </div>
         </section>
 
@@ -135,13 +248,9 @@
           <h3>System State</h3>
           <div id="systemState">Loading...</div>
         </div>
-        <div class="glass card" data-variant="command" data-depth="2" data-media="none" data-blur="12">
-          <h3>Input JSON</h3>
-          <textarea id="skillInput" rows="8" placeholder='{"path":"README.md"}'></textarea>
-        </div>
         <div class="glass card" data-variant="assistant" data-depth="2" data-media="image" data-blur="14">
-          <h3>Guidance</h3>
-          <div class="note">Use PLAN first, then EXECUTE. Queue approvals live in the approvals tab.</div>
+          <h3>Intent Hints</h3>
+          <div class="note">Try: “Run tests”, “Show approvals”, “Plan a weekly recap”.</div>
         </div>
         <div class="glass card" data-variant="system" data-depth="1" data-media="abstract" data-blur="6">
           <h3>Approvals Queue</h3>
@@ -150,6 +259,7 @@
       </aside>
     </div>
 
+    <script src="/intent_resolver.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>

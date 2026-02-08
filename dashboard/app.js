@@ -23,13 +23,20 @@ function initCards(scope = document) {
 const els = {
   navItems: Array.from(document.querySelectorAll(".nav-item")),
   panels: {
+    world: document.getElementById("panel-world"),
     home: document.getElementById("panel-home"),
+    command: document.getElementById("panel-command"),
     plan: document.getElementById("panel-plan"),
     approvals: document.getElementById("panel-approvals"),
     executions: document.getElementById("panel-executions"),
     audit: document.getElementById("panel-audit"),
     system: document.getElementById("panel-system")
   },
+  greetingText: document.getElementById("greetingText"),
+  presenceNote: document.getElementById("presenceNote"),
+  chatStream: document.getElementById("chatStream"),
+  chatInput: document.getElementById("chatInput"),
+  chatSend: document.getElementById("chatSend"),
   commandText: document.getElementById("commandText"),
   actorInput: document.getElementById("actorInput"),
   skillSelect: document.getElementById("skillSelect"),
@@ -58,6 +65,33 @@ const els = {
   queueSummary: document.getElementById("queueSummary")
 };
 
+const conversationHints = Array.from(document.querySelectorAll(".hint"));
+
+function addMessage(role, text) {
+  const message = document.createElement("div");
+  message.className = `chat-message chat-${role}`;
+  message.textContent = text;
+  els.chatStream.appendChild(message);
+  els.chatStream.scrollTop = els.chatStream.scrollHeight;
+}
+
+function updatePresence() {
+  if (!window.IntentResolver) {
+    return;
+  }
+  const lastSeenRaw = window.localStorage.getItem("jarvis.lastSeen");
+  const lastSeen = lastSeenRaw ? Number(lastSeenRaw) : undefined;
+  const actor = els.actorInput.value || "there";
+  const presence = window.IntentResolver.buildPresence(new Date(), actor, lastSeen);
+  els.greetingText.textContent = presence.greeting;
+  els.presenceNote.textContent = presence.note;
+}
+
+function touchPresence() {
+  window.localStorage.setItem("jarvis.lastSeen", String(Date.now()));
+  updatePresence();
+}
+
 function showPanel(name) {
   Object.values(els.panels).forEach((panel) => panel.classList.remove("panel-active"));
   els.panels[name].classList.add("panel-active");
@@ -67,6 +101,10 @@ function showPanel(name) {
 
 els.navItems.forEach((item) => {
   item.addEventListener("click", () => showPanel(item.dataset.panel));
+});
+
+Array.from(document.querySelectorAll("[data-zone]")).forEach((button) => {
+  button.addEventListener("click", () => showPanel(button.dataset.zone));
 });
 
 async function api(path, options) {
@@ -79,6 +117,9 @@ async function api(path, options) {
 
 async function loadState() {
   const data = await api("/api/state");
+  document.body.dataset.network = data.networkEnabled ? "on" : "off";
+  document.body.dataset.kill = data.killSwitchEnabled ? "on" : "off";
+  document.body.dataset.strict = data.strictApprovalMode ? "on" : "off";
   els.systemState.textContent = `Network=${data.networkEnabled} | Kill=${data.killSwitchEnabled} | Strict=${data.strictApprovalMode} | Version=${data.version}`;
   els.killStatus.textContent = `Kill Switch: ${data.killSwitchEnabled ? "ON" : "OFF"}`;
   els.networkStatus.textContent = `Network: ${data.networkEnabled ? "ON" : "OFF"}`;
@@ -209,7 +250,27 @@ async function loadExecutions() {
     els.executionList.textContent = "No executions yet.";
     return;
   }
-  els.executionList.textContent = JSON.stringify(data.executions, null, 2);
+  els.executionList.innerHTML = "";
+  data.executions
+    .slice()
+    .reverse()
+    .forEach((entry) => {
+      const card = document.createElement("div");
+      card.className = "timeline-item";
+      const statusClass = entry.success ? "ok" : "fail";
+      const kind = entry.kind === "plan" ? "PLAN" : "SKILL";
+      const target = entry.planHash || entry.skill || "unknown";
+      const steps = Array.isArray(entry.steps) ? entry.steps.length : 0;
+      card.innerHTML = `
+        <div class="timeline-header">
+          <div class="timeline-kind">${kind}</div>
+          <div class="timeline-status ${statusClass}">${entry.success ? "OK" : "FAILED"}</div>
+        </div>
+        <div class="timeline-target">${target}</div>
+        <div class="timeline-meta">${entry.createdAt} · steps ${steps}</div>
+      `;
+      els.executionList.appendChild(card);
+    });
 }
 
 function parseSkillInput() {
@@ -220,12 +281,12 @@ function parseSkillInput() {
   }
 }
 
-els.planBtn.addEventListener("click", async () => {
+async function runPlan(commandText, routerMode = "auto") {
   const manualSelection = resolveManualSelection();
   const payload = {
-    commandText: els.commandText.value,
+    commandText,
     actor: els.actorInput.value,
-    routerMode: els.modeSelect.value,
+    routerMode,
     manualProvider: manualSelection.manualProvider,
     manualModel: manualSelection.manualModel
   };
@@ -239,18 +300,19 @@ els.planBtn.addEventListener("click", async () => {
   renderPlanViewer(data);
   renderPolicySummary(data);
   els.execBtn.disabled = !data.planHash;
-});
+  return data;
+}
 
-els.execBtn.addEventListener("click", async () => {
+async function runExec(approve) {
   if (!state.planHash) {
-    return;
+    return { status: "NO_PLAN" };
   }
   const manualSelection = resolveManualSelection();
   const data = await api("/api/exec", {
     method: "POST",
     body: JSON.stringify({
       planHash: state.planHash,
-      approve: els.approveToggle.checked,
+      approve,
       approvalId: state.approvalId,
       actor: els.actorInput.value,
       routerMode: els.modeSelect.value,
@@ -265,15 +327,16 @@ els.execBtn.addEventListener("click", async () => {
   renderPolicySummary(data);
   await loadApprovals();
   await loadExecutions();
-});
+  return data;
+}
 
-els.runBtn.addEventListener("click", async () => {
+async function runSkill(skill, input, approve) {
   const data = await api("/api/run", {
     method: "POST",
     body: JSON.stringify({
-      skill: els.skillSelect.value,
-      input: parseSkillInput(),
-      approve: els.approveToggle.checked,
+      skill,
+      input,
+      approve,
       approvalId: state.approvalId,
       actor: els.actorInput.value
     })
@@ -284,6 +347,19 @@ els.runBtn.addEventListener("click", async () => {
   els.commandOutput.textContent = JSON.stringify(data, null, 2);
   await loadApprovals();
   await loadExecutions();
+  return data;
+}
+
+els.planBtn.addEventListener("click", async () => {
+  await runPlan(els.commandText.value, els.modeSelect.value);
+});
+
+els.execBtn.addEventListener("click", async () => {
+  await runExec(els.approveToggle.checked);
+});
+
+els.runBtn.addEventListener("click", async () => {
+  await runSkill(els.skillSelect.value, parseSkillInput(), els.approveToggle.checked);
 });
 
 els.viewApprovalsBtn.addEventListener("click", () => showPanel("approvals"));
@@ -332,6 +408,8 @@ async function boot() {
   await loadApprovals();
   await loadAudit();
   await loadExecutions();
+  updatePresence();
+  addMessage("jarvis", "Say what you want to handle, and I will translate it into a plan.");
   setInterval(loadAudit, 4000);
   setInterval(loadState, 6000);
   setInterval(loadExecutions, 6000);
@@ -341,3 +419,78 @@ async function boot() {
 boot();
 
 els.modeSelect.addEventListener("change", updateRouterControls);
+
+els.chatSend.addEventListener("click", async () => {
+  const text = els.chatInput.value.trim();
+  if (!text) {
+    return;
+  }
+  els.chatInput.value = "";
+  addMessage("user", text);
+  touchPresence();
+  if (!window.IntentResolver) {
+    addMessage("jarvis", "Intent resolver is not available.");
+    return;
+  }
+  const intent = window.IntentResolver.resolveIntent(text);
+  if (intent.response) {
+    addMessage("jarvis", intent.response);
+  }
+  if (intent.type === "panel" && intent.panel) {
+    showPanel(intent.panel);
+    return;
+  }
+  if (intent.type === "run_skill") {
+    const result = await runSkill(intent.skill, intent.input ?? {}, false);
+    if (result.status === "PENDING_APPROVAL") {
+      addMessage("jarvis", "Approval required. Review it in the approvals panel.");
+    } else if (result.success === false) {
+      addMessage("jarvis", result.error ?? "The request was blocked.");
+    } else {
+      addMessage("jarvis", "Done. Check the timeline for details.");
+    }
+    return;
+  }
+  if (intent.type === "exec") {
+    if (!state.planHash) {
+      addMessage("jarvis", "I need a plan first. Tell me what to plan.");
+      return;
+    }
+    const result = await runExec(false);
+    if (result.status === "PENDING_APPROVAL") {
+      addMessage("jarvis", "Approval required. Review it in the approvals panel.");
+    } else if (result.success === false) {
+      addMessage("jarvis", result.error ?? "Execution was blocked.");
+    } else {
+      addMessage("jarvis", "Execution complete. Timeline updated.");
+    }
+    return;
+  }
+  if (intent.type === "plan") {
+    const planResult = await runPlan(text, "auto");
+    if (planResult.plan && Array.isArray(planResult.plan.steps)) {
+      addMessage("jarvis", `Plan ready with ${planResult.plan.steps.length} steps.`);
+      addMessage("jarvis", "Review it in Plan Viewer or tell me to execute.");
+    } else {
+      addMessage("jarvis", "Plan ready. Review it in Plan Viewer.");
+    }
+  }
+});
+
+els.chatInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    els.chatSend.click();
+  }
+});
+
+conversationHints.forEach((button) => {
+  button.addEventListener("click", () => {
+    const hint = button.dataset.hint;
+    if (!hint) {
+      return;
+    }
+    els.chatInput.value = hint;
+    els.chatSend.click();
+  });
+});

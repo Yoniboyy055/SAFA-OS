@@ -48,5 +48,35 @@
     "createdAt": "2026-02-08T01:08:58.503Z",
     "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
     "error": "Strict approval mode requires explicit approval."
+  },
+  {
+    "id": "rcpt-6f04e86796f1b",
+    "skill": "request_web_build",
+    "status": "DENIED",
+    "actor": "local-user",
+    "approved": false,
+    "createdAt": "2026-02-08T01:49:20.014Z",
+    "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
+    "error": "Strict approval mode requires explicit approval."
+  },
+  {
+    "id": "rcpt-2cac9e3379912",
+    "skill": "request_web_build",
+    "status": "DENIED",
+    "actor": "local-user",
+    "approved": false,
+    "createdAt": "2026-02-08T01:53:31.930Z",
+    "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
+    "error": "Strict approval mode requires explicit approval."
+  },
+  {
+    "id": "rcpt-ddd92ca027209",
+    "skill": "request_web_build",
+    "status": "DENIED",
+    "actor": "local-user",
+    "approved": false,
+    "createdAt": "2026-02-08T02:49:12.796Z",
+    "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
+    "error": "Strict approval mode requires explicit approval."
   }
 ]

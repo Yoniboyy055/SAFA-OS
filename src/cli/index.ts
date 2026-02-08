@@ -28,6 +28,8 @@ import {
   closeNetworkWindow,
   loadNetworkWindow
 } from "../core/network_window";
+import { VoiceLogStore } from "../core/voice/voice_store";
+import { parseVoiceTranscript } from "../core/voice/voice_parser";
 
 function getFlagValue(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
@@ -92,6 +94,8 @@ Usage:
   jarvis net:open --hours <6|8> --mode SCRIPT --authority OWNER --approve
   jarvis net:close --mode SCRIPT --authority OWNER --approve
   jarvis net:status
+  jarvis voice:parse --text "<transcript>" [--execute --approve]
+  jarvis voice:replay [--n 20]
   jarvis run <skill> --input <json> --mode SCRIPT --authority OWNER [--approve]
   jarvis <command> --mode <CREATE|BUILD|DECIDE|CLARIFY|SCRIPT> --authority OWNER
   jarvis help
@@ -1376,6 +1380,52 @@ export async function runWithArgs(
       result: JSON.stringify(state)
     });
     console.log(JSON.stringify(state, null, 2));
+    return;
+  }
+
+  if (command === "voice:parse") {
+    const transcript = getFlagValue(args, "--text") ?? (await readStdinLine());
+    if (!transcript || !transcript.trim()) {
+      console.error("Voice transcript is required.");
+      process.exit(1);
+      return;
+    }
+    const parsed = parseVoiceTranscript(transcript);
+    const voiceStore = new VoiceLogStore(config.rootDir);
+    voiceStore.append({
+      id: `voice-${Date.now()}`,
+      actor,
+      transcript,
+      parsed,
+      createdAt: new Date().toISOString()
+    });
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "voice.parse",
+      approved,
+      target: "voice",
+      result: JSON.stringify({ intent: parsed.intent, confidence: parsed.confidence })
+    });
+    console.log(JSON.stringify(parsed, null, 2));
+    if (hasFlag(args, "--execute")) {
+      if (!approved) {
+        console.error("Approval required. Re-run with --approve to execute.");
+        process.exit(1);
+        return;
+      }
+      const planArgs = ["plan", parsed.commandText, "--mode", "CLARIFY", "--authority", "OWNER"];
+      await runWithArgs(planArgs, options);
+    }
+    return;
+  }
+
+  if (command === "voice:replay") {
+    const countRaw = getFlagValue(args, "--n") ?? "20";
+    const count = Number.parseInt(countRaw, 10);
+    const voiceStore = new VoiceLogStore(config.rootDir);
+    const entries = voiceStore.list(Number.isNaN(count) ? 20 : count);
+    console.log(JSON.stringify(entries, null, 2));
     return;
   }
 

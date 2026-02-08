@@ -77,6 +77,13 @@ jarvis line --text "JARVIS: RUN read_file {\"path\":\"README.md\"} --dry-run"
 ```
 See `docs/PHONE_UX.md` for more examples.
 
+## Voice Bridge (Local)
+Parse a transcript and store it for replay:
+```
+node dist/cli/index.js voice:parse --text "plan update the roadmap" --approve
+node dist/cli/index.js voice:replay --n 10
+```
+
 ## Memory (Store-All / Use-Approved)
 Jarvis maintains three memory tiers:
 - Tier 0: `memory/raw/` (append-only, redacted logs; not used for decisions)
@@ -113,6 +120,10 @@ node dist/cli/index.js run request_web_build --mode SCRIPT --authority OWNER --a
 node dist/cli/index.js run request_doc_pack --mode SCRIPT --authority OWNER --approve --input '{"title":"Spec","sections":["Intro","Scope"]}'
 node dist/cli/index.js run request_video_edit --mode SCRIPT --authority OWNER --approve --input '{"inputPath":"in.mp4","outputPath":"out.mp4"}'
 node dist/cli/index.js run request_image_edit --mode SCRIPT --authority OWNER --approve --input '{"inputPath":"in.png","outputPath":"out.png"}'
+node dist/cli/index.js run request_client_intake --mode SCRIPT --authority OWNER --approve --input '{"clientName":"Acme","projectType":"branding"}'
+node dist/cli/index.js run request_negotiation_script --mode SCRIPT --authority OWNER --approve --input '{"clientName":"Acme","offerSummary":"retainer"}'
+node dist/cli/index.js run request_follow_up --mode SCRIPT --authority OWNER --approve --input '{"contactName":"Taylor","context":"proposal"}'
+node dist/cli/index.js run request_recommendation_request --mode SCRIPT --authority OWNER --approve --input '{"recipientName":"Jordan","relationship":"project"}'
 ```
 
 ## Execution Runner (Disabled by Default)
@@ -216,6 +227,15 @@ Remote access must be owner-controlled (documentation only):
 - Optional: Cloudflare Tunnel
 
 **Warning:** Do NOT expose the dashboard directly to the public internet.
+
+## Companion Stubs (Desktop/Mobile)
+Design-only companions live in docs:
+- `docs/COMPANION_DESKTOP.md`
+- `docs/COMPANION_MOBILE.md`
+
+## Release Lock (Governance)
+Release locks can block non-local categories even with approvals. Configure in
+`jarvis.config.json` under `releaseLock`. See `docs/RELEASE_LOCKS.md`.
 
 ## Go/No-Go Checklist
 Run before merge/tag:
