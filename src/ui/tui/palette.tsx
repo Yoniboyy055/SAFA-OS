@@ -45,7 +45,7 @@ export function CommandPalette(props: PaletteProps) {
     }
   }, [props.open]);
 
-  useInput(async (input, key) => {
+  useInput(async (input: string, key: any) => {
     if (!props.open) {
       return;
     }
@@ -62,20 +62,20 @@ export function CommandPalette(props: PaletteProps) {
       return;
     }
     if (key.backspace || key.delete) {
-      setQuery((current) => current.slice(0, -1));
+      setQuery((current: string) => current.slice(0, -1));
       setSelected(0);
       return;
     }
     if (key.upArrow) {
-      setSelected((current) => Math.max(0, current - 1));
+      setSelected((current: number) => Math.max(0, current - 1));
       return;
     }
     if (key.downArrow) {
-      setSelected((current) => Math.min(matches.length - 1, current + 1));
+      setSelected((current: number) => Math.min(matches.length - 1, current + 1));
       return;
     }
     if (input && !key.ctrl && !key.meta) {
-      setQuery((current) => current + input);
+      setQuery((current: string) => current + input);
       setSelected(0);
     }
   });

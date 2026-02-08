@@ -28,7 +28,7 @@ export function ApprovalsScreen(props: ApprovalsScreenProps) {
     [approvals]
   );
 
-  useInput((input, key) => {
+  useInput((input: string, key: any) => {
     if (!props.active) {
       return;
     }
@@ -36,14 +36,16 @@ export function ApprovalsScreen(props: ApprovalsScreenProps) {
       if (pending.length === 0) {
         return;
       }
-      setSelectedIndex((current) => Math.max(0, current - 1));
+      setSelectedIndex((current: number) => Math.max(0, current - 1));
       return;
     }
     if (key.downArrow) {
       if (pending.length === 0) {
         return;
       }
-      setSelectedIndex((current) => Math.min(pending.length - 1, current + 1));
+      setSelectedIndex((current: number) =>
+        Math.min(pending.length - 1, current + 1)
+      );
       return;
     }
     if (input.toLowerCase() === "a") {
@@ -89,7 +91,7 @@ export function ApprovalsScreen(props: ApprovalsScreenProps) {
         {pending.length === 0 ? (
           <Text>No pending approvals.</Text>
         ) : (
-          pending.map((entry, index) => (
+          pending.map((entry: any, index: number) => (
             <Text key={entry.id}>
               {index === selectedIndex ? ">" : " "} {entry.id} {entry.action}
             </Text>

@@ -40,7 +40,9 @@ export function AuditScreen(props: AuditScreenProps) {
         {lines.length === 0 ? (
           <Text>No audit entries found.</Text>
         ) : (
-          lines.map((line, index) => <Text key={`${index}`}>{line}</Text>)
+          lines.map((line: string, index: number) => (
+            <Text key={`${index}`}>{line}</Text>
+          ))
         )}
       </Section>
       <Section title="Notes">

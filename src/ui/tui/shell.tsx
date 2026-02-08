@@ -118,7 +118,7 @@ function ShellLayout(props: { configPath?: string; actor: string }) {
   }, [api, pushToast]);
 
   const refresh = () => {
-    setRefreshToken((current) => current + 1);
+    setRefreshToken((current: number) => current + 1);
     setLastAction("Refreshed status.");
   };
 
@@ -215,7 +215,7 @@ function ShellLayout(props: { configPath?: string; actor: string }) {
     [api, cycleTheme, pushToast]
   );
 
-  useInput((input, key) => {
+  useInput((input: string, key: any) => {
     if (inputMode || paletteOpen || helpOpen) {
       if (helpOpen && input === "?") {
         setHelpOpen(false);

@@ -40,7 +40,7 @@ export function CommandScreen(props: CommandScreenProps) {
     return () => props.onInputModeChange(false);
   }, [props.active, props.onInputModeChange]);
 
-  useInput(async (input, key) => {
+  useInput(async (input: string, key: any) => {
     if (!props.active) {
       return;
     }
@@ -79,7 +79,7 @@ export function CommandScreen(props: CommandScreenProps) {
       return;
     }
     if (key.backspace || key.delete) {
-      setLine((current) => current.slice(0, -1));
+      setLine((current: string) => current.slice(0, -1));
       return;
     }
     if (key.ctrl && input === "u") {
@@ -87,7 +87,7 @@ export function CommandScreen(props: CommandScreenProps) {
       return;
     }
     if (input && !key.ctrl && !key.meta) {
-      setLine((current) => current + input);
+      setLine((current: string) => current + input);
     }
   });
 

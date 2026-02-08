@@ -63,7 +63,7 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-export function ThemeProvider(props: { children: React.ReactNode }) {
+export function ThemeProvider(props: { children?: React.ReactNode }) {
   const [themeName, setThemeName] = useState<ThemeName>(() => {
     const stored = loadThemePreference();
     return stored && stored in THEMES ? (stored as ThemeName) : "neon";
@@ -91,7 +91,7 @@ export function ThemeProvider(props: { children: React.ReactNode }) {
 
   return (
     <ThemeContext.Provider value={value}>
-      {props.children}
+      {props.children ?? null}
     </ThemeContext.Provider>
   );
 }

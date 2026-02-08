@@ -38,12 +38,12 @@ async function performLiveRequest(
   }
 
   try {
-    const res = await fetch(request.url, {
+    const res = (await fetch(request.url, {
       method: request.method,
       headers: request.headers,
       body: request.method.toUpperCase() === "GET" ? undefined : body,
       signal: controller.signal
-    });
+    })) as any;
     const buffer = Buffer.from(await res.arrayBuffer());
     if (buffer.byteLength > policy.maxResponseBytes) {
       throw new Error(`Response exceeds max of ${policy.maxResponseBytes} bytes.`);

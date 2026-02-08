@@ -26,17 +26,19 @@ function pickColor(kind: ToastKind, tokens: ReturnType<typeof useTheme>["theme"]
   return tokens.danger;
 }
 
-export function ToastProvider(props: { children: React.ReactNode }) {
+export function ToastProvider(props: { children?: React.ReactNode }) {
   const { theme } = useTheme();
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const pushToast = (kind: ToastKind, message: string) => {
     const id = `toast-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`;
     const entry: Toast = { id, kind, message };
-    setToasts((current) => [...current, entry]);
+    setToasts((current: Toast[]) => [...current, entry]);
     const lifetime = getReducedMotion() ? 2000 : 3000;
     setTimeout(() => {
-      setToasts((current) => current.filter((toast) => toast.id !== id));
+      setToasts((current: Toast[]) =>
+        current.filter((toast: Toast) => toast.id !== id)
+      );
     }, lifetime);
   };
 
@@ -45,13 +47,13 @@ export function ToastProvider(props: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       <Box flexDirection="column" marginBottom={1}>
-        {toasts.map((toast) => (
+        {toasts.map((toast: Toast) => (
           <Box key={toast.id} marginBottom={1}>
             <Text color={pickColor(toast.kind, theme)}>{toast.message}</Text>
           </Box>
         ))}
       </Box>
-      {props.children}
+      {props.children ?? null}
     </ToastContext.Provider>
   );
 }
