@@ -8,6 +8,7 @@ const { SkillRegistry } = require("../src/skills/registry");
 const { sendHttpRequestSkill } = require("../src/skills/network/send_http_request");
 const { AuditLogger } = require("../src/core/audit");
 const { Governor } = require("../src/core/governor");
+const { openNetworkWindow } = require("../src/core/network_window");
 const { AuthorityLevel } = require("../src/core/authority");
 
 function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) {
@@ -69,6 +70,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
     configPath: path.join(rootDir, "jarvis.config.json"),
     ...overrides
   };
+  openNetworkWindow(rootDir, 6, "tester");
   return {
     actor: "tester",
     approved: true,

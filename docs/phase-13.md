@@ -7,5 +7,11 @@
 - Recommendation requests
 
 ## Status
-Preview-only. Draft artifacts are generated and stored locally.
-Live execution remains locked.
+ACTIVE. Client intake, negotiation, follow-up, and recommendation
+flows execute locally with approval and write artifacts to memory.
+
+Core runners:
+- `runClientIntake`
+- `runNegotiationFlow`
+- `runFollowUpFlow`
+- `runRecommendationRequest`

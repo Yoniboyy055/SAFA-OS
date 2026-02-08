@@ -1,6 +1,6 @@
 # Not Implemented
 
-- Live outbound network calls (corridor remains stub-only).
+- Outbound email/calls/payments remain preview-only (Phase 7B locked).
 - Automatic background autonomy or goal-setting.
 - Telemetry collection.
 - Public dashboard exposure.

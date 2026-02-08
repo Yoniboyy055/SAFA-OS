@@ -61,7 +61,8 @@ export const sendHttpRequestSkill: SkillDefinition<
         bodySummary: body,
         bodyHash: body ? hashValue(body) : "",
         riskLevel: "HIGH",
-        requiresApproval: true
+        requiresApproval: true,
+        timeoutMs: input.timeoutMs
       },
       {
         actor: context.actor,

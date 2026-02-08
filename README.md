@@ -259,8 +259,11 @@ Run before merge/tag:
 npm ci && npm run build && npm test
 ```
 
-## Live Outbound (Disabled)
-Network corridor remains stub-only and live outbound is disabled by policy.
+## Live Outbound (Gated)
+Live network I/O requires explicit enablement:
+- Network allowlists in `jarvis.config.json`
+- An active network window (`net:open`)
+- `JARVIS_NETWORK_LIVE=1` for real requests
 
 ## Timed Network Window
 Network access is OFF by default. A timed window can be opened to allow

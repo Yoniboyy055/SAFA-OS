@@ -10,6 +10,7 @@ export interface NetworkRequest {
   bodyHash: string;
   riskLevel: RiskLevel;
   requiresApproval: boolean;
+  timeoutMs?: number;
 }
 
 export interface NetworkResponse {

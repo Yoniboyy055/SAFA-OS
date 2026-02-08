@@ -7,6 +7,10 @@
 - Logs + replay
 
 ## Status
-Voice parsing is local-only with redacted log storage and replay.
+ACTIVE. Voice parsing is local-only with redacted log storage and replay.
 Audio capture remains disabled. Phone access is documented in
 `docs/architecture/phone-access.md`.
+
+CLI entry points:
+- `jarvis voice:parse`
+- `jarvis voice:replay`

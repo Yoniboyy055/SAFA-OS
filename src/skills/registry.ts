@@ -8,6 +8,7 @@ import type {
   SkillExecutionResult,
   SkillExecutionContext
 } from "../types/skill";
+import { loadNetworkWindow } from "../core/network_window";
 import {
   createReceiptId,
   hashInput,
@@ -114,6 +115,7 @@ export class SkillRegistry {
       }
     }
     try {
+      const networkWindow = loadNetworkWindow(context.config.rootDir);
       decision = context.governor.evaluate(
         {
           type: skill.name,
@@ -130,6 +132,7 @@ export class SkillRegistry {
           authority: context.authority,
           commandMode: context.commandMode,
           audit: context.audit,
+          networkWindow,
           freezeEnabled: context.freezeEnabled,
           defenseText:
             skill.name === "analyze_input_risk"

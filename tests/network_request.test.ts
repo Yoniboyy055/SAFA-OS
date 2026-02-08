@@ -8,6 +8,7 @@ const { AuditLogger } = require("../src/core/audit");
 const { Governor } = require("../src/core/governor");
 const { AuthorityLevel } = require("../src/core/authority");
 const { requestNetwork } = require("../src/core/network/client");
+const { openNetworkWindow } = require("../src/core/network_window");
 
 function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) {
   const config = {
@@ -68,6 +69,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
     configPath: path.join(rootDir, "jarvis.config.json"),
     ...overrides
   };
+  openNetworkWindow(rootDir, 6, "tester");
   return {
     actor: "tester",
     approved: true,

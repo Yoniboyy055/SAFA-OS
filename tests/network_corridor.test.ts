@@ -6,6 +6,7 @@ const os = require("os");
 const path = require("path");
 const { Governor } = require("../src/core/governor");
 const { AuditLogger, auditNetworkRequest } = require("../src/core/audit");
+const { openNetworkWindow } = require("../src/core/network_window");
 const { requestNetwork } = require("../src/core/network/client");
 const { validateUrl } = require("../src/core/network/types");
 const { SkillRegistry } = require("../src/skills/registry");
@@ -92,6 +93,7 @@ function buildRequest(url = "https://example.com") {
 
 function buildSkillContext(rootDir: string, overrides: Record<string, unknown> = {}) {
   const config = buildConfig(rootDir, overrides);
+  openNetworkWindow(rootDir, 6, "tester");
   return {
     actor: "tester",
     approved: true,
