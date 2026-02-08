@@ -1,4 +1,7 @@
 import * as http from "node:http";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as crypto from "node:crypto";
 
 import { loadConfig } from "../core/config";
 import type { ResolvedConfig } from "../core/config";
@@ -9,6 +12,7 @@ import { summarizeJarvisLine } from "../cli/jarvis_line";
 import { AuthorityLevel } from "../core/authority";
 import { buildRegistry } from "../skills/registry_factory";
 import type { SkillDefinition } from "../types/skill";
+import { Planner } from "../core/planner";
 import { readFreezeState } from "../core/freeze";
 import type { FreezeState } from "../core/freeze";
 import { getLayerDefinitions } from "../core/layers";
@@ -190,16 +194,16 @@ function resolveSkillAvailability(
 
 function resolveSkillLayer(skill: SkillDefinition): number {
   if (skill.name === "analyze_input_risk") {
-    return 1;
+    return 2;
   }
   if (
     skill.category === "network" ||
     skill.category === "external_tool" ||
     skill.category === "outbound_message"
   ) {
-    return 3;
+    return 4;
   }
-  return 2;
+  return 3;
 }
 
 function safeUrlSummary(value: string): string {
@@ -295,6 +299,165 @@ function redactOutput(
   }
 
   return { redacted: value, hadSecrets, hadPii };
+}
+
+type ChatIntent =
+  | { type: "status" }
+  | { type: "skills" }
+  | { type: "plan"; task: string }
+  | { type: "execute"; skill: string; input: Record<string, unknown> }
+  | { type: "approve_pending" }
+  | { type: "cancel_pending" }
+  | { type: "unknown"; message: string };
+
+interface ChatSessionState {
+  pending?: {
+    skill: string;
+    input: Record<string, unknown>;
+    createdAt: string;
+    description: string;
+  };
+}
+
+function normalizeChatText(input: string): string {
+  return input.trim();
+}
+
+function resolveSessionId(raw?: string): { id: string; created: boolean } {
+  const cleaned = (raw ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .slice(0, 48);
+  if (cleaned) {
+    return { id: cleaned, created: false };
+  }
+  const generated = `sess-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  return { id: generated, created: true };
+}
+
+function resolveChatSessionPath(rootDir: string, sessionId: string): string {
+  return path.resolve(
+    rootDir,
+    "data",
+    "control",
+    "chat_sessions",
+    `session_${sessionId}.json`
+  );
+}
+
+function readChatSession(rootDir: string, sessionId: string): ChatSessionState {
+  const sessionPath = resolveChatSessionPath(rootDir, sessionId);
+  if (!fs.existsSync(sessionPath)) {
+    return {};
+  }
+  try {
+    return JSON.parse(fs.readFileSync(sessionPath, "utf8")) as ChatSessionState;
+  } catch {
+    return {};
+  }
+}
+
+function writeChatSession(
+  rootDir: string,
+  sessionId: string,
+  state: ChatSessionState
+): void {
+  const sessionPath = resolveChatSessionPath(rootDir, sessionId);
+  fs.mkdirSync(path.dirname(sessionPath), { recursive: true });
+  fs.writeFileSync(sessionPath, JSON.stringify(state, null, 2), "utf8");
+}
+
+function clearChatSession(rootDir: string, sessionId: string): void {
+  writeChatSession(rootDir, sessionId, {});
+}
+
+function buildChatEvidence(params: {
+  action: string;
+  decision: string;
+  touched: string[];
+  recommendation: string;
+}): string {
+  const touched =
+    params.touched.length > 0 ? params.touched.join(", ") : "None";
+  return [
+    `What happened: ${params.action}`,
+    `Why: ${params.decision}`,
+    `What it touched: ${touched}`,
+    `Recommended next: ${params.recommendation}`
+  ].join("\n");
+}
+
+function classifyChatIntent(message: string, pending?: ChatSessionState["pending"]): ChatIntent {
+  const text = normalizeChatText(message);
+  const lowered = text.toLowerCase();
+  const approveWords = ["yes", "approve", "go ahead", "do it", "proceed"];
+  const denyWords = ["no", "cancel", "stop", "never mind"];
+
+  if (pending) {
+    if (approveWords.some((word) => lowered === word)) {
+      return { type: "approve_pending" };
+    }
+    if (denyWords.some((word) => lowered === word)) {
+      return { type: "cancel_pending" };
+    }
+  }
+
+  if (lowered.includes("status")) {
+    return { type: "status" };
+  }
+  if (lowered.includes("skills")) {
+    return { type: "skills" };
+  }
+  if (lowered.startsWith("help me plan") || lowered.startsWith("plan")) {
+    const task = text.replace(/^(help me plan|plan)\s*/i, "").trim();
+    return { type: "plan", task: task || text };
+  }
+  if (lowered.includes("list files") || lowered.includes("show files")) {
+    return { type: "execute", skill: "list_files", input: { path: ".", recursive: false } };
+  }
+  if (lowered.startsWith("search")) {
+    const query = text.replace(/^search\s*(for)?\s*/i, "").trim();
+    return { type: "execute", skill: "search_text", input: { path: ".", query } };
+  }
+  const readMatch = text.match(/^(read|open|show)\s+([^\s]+)$/i);
+  if (readMatch) {
+    return {
+      type: "execute",
+      skill: "read_file",
+      input: { path: readMatch[2] }
+    };
+  }
+  if (lowered.includes("calendar")) {
+    return {
+      type: "unknown",
+      message:
+        "I don't have calendar access. I can proceed if you enable a read-only calendar integration."
+    };
+  }
+
+  return {
+    type: "unknown",
+    message:
+      "I can help plan, list files, search, or read files. What would you like to work on?"
+  };
+}
+
+function hashChatText(value: string): string {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function formatChatOutput(output: unknown): string {
+  if (output === null || output === undefined) {
+    return "No output.";
+  }
+  if (typeof output === "string") {
+    const trimmed = output.trim();
+    if (!trimmed) {
+      return "No output.";
+    }
+    return trimmed.length > 800 ? `${trimmed.slice(0, 800)}…` : trimmed;
+  }
+  return "Action completed. Output is available in the operator console.";
 }
 
 function renderDashboardUi(): string {
@@ -410,6 +573,19 @@ function renderDashboardUi(): string {
     .state-enabled { border-color: #10b981; color: #6ee7b7; }
     .state-locked { border-color: #f97316; color: #fdba74; }
     .state-disabled { border-color: #64748b; color: #cbd5f5; }
+    .hidden { display: none; }
+    .chat-shell { display: grid; gap: 16px; height: calc(100vh - 160px); }
+    .chat-feed { flex: 1; display: grid; gap: 12px; overflow: auto; padding-right: 4px; }
+    .chat-message { padding: 12px 14px; border-radius: 12px; max-width: 720px; line-height: 1.5; }
+    .chat-message.user { margin-left: auto; background: rgba(37, 99, 235, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); }
+    .chat-message.assistant { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.2); }
+    .chat-input { display: flex; gap: 12px; align-items: center; }
+    .chat-input input { flex: 1; }
+    .status-line { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: #94a3b8; }
+    .status-line span { display: inline-flex; gap: 6px; align-items: center; }
+    .status-dot { width: 8px; height: 8px; border-radius: 999px; background: #22c55e; }
+    .status-dot.offline { background: #f97316; }
+    .chat-card { height: 100%; display: grid; grid-template-rows: auto 1fr auto; gap: 12px; }
   </style>
 </head>
 <body>
@@ -419,10 +595,32 @@ function renderDashboardUi(): string {
         <h1>JARVAS OS</h1>
         <div class="subtitle">Governed Command Center</div>
       </div>
-      <div id="safeBanner" class="banner">SAFE MODE — Kill Switch Enabled</div>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <div id="safeBanner" class="banner">SAFE MODE — Kill Switch Enabled</div>
+        <button id="toggleOperator" class="secondary">Operator Console</button>
+      </div>
     </div>
   </header>
   <main>
+    <section id="chatView" class="chat-shell">
+      <div class="card chat-card">
+        <div>
+          <div class="label">Conversation</div>
+          <div class="status-line" id="chatStatus">
+            <span><span class="status-dot offline"></span>Offline (Local)</span>
+            <span>Kill Switch: <strong>ON</strong></span>
+            <span>Network: <strong>OFF</strong></span>
+          </div>
+        </div>
+        <div class="chat-feed" id="chatFeed"></div>
+        <div class="chat-input">
+          <input id="chatInput" placeholder="What would you like to work on?" />
+          <input id="chatToken" type="password" placeholder="Owner Token" style="max-width:180px;" />
+          <button id="chatSendBtn">Send</button>
+        </div>
+      </div>
+    </section>
+    <section id="operatorView" class="hidden">
     <div class="grid">
       <div class="card">
         <div class="label">Status Core</div>
@@ -541,8 +739,52 @@ function renderDashboardUi(): string {
       <div class="label">Response</div>
       <pre id="responsePanel">{}</pre>
     </div>
+    </section>
   </main>
   <script>
+    const chatSessionKey = "jarvas_chat_session";
+    const tokenStorageKey = "jarvas_owner_token";
+    function getChatSessionId() {
+      const stored = localStorage.getItem(chatSessionKey);
+      if (stored) {
+        return stored;
+      }
+      const fresh = "sess-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      localStorage.setItem(chatSessionKey, fresh);
+      return fresh;
+    }
+    function setChatSessionId(value) {
+      if (value) {
+        localStorage.setItem(chatSessionKey, value);
+      }
+    }
+    function cacheOwnerToken(value) {
+      if (value) {
+        localStorage.setItem(tokenStorageKey, value);
+      }
+    }
+    function resolveOwnerToken() {
+      const stored = localStorage.getItem(tokenStorageKey);
+      return stored || "";
+    }
+    function appendChatMessage(text, role) {
+      const feed = document.getElementById("chatFeed");
+      const bubble = document.createElement("div");
+      bubble.className = "chat-message " + role;
+      bubble.textContent = text;
+      feed.appendChild(bubble);
+      feed.scrollTop = feed.scrollHeight;
+    }
+    function greeting() {
+      const hour = new Date().getHours();
+      const period =
+        hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+      return (
+        "Good " +
+        period +
+        ". I'm offline right now. What would you like to work on?"
+      );
+    }
     function renderBadge(label, className) {
       const span = document.createElement("span");
       span.className = "badge " + (className || "");
@@ -562,6 +804,15 @@ function renderDashboardUi(): string {
         <div>vrEnabled: <strong>\${data.vrEnabled}</strong></div>
         <div>vrArmed: <strong>\${data.vrArmed}</strong></div>
         <div>phase: <strong>\${data.phase}</strong></div>
+      \`;
+      const chatStatus = document.getElementById("chatStatus");
+      const networkLabel = data.networkEnabled ? "Online" : "Offline";
+      const networkClass = data.networkEnabled ? "" : "offline";
+      chatStatus.innerHTML = \`
+        <span><span class="status-dot \${networkClass}"></span>\${networkLabel} (Local)</span>
+        <span>Kill Switch: <strong>\${data.killSwitchEnabled ? "ON" : "OFF"}</strong></span>
+        <span>Network: <strong>\${data.networkEnabled ? "ON" : "OFF"}</strong></span>
+        <span>VR: <strong>\${data.vrArmed ? "ARMED" : "DISARMED"}</strong></span>
       \`;
       const banner = document.getElementById("safeBanner");
       if (data.killSwitchEnabled) {
@@ -639,6 +890,40 @@ function renderDashboardUi(): string {
         <div>armedBy: <strong>\${data.armedBy || "n/a"}</strong></div>
         <div>lastChanged: <strong>\${data.armedAt || "n/a"}</strong></div>
       \`;
+    }
+    async function sendChatMessage() {
+      const input = document.getElementById("chatInput");
+      const tokenField = document.getElementById("chatToken");
+      const tokenInput = tokenField.value.trim();
+      const fallbackToken = document.getElementById("tokenInput").value.trim();
+      const token = tokenInput || resolveOwnerToken() || fallbackToken;
+      cacheOwnerToken(tokenInput || resolveOwnerToken());
+      const text = input.value.trim();
+      if (!text) {
+        return;
+      }
+      appendChatMessage(text, "user");
+      input.value = "";
+      const sessionId = getChatSessionId();
+      const res = await fetch("/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Owner-Token": token,
+          "X-Session-Id": sessionId
+        },
+        body: JSON.stringify({ message: text })
+      });
+      const data = await res.json();
+      if (data.sessionId) {
+        setChatSessionId(data.sessionId);
+      }
+      if (data.message) {
+        appendChatMessage(data.message, "assistant");
+      }
+      if (data.evidenceSummary) {
+        appendChatMessage(data.evidenceSummary, "assistant");
+      }
     }
     async function sendVrAction(path) {
       const token = document.getElementById("tokenInput").value.trim();
@@ -720,6 +1005,13 @@ function renderDashboardUi(): string {
       }
     }
     document.getElementById("sendBtn").addEventListener("click", sendCommand);
+    document.getElementById("chatSendBtn").addEventListener("click", sendChatMessage);
+    document.getElementById("chatInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendChatMessage();
+      }
+    });
     const dryRunToggle = document.getElementById("dryRunCheck");
     const sendBtn = document.getElementById("sendBtn");
     function updateSendLabel() {
@@ -741,6 +1033,30 @@ function renderDashboardUi(): string {
     document.getElementById("vrDisarmBtn").addEventListener("click", () => {
       sendVrAction("/vr/disarm");
     });
+    const toggleBtn = document.getElementById("toggleOperator");
+    const chatView = document.getElementById("chatView");
+    const operatorView = document.getElementById("operatorView");
+    toggleBtn.addEventListener("click", () => {
+      const showingOperator = !operatorView.classList.contains("hidden");
+      operatorView.classList.toggle("hidden", showingOperator);
+      chatView.classList.toggle("hidden", !showingOperator);
+      toggleBtn.textContent = showingOperator ? "Operator Console" : "Back to Chat";
+    });
+    const chatTokenField = document.getElementById("chatToken");
+    const storedToken = resolveOwnerToken();
+    if (storedToken) {
+      chatTokenField.value = storedToken;
+      document.getElementById("tokenInput").value = storedToken;
+      chatTokenField.style.display = "none";
+    }
+    chatTokenField.addEventListener("change", () => {
+      const value = chatTokenField.value.trim();
+      if (value) {
+        cacheOwnerToken(value);
+        document.getElementById("tokenInput").value = value;
+        chatTokenField.style.display = "none";
+      }
+    });
     document.getElementById("commandInput").addEventListener("keydown", (event) => {
       if (event.ctrlKey && event.key === "Enter") {
         sendCommand();
@@ -749,6 +1065,7 @@ function renderDashboardUi(): string {
     loadStatus();
     loadSkills();
     loadVrStatus();
+    appendChatMessage(greeting(), "assistant");
   </script>
 </body>
 </html>`;
@@ -830,6 +1147,229 @@ export function createDashboardServer(
         };
       });
       return sendJson(res, 200, { skills });
+    }
+    if (req.method === "POST" && pathName === "/chat") {
+      const token = resolveHeaderValue(req.headers["x-owner-token"]);
+      if (!token || token !== ownerToken) {
+        audit.log({
+          timestamp: new Date().toISOString(),
+          actor,
+          action: "dashboard.chat",
+          approved: false,
+          target: "chat",
+          result: "DENIED: Unauthorized."
+        });
+        return sendJson(res, 401, { ok: false, denied: true, reason: "Unauthorized." });
+      }
+      readRequestBody(req)
+        .then(async (body) => {
+          let payload: { message?: string };
+          try {
+            payload = JSON.parse(body);
+          } catch {
+            audit.log({
+              timestamp: new Date().toISOString(),
+              actor,
+              action: "dashboard.chat",
+              approved: false,
+              target: "chat",
+              result: "ERROR: Invalid JSON payload."
+            });
+            return sendJson(res, 400, { ok: false, denied: true, reason: "Invalid JSON payload." });
+          }
+
+          const text = normalizeChatText(payload.message ?? "");
+          if (!text) {
+            return sendJson(res, 400, { ok: false, denied: true, reason: "Message is required." });
+          }
+
+          const sessionHeader = resolveHeaderValue(req.headers["x-session-id"]);
+          const session = resolveSessionId(sessionHeader);
+          const sessionState = readChatSession(config.rootDir, session.id);
+          const intent = classifyChatIntent(text, sessionState.pending);
+          const freezeState = readFreezeState(config.rootDir);
+          const inputHash = hashChatText(text);
+
+          audit.log({
+            timestamp: new Date().toISOString(),
+            actor,
+            action: "dashboard.chat",
+            approved: false,
+            target: "chat",
+            result: JSON.stringify({ inputHash, sessionId: session.id })
+          });
+
+          if (intent.type === "status") {
+            const status = sanitizedStatus(config, freezeState);
+            return sendJson(res, 200, {
+              ok: true,
+              message: "Here is the current system status.",
+              data: status,
+              evidenceSummary: buildChatEvidence({
+                action: "Status requested",
+                decision: "Allowed",
+                touched: [],
+                recommendation: "Continue with a task or ask for a plan."
+              }),
+              sessionId: session.id
+            });
+          }
+
+          if (intent.type === "skills") {
+            return sendJson(res, 200, {
+              ok: true,
+              message: "Here are the available skills.",
+              data: {
+                skills: registry.list().map((skill) => ({
+                  name: skill.name,
+                  riskLevel: skill.riskLevel,
+                  requiresApproval: skill.requiresApproval,
+                  state: resolveSkillAvailability(skill, config).state
+                }))
+              },
+              evidenceSummary: buildChatEvidence({
+                action: "Skills requested",
+                decision: "Allowed",
+                touched: [],
+                recommendation: "Tell me what you want to do in plain language."
+              }),
+              sessionId: session.id
+            });
+          }
+
+          if (intent.type === "plan") {
+            const planner = new Planner();
+            const plan = planner.createPlan(intent.task, {
+              actor,
+              audit,
+              authority: AuthorityLevel.OWNER,
+              commandMode: "SCRIPT",
+              freshOwnerInput: true
+            });
+            const planSummary = plan.steps
+              .map((step, index) => `${index + 1}. ${step.description}`)
+              .join("\n");
+            return sendJson(res, 200, {
+              ok: true,
+              message: `Here is a draft plan for "${plan.task}":\n${planSummary}`,
+              evidenceSummary: buildChatEvidence({
+                action: "Plan created",
+                decision: "Allowed",
+                touched: [],
+                recommendation: "Say yes to proceed or ask for changes."
+              }),
+              sessionId: session.id
+            });
+          }
+
+          if (intent.type === "cancel_pending") {
+            clearChatSession(config.rootDir, session.id);
+            return sendJson(res, 200, {
+              ok: true,
+              message: "Understood. I canceled the pending action.",
+              evidenceSummary: buildChatEvidence({
+                action: "Pending action canceled",
+                decision: "Canceled by user",
+                touched: [],
+                recommendation: "Describe a new task when ready."
+              }),
+              sessionId: session.id
+            });
+          }
+
+          if (intent.type === "approve_pending") {
+            if (!sessionState.pending) {
+              return sendJson(res, 200, {
+                ok: true,
+                message: "There is nothing pending approval.",
+                sessionId: session.id
+              });
+            }
+            const pending = sessionState.pending;
+            clearChatSession(config.rootDir, session.id);
+            const execution = await registry.execute(pending.skill, pending.input, {
+              actor,
+              approved: true,
+              authority: AuthorityLevel.OWNER,
+              commandMode: "SCRIPT",
+              config,
+              audit,
+              governor,
+              freezeEnabled: freezeState.enabled
+            });
+            if (!execution.success) {
+              return sendJson(res, 403, {
+                ok: false,
+                denied: true,
+                message: execution.error ?? "Action denied.",
+                evidenceSummary: buildChatEvidence({
+                  action: pending.description,
+                  decision: execution.error ?? "Denied",
+                  touched: summarizeTouchedTargets(pending.skill, pending.input),
+                  recommendation: "Adjust the request or ask for a safer alternative."
+                }),
+                sessionId: session.id
+              });
+            }
+            const redaction = redactOutput(
+              execution.output ?? null,
+              config.audit.redactKeys
+            );
+            return sendJson(res, 200, {
+              ok: true,
+              message: `Done. ${formatChatOutput(redaction.redacted)}`,
+              evidenceSummary: buildChatEvidence({
+                action: pending.description,
+                decision: "Approved and executed",
+                touched: summarizeTouchedTargets(pending.skill, pending.input),
+                recommendation: "Ask what to do next or request a summary."
+              }),
+              sessionId: session.id,
+              redacted: redaction.hadSecrets || redaction.hadPii
+            });
+          }
+
+          if (intent.type === "execute") {
+            const skillDef = registry.get(intent.skill);
+            if (!skillDef) {
+              return sendJson(res, 200, {
+                ok: true,
+                message: "I don't recognize that action yet.",
+                sessionId: session.id
+              });
+            }
+            writeChatSession(config.rootDir, session.id, {
+              pending: {
+                skill: intent.skill,
+                input: intent.input,
+                createdAt: new Date().toISOString(),
+                description: `Execute ${intent.skill}`
+              }
+            });
+            return sendJson(res, 200, {
+              ok: true,
+              message: `I can run ${intent.skill} for you. Do you approve?`,
+              evidenceSummary: buildChatEvidence({
+                action: `Proposed ${intent.skill}`,
+                decision: "Approval required",
+                touched: summarizeTouchedTargets(intent.skill, intent.input),
+                recommendation: "Reply with 'Yes' to approve or 'No' to cancel."
+              }),
+              sessionId: session.id
+            });
+          }
+
+          return sendJson(res, 200, {
+            ok: true,
+            message: intent.message,
+            sessionId: session.id
+          });
+        })
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          return sendJson(res, 413, { ok: false, denied: true, reason: message });
+        });
+      return;
     }
     if (req.method === "GET" && pathName === "/vr/status") {
       const vrState = readVrState(config.rootDir);

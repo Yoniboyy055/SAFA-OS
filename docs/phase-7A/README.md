@@ -4,11 +4,13 @@
 - Local dashboard UI at `http://127.0.0.1:3777/`
 - GET endpoints: `/health`, `/status`, `/skills`
 - POST `/command` for **governed execution** and dry-run simulation
+- POST `/chat` for the natural language front door
 - Governed pipeline: parser → packet → governor → decision → preview
 - SAFE MODE banner with kill switch enforced
 - One-button freeze control (safety override)
 - VR status panel (hardware disarmed by default)
 - Dry-run toggle for local execution
+ - Human interface (Layer 1) with a single chat input
 
 ## What is forbidden
 - Real execution (no live calls, no outbound network)

@@ -5,6 +5,7 @@ Evidence Mode:
   - decision reason
   - touched targets (redacted)
   - recommended next safe action
+ - Chat responses include the same evidence summary
 
 Responses redact secrets and PII before rendering in the UI.
 
