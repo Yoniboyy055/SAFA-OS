@@ -6,8 +6,11 @@ import { redactSensitiveText } from "../../core/sensitive";
 import { assertAllowlistedPath, writeMemoryEntry } from "../../core/memory_vault";
 
 interface RequestNegotiationScriptInput {
-  counterpart: string;
-  objective: string;
+  clientName?: string;
+  offerSummary?: string;
+  concessions?: string[];
+  counterpart?: string;
+  objective?: string;
   constraints?: string[];
 }
 
@@ -24,11 +27,13 @@ export const requestNegotiationScriptSkill: SkillDefinition<
   RequestNegotiationScriptOutput
 > = {
   name: "request_negotiation_script",
-  description: "Draft a negotiation script (preview only).",
+  description: "Generate a negotiation script outline (no execution).",
   inputSchema: {
     type: "object",
-    required: ["counterpart", "objective"],
     properties: {
+      clientName: { type: "string", description: "Client name." },
+      offerSummary: { type: "string", description: "Offer summary." },
+      concessions: { type: "array", description: "Concession options." },
       counterpart: { type: "string", description: "Counterpart name." },
       objective: { type: "string", description: "Negotiation objective." },
       constraints: { type: "array", description: "Constraints or boundaries." }
@@ -43,19 +48,42 @@ export const requestNegotiationScriptSkill: SkillDefinition<
     target: () => "data/memory/artifacts"
   },
   handler: (input, context) => {
-    const constraints = Array.isArray(input.constraints) ? input.constraints : [];
-    const counterpartRedaction = redactSensitiveText(input.counterpart, {
+    const concessions = Array.isArray(input.concessions)
+      ? input.concessions
+      : Array.isArray(input.constraints)
+        ? input.constraints
+        : [];
+    const clientName =
+      typeof input.clientName === "string"
+        ? input.clientName
+        : typeof input.counterpart === "string"
+          ? input.counterpart
+          : "unknown";
+    const offerSummary =
+      typeof input.offerSummary === "string"
+        ? input.offerSummary
+        : typeof input.objective === "string"
+          ? input.objective
+          : "unspecified";
+    const nameRedaction = redactSensitiveText(clientName, {
       allowPii: false,
       redactKeys: context.config.audit.redactKeys
     });
-    const objectiveRedaction = redactSensitiveText(input.objective, {
+    const offerRedaction = redactSensitiveText(offerSummary, {
       allowPii: false,
       redactKeys: context.config.audit.redactKeys
     });
-    const plan = {
-      counterpart: counterpartRedaction.redactedText,
-      objective: objectiveRedaction.redactedText,
-      constraints,
+    const plan: Record<string, unknown> = {
+      clientName: nameRedaction.redactedText,
+      offerSummary: offerRedaction.redactedText,
+      concessions,
+      scriptBeats: [
+        "Opening value statement",
+        "Confirm objectives",
+        "Present offer",
+        "Handle objections",
+        "Summarize and next steps"
+      ],
       script: [
         "Open with context and shared goals.",
         "Present key terms and value.",
@@ -63,10 +91,15 @@ export const requestNegotiationScriptSkill: SkillDefinition<
         "Close with next steps and approvals."
       ]
     };
+
+    if (Array.isArray(input.constraints)) {
+      plan.constraints = input.constraints;
+    }
+
     const artifactPayload = {
       type: "negotiation_script",
       plan,
-      risks: ["Requires owner approval before any outreach."],
+      risks: ["Review tone and concessions before sending."],
       estimated_cost: 0
     };
     const artifactJson = JSON.stringify(artifactPayload, null, 2);
@@ -79,7 +112,7 @@ export const requestNegotiationScriptSkill: SkillDefinition<
     );
     const { filePath } = writeMemoryEntry(context.config.rootDir, "artifacts", {
       id,
-      title: `negotiation_${counterpartRedaction.redactedText}`,
+      title: `negotiation_${nameRedaction.redactedText}`,
       content: artifactJson,
       tags: ["negotiation"]
     });

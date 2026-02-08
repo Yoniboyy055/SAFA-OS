@@ -6,8 +6,11 @@ import { redactSensitiveText } from "../../core/sensitive";
 import { assertAllowlistedPath, writeMemoryEntry } from "../../core/memory_vault";
 
 interface RequestFollowUpInput {
-  recipient: string;
-  purpose: string;
+  contactName?: string;
+  context?: string;
+  channel?: "email" | "call" | "message";
+  recipient?: string;
+  purpose?: string;
   lastContact?: string;
 }
 
@@ -24,11 +27,13 @@ export const requestFollowUpSkill: SkillDefinition<
   RequestFollowUpOutput
 > = {
   name: "request_follow_up",
-  description: "Draft a follow-up plan (preview only).",
+  description: "Generate a follow-up plan and draft outline (no execution).",
   inputSchema: {
     type: "object",
-    required: ["recipient", "purpose"],
     properties: {
+      contactName: { type: "string", description: "Contact name." },
+      context: { type: "string", description: "Context for follow-up." },
+      channel: { type: "string", description: "Preferred channel." },
       recipient: { type: "string", description: "Recipient name or role." },
       purpose: { type: "string", description: "Follow-up purpose." },
       lastContact: { type: "string", description: "Last contact date." }
@@ -43,28 +48,43 @@ export const requestFollowUpSkill: SkillDefinition<
     target: () => "data/memory/artifacts"
   },
   handler: (input, context) => {
-    const recipientRedaction = redactSensitiveText(input.recipient, {
+    const contactName =
+      typeof input.contactName === "string"
+        ? input.contactName
+        : typeof input.recipient === "string"
+          ? input.recipient
+          : "unknown";
+    const followContext =
+      typeof input.context === "string"
+        ? input.context
+        : typeof input.purpose === "string"
+          ? input.purpose
+          : "unspecified";
+    const nameRedaction = redactSensitiveText(contactName, {
       allowPii: false,
       redactKeys: context.config.audit.redactKeys
     });
-    const purposeRedaction = redactSensitiveText(input.purpose, {
+    const contextRedaction = redactSensitiveText(followContext, {
       allowPii: false,
       redactKeys: context.config.audit.redactKeys
     });
     const plan = {
-      recipient: recipientRedaction.redactedText,
-      purpose: purposeRedaction.redactedText,
+      contactName: nameRedaction.redactedText,
+      context: contextRedaction.redactedText,
+      channel: input.channel ?? "email",
       lastContact: input.lastContact ?? "unspecified",
       steps: [
-        "Draft a concise follow-up note",
-        "Confirm next steps internally",
+        "Summarize last interaction",
+        "Confirm next action",
+        "Propose follow-up time",
+        "Request confirmation",
         "Request approval before sending"
       ]
     };
     const artifactPayload = {
       type: "follow_up",
       plan,
-      risks: ["Requires owner approval before any outreach."],
+      risks: ["Confirm details before sending."],
       estimated_cost: 0
     };
     const artifactJson = JSON.stringify(artifactPayload, null, 2);
@@ -77,7 +97,7 @@ export const requestFollowUpSkill: SkillDefinition<
     );
     const { filePath } = writeMemoryEntry(context.config.rootDir, "artifacts", {
       id,
-      title: `follow_up_${recipientRedaction.redactedText}`,
+      title: `follow_up_${nameRedaction.redactedText}`,
       content: artifactJson,
       tags: ["follow_up"]
     });

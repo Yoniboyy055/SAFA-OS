@@ -54,12 +54,11 @@ test("dashboard denies start when kill switch is off", async () => {
   }
   assert.equal(exitCode, 1);
 });
-
 test("dashboard can start with kill switch enabled", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-dashboard-"));
   const configPath = writeConfig(rootDir, { killSwitch: { enabled: true } });
   process.env.JARVIS_OWNER_TOKEN = "token";
-  const server = await startDashboardServer(["--config", configPath, "--port", "0"]);
+  const server = await startDashboardServer({ configPath, port: 0 });
   const address = server.address();
   if (address && typeof address === "object") {
     assert.equal(address.address, "127.0.0.1");

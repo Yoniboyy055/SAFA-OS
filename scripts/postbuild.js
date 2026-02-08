@@ -20,5 +20,8 @@ function copyDir(source, target) {
 const root = path.resolve(__dirname, "..");
 const distRoot = path.join(root, "dist");
 const distSrcRoot = path.join(root, "dist", "src");
+const dashboardRoot = path.join(root, "dashboard");
+const distDashboardRoot = path.join(distRoot, "dashboard");
 
 copyDir(distSrcRoot, distRoot);
+copyDir(dashboardRoot, distDashboardRoot);

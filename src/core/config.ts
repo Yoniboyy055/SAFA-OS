@@ -75,6 +75,13 @@ export interface GovernanceConfig {
   maxNetworkPayloadBytes: number;
 }
 
+export interface ReleaseLockConfig {
+  enabled: boolean;
+  blockedCategories: Array<
+    "local" | "network" | "outbound_message" | "external_tool"
+  >;
+}
+
 export interface PermissionsConfig {
   writeAllowlist: string[];
   readAllowlist: string[];
@@ -93,6 +100,7 @@ export interface JarvisConfig {
   telemetry: TelemetryConfig;
   killSwitch: KillSwitchConfig;
   governance: GovernanceConfig;
+  releaseLock?: ReleaseLockConfig;
   email: EmailConfig;
   stripe: StripeConfig;
   calls: CallsConfig;
@@ -165,6 +173,10 @@ const DEFAULT_CONFIG: JarvisConfig = {
     networkApprovalMode: "per_request",
     maxNetworkPayloadBytes: 16384
   },
+  releaseLock: {
+    enabled: false,
+    blockedCategories: ["network", "outbound_message", "external_tool"]
+  },
   audit: {
     logPath: "logs/audit.log",
     redactKeys: [
@@ -210,6 +222,11 @@ function mergeConfig(
   base: JarvisConfig,
   overrides: Partial<JarvisConfig>
 ): JarvisConfig {
+  const baseReleaseLock: ReleaseLockConfig =
+    base.releaseLock ?? {
+      enabled: false,
+      blockedCategories: []
+    };
   return {
     network: {
       ...base.network,
@@ -291,6 +308,18 @@ function mergeConfig(
     governance: {
       ...base.governance,
       ...overrides.governance
+    },
+    releaseLock: {
+      ...baseReleaseLock,
+      ...overrides.releaseLock,
+      enabled:
+        typeof overrides.releaseLock?.enabled === "boolean"
+          ? overrides.releaseLock.enabled
+          : baseReleaseLock.enabled,
+      blockedCategories: normalizeStringArray(
+        overrides.releaseLock?.blockedCategories ??
+          baseReleaseLock.blockedCategories
+      ) as ReleaseLockConfig["blockedCategories"]
     },
     audit: {
       ...base.audit,

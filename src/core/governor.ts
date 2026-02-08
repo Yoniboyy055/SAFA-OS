@@ -12,6 +12,8 @@ import { assertBoundedIdentity } from "./identity";
 import { assertMaturityLevel, assertNoRecursivePlanning } from "./maturity";
 import { assertSafeInput } from "./defense";
 import { assertCostWithinBudget } from "./cost_guard";
+import type { NetworkWindowState } from "./network_window";
+import { isNetworkWindowActive } from "./network_window";
 
 export interface GovernanceContext {
   actor: string;
@@ -27,6 +29,7 @@ export interface GovernanceContext {
   approval?: ApprovalRequest;
   planHash?: string;
   payloadHash?: string;
+  networkWindow?: NetworkWindowState;
   freezeEnabled?: boolean;
 }
 
@@ -55,8 +58,71 @@ export class Governor {
       config.governance.strictApprovalMode ||
       action.category === "network" ||
       action.category === "outbound_message" ||
+      action.category === "external_tool" ||
       action.requiresApproval ||
       action.riskLevel !== "LOW";
+
+    if (
+      approvalRequired &&
+      action.category === "network" &&
+      config.governance.networkApprovalMode === "plan_hash"
+    ) {
+      if (!context.approval) {
+        const reason = "Approval record with plan or payload hash required.";
+        context.audit.log({
+          timestamp: new Date().toISOString(),
+          actor: context.actor,
+          action: "approval.denied",
+          approved: false,
+          target: action.type,
+          result: reason
+        });
+        return { approved: false, reason };
+      }
+
+      const hasPlanHash =
+        typeof context.planHash === "string" && context.planHash.trim().length > 0;
+      const hasPayloadHash =
+        typeof context.payloadHash === "string" &&
+        context.payloadHash.trim().length > 0;
+      if (!hasPlanHash && !hasPayloadHash) {
+        const reason = "Plan or payload hash required for network approval.";
+        context.audit.log({
+          timestamp: new Date().toISOString(),
+          actor: context.actor,
+          action: "approval.denied",
+          approved: false,
+          target: action.type,
+          result: reason
+        });
+        return { approved: false, reason };
+      }
+
+      if (hasPlanHash && !context.approval.planHash) {
+        const reason = "Approval missing plan hash.";
+        context.audit.log({
+          timestamp: new Date().toISOString(),
+          actor: context.actor,
+          action: "approval.denied",
+          approved: false,
+          target: action.type,
+          result: reason
+        });
+        return { approved: false, reason };
+      }
+      if (!hasPlanHash && hasPayloadHash && !context.approval.payloadHash) {
+        const reason = "Approval missing payload hash.";
+        context.audit.log({
+          timestamp: new Date().toISOString(),
+          actor: context.actor,
+          action: "approval.denied",
+          approved: false,
+          target: action.type,
+          result: reason
+        });
+        return { approved: false, reason };
+      }
+    }
 
     if (!approvalRequired) {
       return { approved: true };
@@ -198,6 +264,23 @@ export class Governor {
       audit: context.audit,
       costCapUsd: context.costCapUsd
     });
+    if (
+      config.releaseLock?.enabled &&
+      config.releaseLock.blockedCategories.includes(action.category)
+    ) {
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "release_lock.triggered",
+        approved: false,
+        target: action.type,
+        result: `Release lock blocked ${action.category}.`
+      });
+      return {
+        allowed: false,
+        reason: "Release lock enabled for this category."
+      };
+    }
 
     if (context.freezeEnabled && !action.allowWhenFrozen) {
       const reason = "Freeze engaged. Actions halted.";
@@ -231,6 +314,12 @@ export class Governor {
         return {
           allowed: false,
           reason: "Network is disabled by default."
+        };
+      }
+      if (context.networkWindow && !isNetworkWindowActive(context.networkWindow)) {
+        return {
+          allowed: false,
+          reason: "Network window is closed or expired."
         };
       }
       const approvalState = this.resolveApproval(action, config, context);
@@ -318,6 +407,24 @@ export class Governor {
       costCapUsd: context.costCapUsd
     });
 
+    if (
+      config.releaseLock?.enabled &&
+      config.releaseLock.blockedCategories.includes("network")
+    ) {
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "release_lock.triggered",
+        approved: false,
+        target: request.url,
+        result: "Release lock blocked network requests."
+      });
+      return {
+        allowed: false,
+        reason: "Release lock enabled for network."
+      };
+    }
+
     if (config.killSwitch.enabled) {
       context.audit.log({
         timestamp: new Date().toISOString(),
@@ -337,6 +444,13 @@ export class Governor {
       return {
         allowed: false,
         reason: "Network is disabled by default."
+      };
+    }
+
+    if (context.networkWindow && !isNetworkWindowActive(context.networkWindow)) {
+      return {
+        allowed: false,
+        reason: "Network window is closed or expired."
       };
     }
 

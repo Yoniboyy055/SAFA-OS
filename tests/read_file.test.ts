@@ -100,12 +100,21 @@ test("read_file rejects traversal paths", () => {
   }, /traversal/i);
 });
 
-test("read_file rejects symlink escapes", () => {
+test("read_file rejects symlink escapes", (t: any) => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-read-"));
   const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-outside-"));
   fs.writeFileSync(path.join(outsideDir, "secret.txt"), "secret");
   fs.mkdirSync(path.join(rootDir, "data"), { recursive: true });
-  fs.symlinkSync(outsideDir, path.join(rootDir, "data", "escape"), "dir");
+  try {
+    fs.symlinkSync(outsideDir, path.join(rootDir, "data", "escape"), "dir");
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === "EPERM" || code === "EACCES") {
+      t.skip("Symlink creation not permitted on this platform.");
+      return;
+    }
+    throw err;
+  }
   const context = buildContext(rootDir);
   assert.throws(() => {
     readFileSkill.handler({ path: "data/escape/secret.txt" }, context);

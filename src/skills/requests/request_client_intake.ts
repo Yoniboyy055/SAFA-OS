@@ -7,8 +7,10 @@ import { assertAllowlistedPath, writeMemoryEntry } from "../../core/memory_vault
 
 interface RequestClientIntakeInput {
   clientName: string;
-  summary: string;
+  projectType?: string;
+  summary?: string;
   goals?: string[];
+  budgetRange?: string;
 }
 
 interface RequestClientIntakeOutput {
@@ -24,14 +26,16 @@ export const requestClientIntakeSkill: SkillDefinition<
   RequestClientIntakeOutput
 > = {
   name: "request_client_intake",
-  description: "Draft a client intake plan (no execution).",
+  description: "Generate a client intake plan (no execution).",
   inputSchema: {
     type: "object",
-    required: ["clientName", "summary"],
+    required: ["clientName"],
     properties: {
       clientName: { type: "string", description: "Client name." },
+      projectType: { type: "string", description: "Project type." },
       summary: { type: "string", description: "Client summary." },
-      goals: { type: "array", description: "Goals list." }
+      goals: { type: "array", description: "Primary goals." },
+      budgetRange: { type: "string", description: "Budget range." }
     }
   },
   riskLevel: "HIGH",
@@ -48,14 +52,31 @@ export const requestClientIntakeSkill: SkillDefinition<
       allowPii: false,
       redactKeys: context.config.audit.redactKeys
     });
-    const summaryRedaction = redactSensitiveText(input.summary, {
-      allowPii: false,
-      redactKeys: context.config.audit.redactKeys
-    });
-    const plan = {
+    const projectType = typeof input.projectType === "string" ? input.projectType : "";
+    const summary = typeof input.summary === "string" ? input.summary : "";
+    const projectRedaction = projectType
+      ? redactSensitiveText(projectType, {
+          allowPii: false,
+          redactKeys: context.config.audit.redactKeys
+        })
+      : null;
+    const summaryRedaction = summary
+      ? redactSensitiveText(summary, {
+          allowPii: false,
+          redactKeys: context.config.audit.redactKeys
+        })
+      : null;
+
+    const plan: Record<string, unknown> = {
       clientName: nameRedaction.redactedText,
-      summary: summaryRedaction.redactedText,
       goals,
+      budgetRange: input.budgetRange ?? "unspecified",
+      intakeChecklist: [
+        "Stakeholder list",
+        "Success criteria",
+        "Timeline constraints",
+        "Decision maker and approval flow"
+      ],
       steps: [
         "Collect requirements",
         "Confirm scope and timeline",
@@ -63,10 +84,18 @@ export const requestClientIntakeSkill: SkillDefinition<
         "Review with owner for approval"
       ]
     };
+
+    if (projectRedaction) {
+      plan.projectType = projectRedaction.redactedText;
+    }
+    if (summaryRedaction) {
+      plan.summary = summaryRedaction.redactedText;
+    }
+
     const artifactPayload = {
       type: "client_intake",
       plan,
-      risks: ["Requires owner approval before contacting client."],
+      risks: ["Human review required before sharing externally."],
       estimated_cost: 0
     };
     const artifactJson = JSON.stringify(artifactPayload, null, 2);

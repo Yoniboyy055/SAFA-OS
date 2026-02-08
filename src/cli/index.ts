@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import { loadConfig } from "../core/config";
 import { AuditLogger } from "../core/audit";
@@ -19,10 +20,19 @@ import { buildRegistry } from "../skills/registry_factory";
 import {
   createApprovalRequest,
   approveRequest,
-  denyRequest
+  denyRequest,
+  type ApprovalRequest
 } from "../core/approvals";
 import { ApprovalStore } from "../core/approval_store";
+import { ExecutionStore } from "../core/execution_store";
 import { createPacket, loadPacket } from "../core/packet";
+import {
+  openNetworkWindow,
+  closeNetworkWindow,
+  loadNetworkWindow
+} from "../core/network_window";
+import { VoiceLogStore } from "../core/voice/voice_store";
+import { parseVoiceTranscript } from "../core/voice/voice_parser";
 
 function getFlagValue(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
@@ -34,6 +44,35 @@ function getFlagValue(args: string[], flag: string): string | undefined {
 
 function hasFlag(args: string[], flag: string): boolean {
   return args.includes(flag);
+}
+
+function hashValue(value: string): string {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function safeJson(value: unknown): string {
+  if (value === undefined) {
+    return "";
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function hashPayload(value: unknown): string {
+  return hashValue(safeJson(value ?? {}));
+}
+
+function findApprovedApproval(
+  store: ApprovalStore,
+  action: string,
+  payloadHash: string
+): ApprovalRequest | undefined {
+  return store
+    .list()
+    .find((entry) => entry.status === "APPROVED" && entry.action === action && entry.payloadHash === payloadHash);
 }
 
 function printUsage(): void {
@@ -55,6 +94,11 @@ Usage:
   jarvis call:preview --input <json> [--config <path>] [--actor <name>]
   jarvis call:make --approve --input <json> [--config <path>] [--actor <name>]
   jarvis net:preview --method GET --url https://example.com --purpose "..." [--body "..."] [--approve] [--config <path>] [--actor <name>]
+  jarvis net:open --hours <6|8> --mode SCRIPT --authority OWNER --approve
+  jarvis net:close --mode SCRIPT --authority OWNER --approve
+  jarvis net:status
+  jarvis voice:parse --text "<transcript>" [--execute --approve]
+  jarvis voice:replay [--n 20]
   jarvis run <skill> --input <json> --mode SCRIPT --authority OWNER [--approve]
   jarvis <command> --mode <CREATE|BUILD|DECIDE|CLARIFY|SCRIPT> --authority OWNER
   jarvis help
@@ -121,6 +165,8 @@ export async function runWithArgs(
     "exec",
     "run",
     "net:preview",
+    "net:open",
+    "net:close",
     "payment:preview",
     "payment:request",
     "email:preview",
@@ -225,11 +271,12 @@ export async function runWithArgs(
           payload = undefined;
         }
       }
+      const approvalPayload = { input: payload ?? null, skill };
       const approvalRequest = createApprovalRequest(
         {
           action: `run:${skill}`,
           target: skill,
-          payload
+          payload: approvalPayload
         },
         { actor: parsedActor, audit: lineAudit }
       );
@@ -506,6 +553,7 @@ export async function runWithArgs(
       authority: AuthorityLevel.OWNER,
       commandMode: commandMode ?? "CLARIFY"
     });
+    const planHash = hashPayload(plan);
     audit.log({
       timestamp: new Date().toISOString(),
       actor,
@@ -514,7 +562,7 @@ export async function runWithArgs(
       target: "task",
       result: "SUCCESS"
     });
-    console.log(JSON.stringify(plan, null, 2));
+    console.log(JSON.stringify({ plan, planHash }, null, 2));
     return;
   }
 
@@ -535,6 +583,7 @@ export async function runWithArgs(
     }
     const planner = new Planner();
     const plan = planner.createPlan(task);
+    const planHash = hashPayload(plan);
     const manager = new Manager(registry);
     const review = manager.reviewPlan(plan, config, approved);
 
@@ -548,12 +597,23 @@ export async function runWithArgs(
         result: `DENIED: ${review.reason ?? "Invalid plan."}`
       });
       console.error(review.reason ?? "Plan validation failed.");
-      console.log(JSON.stringify(plan, null, 2));
+      console.log(JSON.stringify({ plan, planHash }, null, 2));
       process.exit(1);
       return;
     }
 
     if (review.approvalRequired && !approved) {
+      const store = new ApprovalStore(config.rootDir);
+      const approvalRequest = createApprovalRequest(
+        {
+          action: "exec",
+          target: planHash,
+          plan,
+          policy: { requirePlanHash: true }
+        },
+        { actor, audit }
+      );
+      store.upsert(approvalRequest);
       audit.log({
         timestamp: new Date().toISOString(),
         actor,
@@ -576,6 +636,20 @@ export async function runWithArgs(
       authority: AuthorityLevel.OWNER,
       commandMode: commandMode ?? "SCRIPT"
     });
+    const executionStore = new ExecutionStore(config.rootDir);
+    executionStore.append({
+      id: `exec-${Date.now()}`,
+      kind: "plan",
+      actor,
+      success: execution.success,
+      createdAt: new Date().toISOString(),
+      planHash,
+      steps: execution.results.map((result) => ({
+        stepId: result.stepId,
+        skill: result.skill,
+        success: result.success
+      }))
+    });
     audit.log({
       timestamp: new Date().toISOString(),
       actor,
@@ -585,7 +659,7 @@ export async function runWithArgs(
       result: execution.success ? "SUCCESS" : "ERROR: Execution failed."
     });
     console.log(
-      JSON.stringify({ plan, results: execution.results }, null, 2)
+      JSON.stringify({ plan, planHash, results: execution.results }, null, 2)
     );
     if (!execution.success) {
       process.exit(1);
@@ -630,6 +704,13 @@ export async function runWithArgs(
     }
 
     assertSafeInput(inputRaw ?? "", audit, actor);
+    const approvalPayload = { input, skill: skillName };
+    const payloadHash = hashPayload(approvalPayload);
+    let approvalRecord: ApprovalRequest | undefined;
+    if (approved) {
+      const store = new ApprovalStore(config.rootDir);
+      approvalRecord = findApprovedApproval(store, `run:${skillName}`, payloadHash);
+    }
     const result = await registry.execute(skillName, input, {
       actor,
       approved,
@@ -638,6 +719,8 @@ export async function runWithArgs(
       config,
       audit,
       governor,
+      approval: approvalRecord,
+      payloadHash,
       freezeEnabled: freezeState.enabled
     });
     if (result.success) {
@@ -686,6 +769,31 @@ export async function runWithArgs(
       config.governance.maxNetworkPayloadBytes
     );
 
+    const approvalPayload = { url, method, purpose, body };
+    const payloadHash = hashPayload(approvalPayload);
+    let approvalRecord: ApprovalRequest | undefined;
+    if (config.governance.networkApprovalMode === "plan_hash") {
+      const store = new ApprovalStore(config.rootDir);
+      if (approved) {
+        approvalRecord = findApprovedApproval(store, "net:preview", payloadHash);
+      }
+      if (!approvalRecord) {
+        const approvalRequest = createApprovalRequest(
+          {
+            action: "net:preview",
+            target: url,
+            payload: approvalPayload,
+            policy: { requirePayloadHash: true }
+          },
+          { actor, audit }
+        );
+        store.upsert(approvalRequest);
+        console.error("Approval required. Request created.");
+        process.exit(1);
+        return;
+      }
+    }
+
     const governorDecision = governor.evaluate(
       {
         type: "network_preview",
@@ -705,7 +813,9 @@ export async function runWithArgs(
         defenseText: body,
         maturityLevel: 5,
         freshOwnerInput: true,
-        costEstimateUsd: 0
+        costEstimateUsd: 0,
+        approval: approvalRecord,
+        payloadHash
       },
       {
         id: "preview",
@@ -1207,6 +1317,135 @@ export async function runWithArgs(
       result: "SUCCESS"
     });
     console.log(JSON.stringify(result.output ?? null, null, 2));
+    return;
+  }
+
+  if (command === "net:open") {
+    if (!approved) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "net.open",
+        approved,
+        target: "network_window",
+        result: "DENIED: Approval required."
+      });
+      console.error("Approval required. Re-run with --approve.");
+      process.exit(1);
+      return;
+    }
+    const hoursRaw = getFlagValue(args, "--hours");
+    const hours = hoursRaw ? Number.parseInt(hoursRaw, 10) : 0;
+    if (hours !== 6 && hours !== 8) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "net.open",
+        approved,
+        target: "network_window",
+        result: "DENIED: --hours must be 6 or 8."
+      });
+      console.error("--hours must be 6 or 8.");
+      process.exit(1);
+      return;
+    }
+    const state = openNetworkWindow(config.rootDir, hours, actor);
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "net.open",
+      approved,
+      target: "network_window",
+      result: JSON.stringify({ startAt: state.startAt, endAt: state.endAt })
+    });
+    console.log(JSON.stringify(state, null, 2));
+    return;
+  }
+
+  if (command === "net:close") {
+    if (!approved) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "net.close",
+        approved,
+        target: "network_window",
+        result: "DENIED: Approval required."
+      });
+      console.error("Approval required. Re-run with --approve.");
+      process.exit(1);
+      return;
+    }
+    const state = closeNetworkWindow(config.rootDir, actor);
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "net.close",
+      approved,
+      target: "network_window",
+      result: "Network window closed."
+    });
+    console.log(JSON.stringify(state, null, 2));
+    return;
+  }
+
+  if (command === "net:status") {
+    const state = loadNetworkWindow(config.rootDir);
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "net.status",
+      approved,
+      target: "network_window",
+      result: JSON.stringify(state)
+    });
+    console.log(JSON.stringify(state, null, 2));
+    return;
+  }
+
+  if (command === "voice:parse") {
+    const transcript = getFlagValue(args, "--text") ?? (await readStdinLine());
+    if (!transcript || !transcript.trim()) {
+      console.error("Voice transcript is required.");
+      process.exit(1);
+      return;
+    }
+    const parsed = parseVoiceTranscript(transcript);
+    const voiceStore = new VoiceLogStore(config.rootDir);
+    voiceStore.append({
+      id: `voice-${Date.now()}`,
+      actor,
+      transcript,
+      parsed,
+      createdAt: new Date().toISOString()
+    });
+    audit.log({
+      timestamp: new Date().toISOString(),
+      actor,
+      action: "voice.parse",
+      approved,
+      target: "voice",
+      result: JSON.stringify({ intent: parsed.intent, confidence: parsed.confidence })
+    });
+    console.log(JSON.stringify(parsed, null, 2));
+    if (hasFlag(args, "--execute")) {
+      if (!approved) {
+        console.error("Approval required. Re-run with --approve to execute.");
+        process.exit(1);
+        return;
+      }
+      const planArgs = ["plan", parsed.commandText, "--mode", "CLARIFY", "--authority", "OWNER"];
+      await runWithArgs(planArgs, options);
+    }
+    return;
+  }
+
+  if (command === "voice:replay") {
+    const countRaw = getFlagValue(args, "--n") ?? "20";
+    const count = Number.parseInt(countRaw, 10);
+    const voiceStore = new VoiceLogStore(config.rootDir);
+    const entries = voiceStore.list(Number.isNaN(count) ? 20 : count);
+    console.log(JSON.stringify(entries, null, 2));
     return;
   }
 
