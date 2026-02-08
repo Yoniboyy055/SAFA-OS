@@ -318,6 +318,7 @@ test("payload limits deny oversized requests", async () => {
     },
     governance: { strictApprovalMode: false, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 8 }
   });
+  openNetworkWindow(rootDir, 6, "tester");
   const governor = new Governor();
   const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
   await assert.rejects(
@@ -430,6 +431,7 @@ test("allowlisted domain executes only with approval", async () => {
       maxBytes: 200000
     }
   });
+  openNetworkWindow(rootDir, 6, "tester");
   const governor = new Governor();
   const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
   const response = await requestNetwork(buildRequest(), {
@@ -458,6 +460,7 @@ test("allowlisted domain denied without approval", async () => {
       maxBytes: 200000
     }
   });
+  openNetworkWindow(rootDir, 6, "tester");
   const governor = new Governor();
   const audit = new AuditLogger({ logPath: config.audit.logPath, redactKeys: [] });
   await assert.rejects(
