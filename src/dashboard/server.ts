@@ -16,6 +16,9 @@ import { Planner } from "../core/planner";
 import { readFreezeState } from "../core/freeze";
 import type { FreezeState } from "../core/freeze";
 import { getLayerDefinitions } from "../core/layers";
+import { resolveTheme } from "../core/theme";
+import { getWorldRooms } from "../core/world";
+import { getAgentAvatars } from "../core/avatars";
 import {
   getPhase7bLockMessage,
   isPhase7bLockedSkill
@@ -476,12 +479,27 @@ function renderDashboardUi(): string {
       min-height: 100vh;
       position: relative;
       overflow: hidden;
+      --accent: #60a5fa;
+      --glow: rgba(96, 165, 250, 0.35);
     }
+    body[data-theme="freeze"] { --accent: #f97316; --glow: rgba(251, 146, 60, 0.4); }
+    body[data-theme="warning"] { --accent: #facc15; --glow: rgba(250, 204, 21, 0.35); }
+    body[data-theme="offline"] { --accent: #94a3b8; --glow: rgba(148, 163, 184, 0.35); }
     .ambient {
       position: fixed;
       inset: 0;
       pointer-events: none;
       z-index: 0;
+    }
+    .ambient::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+      background-size: 80px 80px;
+      opacity: 0.35;
     }
     .orb {
       position: absolute;
@@ -545,13 +563,13 @@ function renderDashboardUi(): string {
       background: rgba(30, 41, 59, 0.7);
     }
     .banner.safe {
-      border-color: #2563eb;
-      color: #93c5fd;
+      border-color: var(--accent);
+      color: var(--accent);
       background: rgba(37, 99, 235, 0.15);
     }
     main { padding: 24px 32px; display: grid; gap: 16px; min-height: calc(100vh - 140px); position: relative; z-index: 1; }
     .card {
-      background: rgba(17, 24, 39, 0.55);
+      background: linear-gradient(135deg, rgba(17, 24, 39, 0.7), rgba(15, 23, 42, 0.45));
       border: 1px solid rgba(148, 163, 184, 0.18);
       border-radius: 14px;
       padding: 16px;
@@ -575,7 +593,7 @@ function renderDashboardUi(): string {
       font-size: 12px;
       color: #e2e8f0;
     }
-    .badge.safe { border-color: #2563eb; color: #93c5fd; }
+    .badge.safe { border-color: var(--accent); color: var(--accent); }
     .badge.locked { border-color: #f97316; color: #fdba74; }
     .badge.disabled { border-color: #64748b; color: #cbd5f5; }
     textarea, input, select {
@@ -587,7 +605,7 @@ function renderDashboardUi(): string {
       color: #e5e7eb;
     }
     button {
-      background: #2563eb;
+      background: var(--accent);
       color: white;
       border: none;
       padding: 10px 16px;
@@ -595,7 +613,7 @@ function renderDashboardUi(): string {
       cursor: pointer;
       transition: transform 0.15s ease, box-shadow 0.2s ease;
     }
-    button:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35); }
+    button:hover { transform: translateY(-1px); box-shadow: 0 6px 16px var(--glow); }
     button:disabled { background: #4b5563; box-shadow: none; }
     button.secondary { background: #0b1220; border: 1px solid #334155; color: #e2e8f0; }
     button.danger { background: #dc2626; }
@@ -624,6 +642,88 @@ function renderDashboardUi(): string {
     .status-dot { width: 8px; height: 8px; border-radius: 999px; background: #22c55e; }
     .status-dot.offline { background: #f97316; }
     .chat-card { height: 100%; display: grid; grid-template-rows: auto 1fr auto; gap: 12px; }
+    .operator-shell { display: grid; grid-template-columns: 72px 1fr; gap: 16px; }
+    .operator-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px 8px;
+      border-radius: 18px;
+      background: rgba(12, 18, 32, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      backdrop-filter: blur(18px);
+      height: fit-content;
+    }
+    .nav-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(37, 99, 235, 0.25);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      color: var(--accent);
+      margin: 0 auto 6px;
+    }
+    .nav-item {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(15, 23, 42, 0.6);
+      color: #e2e8f0;
+      font-size: 12px;
+      margin: 0 auto;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .nav-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px var(--glow);
+    }
+    .operator-content { display: grid; gap: 16px; }
+    .world-map {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(11, 18, 32, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      transform: perspective(900px) rotateX(8deg);
+    }
+    .world-node {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(15, 23, 42, 0.7);
+      font-size: 12px;
+    }
+    .avatar-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .avatar-card {
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(15, 23, 42, 0.7);
+    }
+    .avatar-name { font-weight: 600; margin-bottom: 4px; }
+    .avatar-role { font-size: 12px; color: #94a3b8; }
+    .avatar-status { font-size: 11px; color: var(--accent); margin-top: 6px; }
+    .scene-canvas {
+      width: 100%;
+      height: 220px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(9, 14, 28, 0.7);
+    }
   </style>
 </head>
   <body>
@@ -664,6 +764,15 @@ function renderDashboardUi(): string {
       </div>
     </section>
     <section id="operatorView" class="hidden">
+    <div class="operator-shell">
+      <nav class="operator-nav">
+        <div class="nav-logo">J</div>
+        <div class="nav-item">HOME</div>
+        <div class="nav-item">SYS</div>
+        <div class="nav-item">AUD</div>
+        <div class="nav-item">OPS</div>
+      </nav>
+      <div class="operator-content">
     <div class="grid">
       <div class="card">
         <div class="label">Status Core</div>
@@ -689,6 +798,49 @@ function renderDashboardUi(): string {
     <div class="card">
       <div class="label">Skill Matrix</div>
       <div id="skills">Loading...</div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="label">World Wireframe</div>
+        <div id="worldMap" class="world-map"></div>
+      </div>
+      <div class="card">
+        <div class="label">Agent Avatars</div>
+        <div id="avatarGrid" class="avatar-grid"></div>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="label">Immersive Preview</div>
+        <canvas id="sceneCanvas" class="scene-canvas"></canvas>
+        <div class="pill" style="margin-top:8px;">2.5D scaffold</div>
+      </div>
+      <div class="card">
+        <div class="label">Model Router (Advisory)</div>
+        <div class="status-grid">
+          <div>Local models preferred</div>
+          <div>Cloud adapters: LOCKED</div>
+          <div>Auto-route: Disabled</div>
+        </div>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="label">Voice Bridge</div>
+        <div class="status-grid">
+          <div>Parsing: ENABLED</div>
+          <div>Audio capture: DISABLED</div>
+          <div>Approval gates: ON</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">Business Ops</div>
+        <div class="status-grid">
+          <div>Client intake: Preview only</div>
+          <div>Negotiation: Preview only</div>
+          <div>Follow-up: Preview only</div>
+        </div>
+      </div>
     </div>
     <div class="grid">
       <div class="card">
@@ -782,6 +934,8 @@ function renderDashboardUi(): string {
       <div class="label">Response</div>
       <pre id="responsePanel">{}</pre>
     </div>
+    </div>
+    </div>
     </section>
   </main>
   <script>
@@ -834,6 +988,84 @@ function renderDashboardUi(): string {
       span.textContent = label;
       return span;
     }
+    function renderWorldMap(rooms) {
+      const container = document.getElementById("worldMap");
+      if (!container) {
+        return;
+      }
+      const rows = (rooms || []).map((room) => {
+        return (
+          '<div class="world-node">' +
+          "<span>" +
+          room.label +
+          "</span>" +
+          "<span>" +
+          room.status +
+          "</span>" +
+          "</div>"
+        );
+      }).join("");
+      container.innerHTML = rows || "<div class='world-node'>No rooms loaded.</div>";
+    }
+    function renderAvatars(avatars) {
+      const container = document.getElementById("avatarGrid");
+      if (!container) {
+        return;
+      }
+      const cards = (avatars || []).map((avatar) => {
+        return (
+          '<div class="avatar-card">' +
+          '<div class="avatar-name">' +
+          avatar.name +
+          "</div>" +
+          '<div class="avatar-role">' +
+          avatar.role +
+          "</div>" +
+          '<div class="avatar-status">' +
+          avatar.status +
+          "</div>" +
+          "</div>"
+        );
+      }).join("");
+      container.innerHTML = cards || "<div class='avatar-card'>No avatars loaded.</div>";
+    }
+    function drawScene(rooms) {
+      const canvas = document.getElementById("sceneCanvas");
+      if (!canvas || !canvas.getContext) {
+        return;
+      }
+      const ctx = canvas.getContext("2d");
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      canvas.width = width;
+      canvas.height = height;
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = "rgba(96, 165, 250, 0.2)";
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.4)";
+      ctx.lineWidth = 1;
+      const nodes = (rooms || []).map((room, index) => ({
+        label: room.label,
+        x: 40 + (index % 3) * (width / 3),
+        y: 40 + Math.floor(index / 3) * 70
+      }));
+      nodes.forEach((node, idx) => {
+        if (idx > 0) {
+          ctx.beginPath();
+          ctx.moveTo(nodes[idx - 1].x, nodes[idx - 1].y);
+          ctx.lineTo(node.x, node.y);
+          ctx.stroke();
+        }
+      });
+      nodes.forEach((node) => {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(226, 232, 240, 0.9)";
+        ctx.font = "10px Segoe UI";
+        ctx.fillText(node.label, node.x + 12, node.y + 4);
+        ctx.fillStyle = "rgba(96, 165, 250, 0.2)";
+      });
+    }
     async function loadStatus() {
       const res = await fetch("/status");
       const data = await res.json();
@@ -848,6 +1080,12 @@ function renderDashboardUi(): string {
         <div>vrArmed: <strong>\${data.vrArmed}</strong></div>
         <div>phase: <strong>\${data.phase}</strong></div>
       \`;
+      if (data.theme && data.theme.id) {
+        document.body.dataset.theme = data.theme.id;
+      }
+      renderWorldMap(data.worldRooms);
+      renderAvatars(data.avatars);
+      drawScene(data.worldRooms);
       const chatStatus = document.getElementById("chatStatus");
       const networkLabel = data.networkEnabled ? "Online" : "Offline";
       const networkClass = data.networkEnabled ? "" : "offline";
@@ -1120,6 +1358,7 @@ function sanitizedStatus(
 ): Record<string, unknown> {
   const freeze = freezeState ?? readFreezeState(config.rootDir);
   const vr = readVrState(config.rootDir);
+  const theme = resolveTheme(config, freeze, vr);
   return {
     networkEnabled: config.network.enabled,
     killSwitchEnabled: config.killSwitch.enabled,
@@ -1136,7 +1375,10 @@ function sanitizedStatus(
     vrEnabled: vr.enabled,
     vrArmed: vr.armed,
     vrArmedBy: vr.armedBy ?? null,
-    layers: getLayerDefinitions()
+    theme,
+    layers: getLayerDefinitions(),
+    worldRooms: getWorldRooms(),
+    avatars: getAgentAvatars()
   };
 }
 

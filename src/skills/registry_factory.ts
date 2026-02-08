@@ -28,11 +28,15 @@ import { requestWebBuildSkill } from "./requests/request_web_build";
 import { requestDocPackSkill } from "./requests/request_doc_pack";
 import { requestVideoEditSkill } from "./requests/request_video_edit";
 import { requestImageEditSkill } from "./requests/request_image_edit";
+import { requestClientIntakeSkill } from "./requests/request_client_intake";
+import { requestNegotiationScriptSkill } from "./requests/request_negotiation_script";
+import { requestFollowUpSkill } from "./requests/request_follow_up";
 import { runPacketSkill } from "./runner/run_packet";
 import { recommendLlmSkill } from "./llm/recommend_llm";
 import { analyzeInputRiskSkill } from "./security/analyze_input_risk";
 import { freezeSystemSkill } from "./security/freeze_system";
 import { unfreezeSystemSkill } from "./security/unfreeze_system";
+import { parseVoiceCommandSkill } from "./voice/parse_voice_command";
 
 export function buildRegistry(): SkillRegistry {
   const registry = new SkillRegistry();
@@ -65,10 +69,14 @@ export function buildRegistry(): SkillRegistry {
   registry.register(requestDocPackSkill);
   registry.register(requestVideoEditSkill);
   registry.register(requestImageEditSkill);
+  registry.register(requestClientIntakeSkill);
+  registry.register(requestNegotiationScriptSkill);
+  registry.register(requestFollowUpSkill);
   registry.register(runPacketSkill);
   registry.register(recommendLlmSkill);
   registry.register(analyzeInputRiskSkill);
   registry.register(freezeSystemSkill);
   registry.register(unfreezeSystemSkill);
+  registry.register(parseVoiceCommandSkill);
   return registry;
 }
