@@ -469,19 +469,57 @@ function renderDashboardUi(): string {
   <title>JARVAS OS</title>
   <style>
     body {
-      font-family: "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #0f172a 0%, #020617 60%);
+      font-family: "Segoe UI", "Inter", system-ui, sans-serif;
+      background: radial-gradient(circle at top, #1f2937 0%, #0b1020 45%, #020617 100%);
       color: #e6e6e6;
       margin: 0;
       min-height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+    .ambient {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb {
+      position: absolute;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: 0.35;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.65), rgba(15, 23, 42, 0));
+      animation: float 18s ease-in-out infinite;
+    }
+    .orb.orb-2 {
+      width: 520px;
+      height: 520px;
+      right: -120px;
+      top: 10%;
+      background: radial-gradient(circle, rgba(14, 165, 233, 0.55), rgba(15, 23, 42, 0));
+      animation-duration: 22s;
+    }
+    .orb.orb-3 {
+      width: 380px;
+      height: 380px;
+      left: 10%;
+      bottom: -120px;
+      background: radial-gradient(circle, rgba(217, 70, 239, 0.45), rgba(15, 23, 42, 0));
+      animation-duration: 24s;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-24px); }
     }
     header {
       padding: 24px 32px;
-      background: rgba(15, 23, 42, 0.9);
-      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(10, 15, 28, 0.65);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.18);
       position: sticky;
       top: 0;
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(18px);
       z-index: 10;
     }
     .header-row {
@@ -511,17 +549,17 @@ function renderDashboardUi(): string {
       color: #93c5fd;
       background: rgba(37, 99, 235, 0.15);
     }
-    main { padding: 24px 32px; display: grid; gap: 16px; min-height: calc(100vh - 140px); }
+    main { padding: 24px 32px; display: grid; gap: 16px; min-height: calc(100vh - 140px); position: relative; z-index: 1; }
     .card {
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(17, 24, 39, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.18);
       border-radius: 14px;
       padding: 16px;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
-      box-shadow: 0 10px 30px rgba(2, 6, 23, 0.4);
-      backdrop-filter: blur(12px);
+      box-shadow: 0 18px 40px rgba(2, 6, 23, 0.45);
+      backdrop-filter: blur(18px);
     }
-    .card:hover { transform: translateY(-2px); box-shadow: 0 18px 40px rgba(2, 6, 23, 0.55); }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 22px 45px rgba(2, 6, 23, 0.55); }
     .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
     .label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
     .status-grid { display: grid; gap: 6px; margin-top: 8px; font-size: 13px; }
@@ -576,9 +614,9 @@ function renderDashboardUi(): string {
     .hidden { display: none; }
     .chat-shell { display: grid; gap: 16px; height: calc(100vh - 160px); }
     .chat-feed { flex: 1; display: grid; gap: 12px; overflow: auto; padding-right: 4px; }
-    .chat-message { padding: 12px 14px; border-radius: 12px; max-width: 720px; line-height: 1.5; }
-    .chat-message.user { margin-left: auto; background: rgba(37, 99, 235, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); }
-    .chat-message.assistant { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.2); }
+    .chat-message { padding: 12px 16px; border-radius: 16px; max-width: 720px; line-height: 1.6; backdrop-filter: blur(12px); }
+    .chat-message.user { margin-left: auto; background: rgba(37, 99, 235, 0.25); border: 1px solid rgba(59, 130, 246, 0.45); }
+    .chat-message.assistant { background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(148, 163, 184, 0.2); }
     .chat-input { display: flex; gap: 12px; align-items: center; }
     .chat-input input { flex: 1; }
     .status-line { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: #94a3b8; }
@@ -588,7 +626,12 @@ function renderDashboardUi(): string {
     .chat-card { height: 100%; display: grid; grid-template-rows: auto 1fr auto; gap: 12px; }
   </style>
 </head>
-<body>
+  <body>
+  <div class="ambient">
+    <div class="orb"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
   <header>
     <div class="header-row">
       <div>
