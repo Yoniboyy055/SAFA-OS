@@ -1,18 +1,32 @@
-import * as http from "node:http";
-import * as fs from "node:fs";
-import * as path from "node:path";
 import * as crypto from "node:crypto";
+import * as fs from "node:fs";
+import * as http from "node:http";
+import type { Server } from "http";
+import * as path from "node:path";
 
 import { loadConfig } from "../core/config";
 import type { ResolvedConfig } from "../core/config";
-import { AuditLogger } from "../core/audit";
+import { AuditLogger, redactSensitive } from "../core/audit";
 import { Governor } from "../core/governor";
-import { parseCommandMode } from "../cli/command_mode";
-import { summarizeJarvisLine } from "../cli/jarvis_line";
-import { AuthorityLevel } from "../core/authority";
+import { Planner } from "../core/planner";
+import { Manager } from "../core/manager";
+import { Operator } from "../core/operator";
 import { buildRegistry } from "../skills/registry_factory";
 import type { SkillDefinition } from "../types/skill";
-import { Planner } from "../core/planner";
+import { AuthorityLevel } from "../core/authority";
+import type { CostTier, Mode, RiskTier } from "../core/llm/types";
+import { listAllModels } from "../core/llm/registry";
+import { routeModel } from "../core/llm/router";
+import {
+  approveRequest,
+  createApprovalRequest,
+  denyRequest
+} from "../core/approvals";
+import {
+  ApprovalQueueStore,
+  type ApprovalQueueRecord
+} from "../core/approval_queue_store";
+import { ExecutionStore } from "../core/execution_store";
 import { readFreezeState } from "../core/freeze";
 import type { FreezeState } from "../core/freeze";
 import { getLayerDefinitions } from "../core/layers";
@@ -25,13 +39,46 @@ import {
 } from "../core/phase7b/locked";
 import { redactSensitiveText } from "../core/sensitive";
 import { armVr, disarmVr, readVrState } from "../core/vr";
+import { parseCommandMode } from "../cli/command_mode";
+import { summarizeJarvisLine } from "../cli/jarvis_line";
 
-type Logger = {
-  log: (...args: unknown[]) => void;
-  error: (...args: unknown[]) => void;
-};
+const MAX_BODY_BYTES = 32 * 1024;
+const DEFAULT_PORT = 3777;
+const HOST = "127.0.0.1";
+const STATIC_ROOT = path.resolve(__dirname, "..", "..", "dashboard");
+const DEFAULT_ROUTER_MODE: Mode = "auto";
+const DEFAULT_ROUTER_MODEL = "gpt-4o-mini";
+const DEFAULT_ROUTER_PROVIDER = "openai";
 
-const MAX_BODY_BYTES = 16 * 1024;
+interface RuntimeOverrides {
+  killSwitchEnabled?: boolean;
+  networkEnabled?: boolean;
+}
+
+interface DashboardServerOptions {
+  configPath?: string;
+  actorDefault?: string;
+  overrides?: RuntimeOverrides;
+  ownerToken?: string;
+}
+
+interface RouterDefaults {
+  mode: Mode;
+  provider: string;
+  model: string;
+}
+
+function hashValue(value: string): string {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function hashPayload(value: unknown): string {
+  try {
+    return hashValue(JSON.stringify(value ?? {}));
+  } catch {
+    return hashValue(String(value ?? ""));
+  }
+}
 
 function getFlagValue(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
@@ -41,34 +88,101 @@ function getFlagValue(args: string[], flag: string): string | undefined {
   return args[index + 1];
 }
 
-function hasFlag(args: string[], flag: string): boolean {
-  return args.includes(flag);
-}
-
-function resolveHeaderValue(
-  value: string | string[] | undefined
-): string | undefined {
-  if (!value) {
-    return undefined;
-  }
+function resolveHeaderValue(value: string | string[] | undefined): string | undefined {
   if (Array.isArray(value)) {
     return value[0];
   }
-  return value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value.trim();
+  }
+  return undefined;
 }
 
-function resolveAuthority(flag?: string): AuthorityLevel | undefined {
-  if (!flag) {
+function resolveAuthority(value?: string): AuthorityLevel | undefined {
+  if (!value) {
     return undefined;
   }
-  return flag.toUpperCase() === AuthorityLevel.OWNER ? AuthorityLevel.OWNER : undefined;
+  return value.toUpperCase() === AuthorityLevel.OWNER ? AuthorityLevel.OWNER : undefined;
 }
 
-function readRequestBody(req: any): Promise<string> {
+function ensureFlag(args: string[], flag: string, value?: string): void {
+  if (!value) {
+    return;
+  }
+  if (!args.includes(flag)) {
+    args.push(flag, value);
+  }
+}
+
+function ensureBooleanFlag(args: string[], flag: string, enabled: boolean): void {
+  const index = args.indexOf(flag);
+  if (enabled && index === -1) {
+    args.push(flag);
+  }
+  if (!enabled && index !== -1) {
+    args.splice(index, 1);
+  }
+}
+
+function extractInputFromArgs(args: string[]): Record<string, unknown> {
+  const raw = getFlagValue(args, "--input");
+  if (!raw) {
+    return {};
+  }
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+function updateInputArg(args: string[], input: Record<string, unknown>): void {
+  const index = args.indexOf("--input");
+  const payload = JSON.stringify(input ?? {});
+  if (index === -1) {
+    args.push("--input", payload);
+    return;
+  }
+  if (index + 1 < args.length) {
+    args[index + 1] = payload;
+  }
+}
+
+function applyRuntimeOverrides(
+  base: ResolvedConfig,
+  overrides: RuntimeOverrides
+): ResolvedConfig {
+  return {
+    ...base,
+    killSwitch: {
+      ...base.killSwitch,
+      enabled:
+        typeof overrides.killSwitchEnabled === "boolean"
+          ? overrides.killSwitchEnabled
+          : base.killSwitch.enabled
+    },
+    network: {
+      ...base.network,
+      enabled:
+        typeof overrides.networkEnabled === "boolean"
+          ? overrides.networkEnabled
+          : base.network.enabled
+    }
+  } as ResolvedConfig;
+}
+
+function resolveActor(payload: Record<string, unknown>, fallback: string): string {
+  if (typeof payload.actor === "string" && payload.actor.trim().length > 0) {
+    return payload.actor.trim();
+  }
+  return fallback;
+}
+
+function readRequestBody(req: http.IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let body = "";
-    req.on("data", (chunk: unknown) => {
-      body += String(chunk);
+    req.on("data", (chunk: Buffer) => {
+      body += chunk.toString("utf8");
       if (body.length > MAX_BODY_BYTES) {
         reject(new Error("Payload too large."));
         req.destroy();
@@ -79,52 +193,85 @@ function readRequestBody(req: any): Promise<string> {
   });
 }
 
-function sendJson(res: any, statusCode: number, payload: Record<string, unknown>) {
+function sendJson(
+  res: http.ServerResponse,
+  statusCode: number,
+  payload: Record<string, unknown>
+): void {
   res.statusCode = statusCode;
   res.setHeader("Content-Type", "application/json");
   res.end(JSON.stringify(payload));
 }
 
-function ensureFlag(argv: string[], flag: string, value?: string): void {
-  if (!value) {
-    return;
+function contentTypeFor(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".css") {
+    return "text/css";
   }
-  if (argv.includes(flag)) {
-    return;
+  if (ext === ".js") {
+    return "application/javascript";
   }
-  argv.push(flag, value);
+  if (ext === ".html") {
+    return "text/html";
+  }
+  if (ext === ".json") {
+    return "application/json";
+  }
+  return "text/plain";
 }
 
-function ensureBooleanFlag(argv: string[], flag: string, enabled: boolean): void {
-  if (enabled && !argv.includes(flag)) {
-    argv.push(flag);
+function serveStatic(res: http.ServerResponse, urlPath: string): boolean {
+  const safePath = urlPath === "/" ? "/index.html" : urlPath;
+  const resolved = path.resolve(STATIC_ROOT, "." + safePath);
+  if (!resolved.startsWith(STATIC_ROOT)) {
+    sendJson(res, 403, { error: "Forbidden" });
+    return true;
   }
+  if (!fs.existsSync(resolved) || fs.statSync(resolved).isDirectory()) {
+    return false;
+  }
+  const content = fs.readFileSync(resolved);
+  res.statusCode = 200;
+  res.setHeader("Content-Type", contentTypeFor(resolved));
+  res.end(content);
+  return true;
 }
 
-function extractInputFromArgs(argv: string[]): Record<string, unknown> {
-  const inputIndex = argv.indexOf("--input");
-  if (inputIndex === -1 || inputIndex + 1 >= argv.length) {
+function parseJsonBody(raw: string): Record<string, unknown> {
+  if (!raw || !raw.trim()) {
     return {};
   }
+  return JSON.parse(raw) as Record<string, unknown>;
+}
+
+function loadVersion(): string {
   try {
-    const parsed = JSON.parse(argv[inputIndex + 1]);
-    if (parsed && typeof parsed === "object") {
-      return parsed as Record<string, unknown>;
-    }
+    const pkgPath = path.resolve(__dirname, "..", "..", "package.json");
+    const raw = fs.readFileSync(pkgPath, "utf8");
+    const parsed = JSON.parse(raw) as { version?: string };
+    return parsed.version ?? "0.0.0";
   } catch {
-    return {};
+    return "0.0.0";
   }
-  return {};
 }
 
-function updateInputArg(argv: string[], input: Record<string, unknown>): void {
-  const inputIndex = argv.indexOf("--input");
-  const payload = JSON.stringify(input);
-  if (inputIndex === -1) {
-    argv.push("--input", payload);
-    return;
+function buildRuntimeConfig(
+  configPath: string | undefined,
+  overrides: RuntimeOverrides
+): ResolvedConfig {
+  const base = loadConfig(configPath);
+  const config: ResolvedConfig = {
+    ...base,
+    killSwitch: { ...base.killSwitch },
+    network: { ...base.network }
+  } as ResolvedConfig;
+  if (typeof overrides.killSwitchEnabled === "boolean") {
+    config.killSwitch.enabled = overrides.killSwitchEnabled;
   }
-  argv[inputIndex + 1] = payload;
+  if (typeof overrides.networkEnabled === "boolean") {
+    config.network.enabled = overrides.networkEnabled;
+  }
+  return config;
 }
 
 function buildAllowWhenNetworkOff(
@@ -136,6 +283,54 @@ function buildAllowWhenNetworkOff(
     (["send_email", "request_payment", "make_call"].includes(skill.name) &&
       input.dryRun === true)
   );
+}
+
+function resolveRouterDefaults(): RouterDefaults {
+  const modeRaw = process.env.ROUTER_DEFAULT_MODE;
+  const modelRaw = process.env.ROUTER_DEFAULT_MODEL;
+  const mode: Mode = modeRaw === "manual" ? "manual" : DEFAULT_ROUTER_MODE;
+  const raw = typeof modelRaw === "string" && modelRaw.trim().length > 0 ? modelRaw.trim() : "";
+  if (raw.includes(":")) {
+    const [provider, model] = raw.split(":", 2);
+    return {
+      mode,
+      provider: provider || DEFAULT_ROUTER_PROVIDER,
+      model: model || DEFAULT_ROUTER_MODEL
+    };
+  }
+  return {
+    mode,
+    provider: DEFAULT_ROUTER_PROVIDER,
+    model: raw || DEFAULT_ROUTER_MODEL
+  };
+}
+
+function normalizeRouterInput(
+  body: Record<string, unknown>,
+  defaults: RouterDefaults,
+  commandText: string,
+  skill?: string,
+  approvalRequired?: boolean
+) {
+  const mode: Mode = body.routerMode === "manual" || body.routerMode === "auto" ? (body.routerMode as Mode) : defaults.mode;
+  const manualProvider = typeof body.manualProvider === "string" ? body.manualProvider : defaults.provider;
+  const manualModel = typeof body.manualModel === "string" ? body.manualModel : defaults.model;
+  const budget: CostTier = body.budget === "normal" || body.budget === "high" ? (body.budget as CostTier) : "low";
+  const risk: RiskTier =
+    body.risk === "guarded" || body.risk === "high"
+      ? (body.risk as RiskTier)
+      : approvalRequired
+        ? "guarded"
+        : "safe";
+  return {
+    mode,
+    manualProvider,
+    manualModel,
+    budget,
+    risk,
+    commandText,
+    skill
+  };
 }
 
 function buildNetworkRequest(
@@ -164,6 +359,31 @@ function buildNetworkRequest(
     riskLevel: skill.riskLevel,
     requiresApproval: skill.requiresApproval
   };
+}
+function summarizeApproval(action: string, target: string): string {
+  return `${action} -> ${target}`;
+}
+
+function createPendingApproval(
+  queue: ApprovalQueueStore,
+  audit: AuditLogger,
+  actor: string,
+  key: string,
+  action: string,
+  target: string,
+  payload?: unknown
+): ApprovalQueueRecord {
+  const request = createApprovalRequest(
+    { action, target, payload },
+    { actor, audit }
+  );
+  const record: ApprovalQueueRecord = {
+    request,
+    status: request.status,
+    key,
+    summary: summarizeApproval(action, target)
+  };
+  return queue.upsert(record);
 }
 
 function resolveSkillAvailability(
@@ -303,7 +523,6 @@ function redactOutput(
 
   return { redacted: value, hadSecrets, hadPii };
 }
-
 type ChatIntent =
   | { type: "status" }
   | { type: "skills" }
@@ -1382,35 +1601,469 @@ function sanitizedStatus(
   };
 }
 
-export function createDashboardServer(
-  config: ResolvedConfig,
-  deps: {
-    ownerToken: string;
-    actor?: string;
-    logger?: Logger;
-    audit?: AuditLogger;
+function ensureApproved(
+  queue: ApprovalQueueStore,
+  key: string,
+  approvalId?: string
+): ApprovalQueueRecord | undefined {
+  if (approvalId) {
+    const record = queue.get(approvalId);
+    return record && record.status === "APPROVED" ? record : undefined;
   }
-): any {
-  const logger = deps.logger ?? console;
-  const actor = deps.actor ?? "local-owner";
-  const audit =
-    deps.audit ??
-    new AuditLogger({ logPath: config.audit.logPath, redactKeys: config.audit.redactKeys });
+  return queue.findApprovedByKey(key);
+}
+
+function tailAudit(config: ResolvedConfig, limit: number): unknown[] {
+  if (!fs.existsSync(config.audit.logPath)) {
+    return [];
+  }
+  const raw = fs.readFileSync(config.audit.logPath, "utf8");
+  const lines = raw
+    .split(/\r?\n/)
+    .filter((line: string) => line.trim().length > 0);
+  const slice = lines.slice(Math.max(0, lines.length - limit));
+  return slice.map((line: string) => {
+    try {
+      const parsed = JSON.parse(line);
+      return redactSensitive(parsed) as Record<string, unknown>;
+    } catch {
+      return { raw: line };
+    }
+  });
+}
+
+export function createDashboardServer(
+  configOrOptions?: ResolvedConfig | DashboardServerOptions,
+  extraOptions?: DashboardServerOptions
+): Server {
   const registry = buildRegistry();
   const governor = new Governor();
-  const ownerToken = deps.ownerToken;
+  const isConfig =
+    configOrOptions &&
+    typeof configOrOptions === "object" &&
+    "network" in configOrOptions &&
+    "governance" in configOrOptions;
+  const options = (isConfig ? extraOptions : configOrOptions) ?? {};
+  const overrides: RuntimeOverrides = options?.overrides ?? {};
+  const actorDefault = options?.actorDefault ?? "dashboard";
+  const ownerToken = options?.ownerToken;
+  const version = loadVersion();
+  const baseConfig = isConfig ? (configOrOptions as ResolvedConfig) : undefined;
+  const planStore = new Map<
+    string,
+    {
+      plan: ReturnType<Planner["createPlan"]>;
+      review: ReturnType<Manager["reviewPlan"]>;
+      commandText: string;
+    }
+  >();
 
-  return http.createServer((req: any, res: any) => {
-    const pathName = (req.url ?? "/").split("?")[0];
-    if (req.method === "GET" && (pathName === "/" || pathName === "/ui")) {
-      res.statusCode = 200;
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      res.end(renderDashboardUi());
+  return http.createServer(async (req: http.IncomingMessage, res: http.ServerResponse) => {
+    const url = new URL(req.url ?? "/", `http://${HOST}`);
+    const pathName = url.pathname;
+    if (req.method === "GET" && serveStatic(res, pathName)) {
       return;
     }
-    if (req.method === "GET" && pathName === "/health") {
-      return sendJson(res, 200, { status: "ok" });
+
+    const config = baseConfig
+      ? applyRuntimeOverrides(baseConfig, overrides)
+      : buildRuntimeConfig(options?.configPath, overrides);
+    const routerDefaults = resolveRouterDefaults();
+    const audit = new AuditLogger({
+      logPath: config.audit.logPath,
+      redactKeys: config.audit.redactKeys
+    });
+    const approvalStore = new ApprovalQueueStore(config.rootDir);
+    const executionStore = new ExecutionStore(config.rootDir);
+
+    if (req.method === "GET" && pathName === "/api/state") {
+      return sendJson(res, 200, {
+        networkEnabled: config.network.enabled,
+        killSwitchEnabled: config.killSwitch.enabled,
+        strictApprovalMode: config.governance.strictApprovalMode,
+        actorDefault,
+        version
+      });
     }
+
+    if (req.method === "GET" && pathName === "/api/models") {
+      const models = listAllModels().map((model) => ({
+        provider: model.provider,
+        id: model.id,
+        label: model.label,
+        cost: model.cost,
+        reasoning: model.reasoning,
+        maxContextTokens: model.maxContextTokens
+      }));
+      return sendJson(res, 200, { models });
+    }
+
+    if (req.method === "GET" && pathName === "/api/skills") {
+      const skills = registry.list().map((skill) => ({
+        name: skill.name,
+        risk: skill.riskLevel,
+        requiresApproval: skill.requiresApproval,
+        category: skill.category
+      }));
+      return sendJson(res, 200, { skills });
+    }
+
+    if (req.method === "GET" && pathName === "/api/audit/tail") {
+      const limit = Number(url.searchParams.get("limit") ?? "25");
+      const events = tailAudit(config, Number.isNaN(limit) ? 25 : limit);
+      return sendJson(res, 200, { events });
+    }
+
+    if (req.method === "GET" && pathName === "/api/executions") {
+      const limit = Number(url.searchParams.get("limit") ?? "20");
+      const entries = executionStore.list(Number.isNaN(limit) ? 20 : limit);
+      return sendJson(res, 200, { executions: entries });
+    }
+
+    if (req.method === "GET" && pathName === "/api/approvals") {
+      const pending = approvalStore.listPending().map((record) => ({
+        id: record.request.id,
+        action: record.request.action,
+        target: record.request.target,
+        status: record.status,
+        createdAt: record.request.createdAt,
+        summary: record.summary
+      }));
+      return sendJson(res, 200, { approvals: pending });
+    }
+
+    if (req.method === "POST" && pathName === "/api/approve") {
+      try {
+        const body = parseJsonBody(await readRequestBody(req));
+        const approvalId = body.approvalId;
+        const decision = body.decision;
+        const actor = resolveActor(body, actorDefault);
+        if (typeof approvalId !== "string" || approvalId.length === 0) {
+          return sendJson(res, 400, { error: "approvalId is required" });
+        }
+        if (decision !== "APPROVE" && decision !== "DENY") {
+          return sendJson(res, 400, { error: "decision must be APPROVE or DENY" });
+        }
+        const record = approvalStore.get(approvalId);
+        if (!record) {
+          return sendJson(res, 404, { error: "Approval not found" });
+        }
+        if (decision === "APPROVE") {
+          record.request = approveRequest(record.request, { actor, audit });
+          record.status = record.request.status;
+        } else {
+          record.request = denyRequest(record.request, { actor, audit }, "Denied by owner.");
+          record.status = record.request.status;
+        }
+        approvalStore.upsert(record);
+        audit.log({
+          timestamp: new Date().toISOString(),
+          actor,
+          action: "dashboard.approval",
+          approved: decision === "APPROVE",
+          target: record.request.id,
+          result: JSON.stringify(
+            redactSensitive({
+              decision,
+              action: record.request.action,
+              target: record.request.target
+            })
+          )
+        });
+        return sendJson(res, 200, {
+          id: record.request.id,
+          status: record.status
+        });
+      } catch (error) {
+        return sendJson(res, 400, { error: String(error) });
+      }
+    }
+
+    if (req.method === "POST" && pathName === "/api/plan") {
+      try {
+        const body = parseJsonBody(await readRequestBody(req));
+        const commandText = body.commandText;
+        const actor = resolveActor(body, actorDefault);
+        if (typeof commandText !== "string" || !commandText.trim()) {
+          return sendJson(res, 400, { error: "commandText is required" });
+        }
+        const planner = new Planner();
+        const plan = planner.createPlan(commandText, {
+          actor,
+          audit,
+          authority: AuthorityLevel.OWNER,
+          commandMode: "CLARIFY",
+          freshOwnerInput: true
+        });
+        const manager = new Manager(registry);
+        const review = manager.reviewPlan(plan, config, false);
+        const routerInput = normalizeRouterInput(
+          body,
+          routerDefaults,
+          commandText,
+          undefined,
+          review.approvalRequired
+        );
+        const policy = routeModel(routerInput);
+        const planHash = hashPayload(plan);
+        planStore.set(planHash, { plan, review, commandText });
+        audit.log({
+          timestamp: new Date().toISOString(),
+          actor,
+          action: "dashboard.plan",
+          approved: false,
+          target: "plan",
+          result: JSON.stringify(
+            redactSensitive({ planHash, commandText })
+          )
+        });
+        return sendJson(res, 200, {
+          plan,
+          planHash,
+          valid: review.valid,
+          requiresApproval: review.approvalRequired,
+          model_used: `${policy.model.provider}:${policy.model.id}`,
+          policy_reason: policy.reason.join(" | "),
+          policy_trace: {
+            mode: policy.mode,
+            model: policy.model,
+            budget: routerInput.budget,
+            risk: routerInput.risk,
+            reasons: policy.reason
+          }
+        });
+      } catch (error) {
+        return sendJson(res, 400, { error: String(error) });
+      }
+    }
+
+    if (req.method === "POST" && pathName === "/api/exec") {
+      try {
+        const body = parseJsonBody(await readRequestBody(req));
+        const planHash = body.planHash;
+        const approve = body.approve === true;
+        const approvalId = typeof body.approvalId === "string" ? body.approvalId : undefined;
+        const actor = resolveActor(body, actorDefault);
+        if (typeof planHash !== "string" || !planHash.trim()) {
+          return sendJson(res, 400, { error: "planHash is required" });
+        }
+        const stored = planStore.get(planHash);
+        if (!stored) {
+          return sendJson(res, 404, { error: "Unknown planHash" });
+        }
+        const routerInput = normalizeRouterInput(
+          body,
+          routerDefaults,
+          stored.commandText,
+          undefined,
+          stored.review.approvalRequired
+        );
+        const policy = routeModel(routerInput);
+        const approvalKey = `exec:${planHash}`;
+        if (stored.review.approvalRequired) {
+          if (!approve) {
+            const record = createPendingApproval(
+              approvalStore,
+              audit,
+              actor,
+              approvalKey,
+              "exec",
+              planHash,
+              { planHash }
+            );
+            return sendJson(res, 202, {
+              status: "PENDING_APPROVAL",
+              approvalId: record.request.id,
+              summary: record.summary,
+              model_used: `${policy.model.provider}:${policy.model.id}`,
+              policy_reason: policy.reason.join(" | "),
+              policy_trace: {
+                mode: policy.mode,
+                model: policy.model,
+                budget: routerInput.budget,
+                risk: routerInput.risk,
+                reasons: policy.reason
+              }
+            });
+          }
+          const approvedRecord = ensureApproved(approvalStore, approvalKey, approvalId);
+          if (!approvedRecord) {
+            return sendJson(res, 403, { error: "Approval not recorded." });
+          }
+        }
+
+        const operator = new Operator(registry, audit, governor);
+        const execution = await operator.executePlan(stored.review, {
+          actor,
+          approved: stored.review.approvalRequired,
+          config,
+          authority: AuthorityLevel.OWNER,
+          commandMode: "SCRIPT"
+        });
+        executionStore.append({
+          id: `exec-${Date.now()}`,
+          kind: "plan",
+          actor,
+          success: execution.success,
+          createdAt: new Date().toISOString(),
+          planHash,
+          steps: execution.results.map((result) => ({
+            stepId: result.stepId,
+            skill: result.skill,
+            success: result.success
+          }))
+        });
+        audit.log({
+          timestamp: new Date().toISOString(),
+          actor,
+          action: "dashboard.exec",
+          approved: approve,
+          target: planHash,
+          result: JSON.stringify({ success: execution.success })
+        });
+        return sendJson(res, execution.success ? 200 : 500, {
+          status: execution.success ? "OK" : "FAILED",
+          results: execution.results,
+          model_used: `${policy.model.provider}:${policy.model.id}`,
+          policy_reason: policy.reason.join(" | "),
+          policy_trace: {
+            mode: policy.mode,
+            model: policy.model,
+            budget: routerInput.budget,
+            risk: routerInput.risk,
+            reasons: policy.reason
+          }
+        });
+      } catch (error) {
+        return sendJson(res, 400, { error: String(error) });
+      }
+    }
+
+    if (req.method === "POST" && pathName === "/api/run") {
+      try {
+        const body = parseJsonBody(await readRequestBody(req));
+        const skillName = body.skill;
+        const approve = body.approve === true;
+        const approvalId = typeof body.approvalId === "string" ? body.approvalId : undefined;
+        const actor = resolveActor(body, actorDefault);
+        const input = typeof body.input === "object" && body.input ? (body.input as Record<string, unknown>) : {};
+        if (typeof skillName !== "string" || !skillName.trim()) {
+          return sendJson(res, 400, { error: "skill is required" });
+        }
+        const skill = registry.get(skillName);
+        if (!skill) {
+          return sendJson(res, 404, { error: "Unknown skill" });
+        }
+        const approvalRequired = config.governance.strictApprovalMode || skill.requiresApproval;
+        const approvalPayload = { input, skill: skillName };
+        const payloadHash = hashPayload(approvalPayload);
+        const approvalKey = `run:${skillName}:${payloadHash}`;
+        const freezeState = readFreezeState(config.rootDir);
+        let approvedRecord: ApprovalQueueRecord | undefined;
+        if (approvalRequired) {
+          if (!approve) {
+            const record = createPendingApproval(
+              approvalStore,
+              audit,
+              actor,
+              approvalKey,
+              "run",
+              skillName,
+              approvalPayload
+            );
+            return sendJson(res, 202, {
+              status: "PENDING_APPROVAL",
+              approvalId: record.request.id,
+              summary: record.summary
+            });
+          }
+          approvedRecord = ensureApproved(approvalStore, approvalKey, approvalId);
+          if (!approvedRecord) {
+            return sendJson(res, 403, { error: "Approval not recorded." });
+          }
+        }
+
+        const allowWhenNetworkOff = buildAllowWhenNetworkOff(skill, input);
+        const decision = governor.evaluate(
+          {
+            type: skill.name,
+            category: skill.category,
+            riskLevel: skill.riskLevel,
+            requiresApproval: skill.requiresApproval,
+            allowWhenNetworkOff
+          },
+          config,
+          {
+            actor,
+            approved: approvalRequired,
+            authority: AuthorityLevel.OWNER,
+            commandMode: "SCRIPT",
+            audit,
+            freezeEnabled: freezeState.enabled,
+            defenseText: JSON.stringify(input ?? {}),
+            maturityLevel: 5,
+            freshOwnerInput: true,
+            costEstimateUsd: 0,
+            approval: approvedRecord?.request,
+            payloadHash
+          },
+          buildNetworkRequest(skill, input)
+        );
+        if (!decision.allowed) {
+          audit.log({
+            timestamp: new Date().toISOString(),
+            actor,
+            action: "dashboard.run",
+            approved: approvalRequired,
+            target: skillName,
+            result: JSON.stringify(
+              redactSensitive({ denied: true, reason: decision.reason, input })
+            )
+          });
+          return sendJson(res, 403, { error: decision.reason });
+        }
+
+        const result = await registry.execute(skillName, input, {
+          actor,
+          approved: approvalRequired,
+          authority: AuthorityLevel.OWNER,
+          commandMode: "SCRIPT",
+          config,
+          audit,
+          governor,
+          approval: approvedRecord?.request,
+          payloadHash,
+          freezeEnabled: freezeState.enabled
+        });
+        executionStore.append({
+          id: `run-${Date.now()}`,
+          kind: "skill",
+          actor,
+          success: result.success,
+          createdAt: new Date().toISOString(),
+          skill: skillName,
+          error: result.success ? undefined : result.error
+        });
+        audit.log({
+          timestamp: new Date().toISOString(),
+          actor,
+          action: "dashboard.run",
+          approved: approvalRequired,
+          target: skillName,
+          result: JSON.stringify(
+            redactSensitive({ success: result.success, input })
+          )
+        });
+        return sendJson(res, result.success ? 200 : 500, {
+          status: result.success ? "OK" : "FAILED",
+          output: result.output ?? null,
+          error: result.error ?? null
+        });
+      } catch (error) {
+        return sendJson(res, 400, { error: String(error) });
+      }
+    }
+
     if (req.method === "GET" && pathName === "/status") {
       const freezeState = readFreezeState(config.rootDir);
       return sendJson(res, 200, sanitizedStatus(config, freezeState));
@@ -1434,6 +2087,7 @@ export function createDashboardServer(
       return sendJson(res, 200, { skills });
     }
     if (req.method === "POST" && pathName === "/chat") {
+      const actor = actorDefault;
       const token = resolveHeaderValue(req.headers["x-owner-token"]);
       if (!token || token !== ownerToken) {
         audit.log({
@@ -1669,6 +2323,7 @@ export function createDashboardServer(
       req.method === "POST" &&
       (pathName === "/vr/arm" || pathName === "/vr/disarm")
     ) {
+      const actor = actorDefault;
       const token = resolveHeaderValue(req.headers["x-owner-token"]);
       if (!token || token !== ownerToken) {
         audit.log({
@@ -1816,6 +2471,7 @@ export function createDashboardServer(
       return;
     }
     if (req.method === "POST" && pathName === "/command") {
+      let actor = actorDefault;
       const token = resolveHeaderValue(req.headers["x-owner-token"]);
       if (!token || token !== ownerToken) {
         audit.log({
@@ -1853,6 +2509,8 @@ export function createDashboardServer(
             });
             return sendJson(res, 400, { ok: false, denied: true, reason: "Invalid JSON payload." });
           }
+
+          actor = resolveActor(payload as Record<string, unknown>, actorDefault);
 
           const line = (payload.line ?? payload.text ?? "").trim();
           const dryRun = payload.dryRun !== false;
@@ -2233,42 +2891,164 @@ export function createDashboardServer(
         })
         .catch((error) => {
           const message = error instanceof Error ? error.message : String(error);
-          audit.log({
-            timestamp: new Date().toISOString(),
-            actor,
-            action: "dashboard.command",
-            approved: false,
-            target: "command",
-            result: `ERROR: ${message}`
-          });
           return sendJson(res, 413, { ok: false, denied: true, reason: message });
         });
       return;
     }
-    return sendJson(res, 404, { error: "Not found." });
+
+    if (req.method === "POST" && pathName === "/api/kill") {
+      try {
+        const body = parseJsonBody(await readRequestBody(req));
+        const enabled = body.enabled;
+        const approve = body.approve === true;
+        const approvalId = typeof body.approvalId === "string" ? body.approvalId : undefined;
+        const actor = resolveActor(body, actorDefault);
+        if (typeof enabled !== "boolean") {
+          return sendJson(res, 400, { error: "enabled must be boolean" });
+        }
+        const approvalKey = `kill:${enabled ? "on" : "off"}`;
+        if (!approve) {
+          const record = createPendingApproval(
+            approvalStore,
+            audit,
+            actor,
+            approvalKey,
+            "kill_switch",
+            enabled ? "enable" : "disable",
+            { enabled }
+          );
+          return sendJson(res, 202, {
+            status: "PENDING_APPROVAL",
+            approvalId: record.request.id,
+            summary: record.summary
+          });
+        }
+        const approvedRecord = ensureApproved(approvalStore, approvalKey, approvalId);
+        if (!approvedRecord) {
+          return sendJson(res, 403, { error: "Approval not recorded." });
+        }
+        overrides.killSwitchEnabled = enabled;
+        audit.log({
+          timestamp: new Date().toISOString(),
+          actor,
+          action: "dashboard.kill_switch",
+          approved: true,
+          target: "kill_switch",
+          result: JSON.stringify({ enabled })
+        });
+        return sendJson(res, 200, { status: "OK", enabled });
+      } catch (error) {
+        return sendJson(res, 400, { error: String(error) });
+      }
+    }
+
+    if (req.method === "POST" && pathName === "/api/network") {
+      try {
+        const body = parseJsonBody(await readRequestBody(req));
+        const enabled = body.enabled;
+        const approve = body.approve === true;
+        const approvalId = typeof body.approvalId === "string" ? body.approvalId : undefined;
+        const actor = resolveActor(body, actorDefault);
+        if (typeof enabled !== "boolean") {
+          return sendJson(res, 400, { error: "enabled must be boolean" });
+        }
+        if (enabled && !config.network.enabled) {
+          audit.log({
+            timestamp: new Date().toISOString(),
+            actor,
+            action: "dashboard.network",
+            approved: false,
+            target: "network",
+            result: "DENIED: Network is disabled by config."
+          });
+          return sendJson(res, 403, { error: "Network is disabled by config." });
+        }
+        const approvalKey = `network:${enabled ? "on" : "off"}`;
+        if (!approve) {
+          const record = createPendingApproval(
+            approvalStore,
+            audit,
+            actor,
+            approvalKey,
+            "network",
+            enabled ? "enable" : "disable",
+            { enabled }
+          );
+          return sendJson(res, 202, {
+            status: "PENDING_APPROVAL",
+            approvalId: record.request.id,
+            summary: record.summary
+          });
+        }
+        const approvedRecord = ensureApproved(approvalStore, approvalKey, approvalId);
+        if (!approvedRecord) {
+          return sendJson(res, 403, { error: "Approval not recorded." });
+        }
+        overrides.networkEnabled = enabled;
+        audit.log({
+          timestamp: new Date().toISOString(),
+          actor,
+          action: "dashboard.network",
+          approved: true,
+          target: "network",
+          result: JSON.stringify({ enabled })
+        });
+        return sendJson(res, 200, { status: "OK", enabled });
+      } catch (error) {
+        return sendJson(res, 400, { error: String(error) });
+      }
+    }
+
+    if (req.method === "GET" && pathName === "/" && serveStatic(res, "/index.html")) {
+      return;
+    }
+
+    sendJson(res, 404, { error: "Not found" });
   });
 }
 
-export async function startDashboardServer(
-  rawArgs: string[] = process.argv.slice(2),
-  options?: { exit?: (code: number) => void; logger?: Logger }
-): Promise<any> {
-  const logger = options?.logger ?? console;
-  const args = [...rawArgs];
-  const configPath = getFlagValue(args, "--config");
-  const actor = getFlagValue(args, "--actor") ?? "local-owner";
+export function startDashboardServer(
+  argsOrOptions?:
+    | string[]
+    | {
+        port?: number;
+        configPath?: string;
+        actorDefault?: string;
+        exit?: (code: number) => void;
+      },
+  options?: { exit?: (code: number) => void }
+): Server {
+  const isArgs = Array.isArray(argsOrOptions);
+  const args = isArgs ? (argsOrOptions as string[]) : [];
+  const exit = isArgs ? options?.exit : argsOrOptions?.exit;
+  const configPath = isArgs
+    ? getFlagValue(args, "--config")
+    : argsOrOptions?.configPath;
+  const actorDefault = isArgs
+    ? getFlagValue(args, "--actor") ?? "dashboard"
+    : argsOrOptions?.actorDefault ?? "dashboard";
+  const portRaw = isArgs ? getFlagValue(args, "--port") : undefined;
+  const parsedPort = portRaw ? Number(portRaw) : Number.NaN;
+  const port = isArgs
+    ? Number.isFinite(parsedPort)
+      ? parsedPort
+      : DEFAULT_PORT
+    : argsOrOptions?.port ?? DEFAULT_PORT;
+
   const config = loadConfig(configPath);
   const audit = new AuditLogger({
     logPath: config.audit.logPath,
     redactKeys: config.audit.redactKeys
   });
-
+  const actor = actorDefault;
   const ownerToken = process.env.JARVIS_OWNER_TOKEN;
+  const logger = console;
+
   if (!ownerToken) {
     logger.error("DENIED: JARVIS_OWNER_TOKEN is required to start the dashboard.");
-    if (options?.exit) {
-      options.exit(1);
-      return undefined;
+    if (exit) {
+      exit(1);
+      throw new Error("__EXIT__:1");
     }
     process.exit(1);
   }
@@ -2283,55 +3063,45 @@ export async function startDashboardServer(
       result: "Kill switch must be enabled to start the dashboard."
     });
     logger.error("DENIED: Kill switch must be enabled to start the dashboard.");
-    if (options?.exit) {
-      options.exit(1);
-      return undefined;
+    if (exit) {
+      exit(1);
+      throw new Error("__EXIT__:1");
     }
     process.exit(1);
   }
 
-  const hostFlag = getFlagValue(args, "--host");
+  const hostFlag = isArgs ? getFlagValue(args, "--host") : undefined;
   if (hostFlag && hostFlag !== "127.0.0.1") {
     logger.error("DENIED: Dashboard host must be 127.0.0.1.");
-    if (options?.exit) {
-      options.exit(1);
-      return undefined;
+    if (exit) {
+      exit(1);
+      throw new Error("__EXIT__:1");
     }
     process.exit(1);
   }
-  const host = "127.0.0.1";
-  const portRaw = getFlagValue(args, "--port");
-  const parsedPort = portRaw ? Number(portRaw) : Number.NaN;
-  const port = Number.isFinite(parsedPort) ? parsedPort : 3777;
 
   const server = createDashboardServer(config, {
     ownerToken,
-    actor,
-    logger,
-    audit
+    actorDefault
   });
-
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, host, () => resolve());
+  server.listen(port, HOST, () => {
+    console.log(`Dashboard listening on http://${HOST}:${port}`);
   });
-
-  const address = server.address();
-  const resolvedPort =
-    address && typeof address === "object" && "port" in address
-      ? address.port
-      : port;
-  logger.log(`Dashboard listening on http://${host}:${resolvedPort}`);
   return server;
 }
 
-async function main(): Promise<void> {
-  await startDashboardServer();
-}
-
 if (require.main === module) {
-  main().catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
+  const args = process.argv.slice(2);
+  const configIndex = args.indexOf("--config");
+  const portIndex = args.indexOf("--port");
+  const actorIndex = args.indexOf("--actor");
+  const configPath = configIndex >= 0 ? args[configIndex + 1] : undefined;
+  const portRaw = portIndex >= 0 ? args[portIndex + 1] : undefined;
+  const actorDefault = actorIndex >= 0 ? args[actorIndex + 1] : "dashboard";
+  const port = portRaw ? Number(portRaw) : DEFAULT_PORT;
+  startDashboardServer({
+    port: Number.isNaN(port) ? DEFAULT_PORT : port,
+    configPath,
+    actorDefault
   });
 }

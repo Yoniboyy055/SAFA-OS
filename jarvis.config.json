@@ -57,6 +57,10 @@
     "networkApprovalMode": "per_request",
     "maxNetworkPayloadBytes": 16384
   },
+  "releaseLock": {
+    "enabled": false,
+    "blockedCategories": ["network", "outbound_message", "external_tool"]
+  },
   "audit": {
     "logPath": "logs/audit.log",
     "redactKeys": [

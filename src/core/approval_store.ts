@@ -5,9 +5,11 @@ import type { ApprovalRequest } from "./approvals";
 
 export class ApprovalStore {
   private readonly filePath: string;
+  private readonly logPath: string;
 
   constructor(rootDir: string) {
     this.filePath = path.join(rootDir, "data", "approvals.json");
+    this.logPath = path.join(rootDir, "data", "approvals.log");
   }
 
   list(): ApprovalRequest[] {
@@ -39,11 +41,22 @@ export class ApprovalStore {
       existing.push(request);
     }
     this.write(existing);
+    this.appendLog(request);
   }
 
   private write(entries: ApprovalRequest[]): void {
     const dir = path.dirname(this.filePath);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(this.filePath, JSON.stringify(entries, null, 2), "utf8");
+  }
+
+  private appendLog(request: ApprovalRequest): void {
+    const dir = path.dirname(this.logPath);
+    fs.mkdirSync(dir, { recursive: true });
+    const payload = {
+      timestamp: new Date().toISOString(),
+      request
+    };
+    fs.appendFileSync(this.logPath, `${JSON.stringify(payload)}\n`, "utf8");
   }
 }

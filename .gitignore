@@ -2,10 +2,15 @@
 .env
 .env.*
 !.env.example
+*.local
+*.local.*
 
 # logs
 logs/
 *.log
+
+# runtime state
+data/network_window.json
 
 # node
 node_modules/

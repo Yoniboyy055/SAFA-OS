@@ -9,6 +9,13 @@ function hasEntries(values: string[] | undefined): boolean {
   return Array.isArray(values) && values.length > 0;
 }
 
+const RELEASE_LOCK_CATEGORIES = new Set([
+  "local",
+  "network",
+  "outbound_message",
+  "external_tool"
+]);
+
 function assert(
   condition: boolean,
   message: string
@@ -95,5 +102,15 @@ export function validateConfig(config: ResolvedConfig): void {
         config.execution.maxRuntimeMs > 0,
       "Execution enabled requires maxRuntimeMs > 0."
     );
+  }
+
+  if (config.releaseLock?.enabled) {
+    const blocked = config.releaseLock.blockedCategories ?? [];
+    blocked.forEach((category) => {
+      assert(
+        RELEASE_LOCK_CATEGORIES.has(category),
+        `Release lock category not supported: ${category}.`
+      );
+    });
   }
 }

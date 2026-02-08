@@ -31,6 +31,7 @@ import { requestImageEditSkill } from "./requests/request_image_edit";
 import { requestClientIntakeSkill } from "./requests/request_client_intake";
 import { requestNegotiationScriptSkill } from "./requests/request_negotiation_script";
 import { requestFollowUpSkill } from "./requests/request_follow_up";
+import { requestRecommendationRequestSkill } from "./requests/request_recommendation_request";
 import { runPacketSkill } from "./runner/run_packet";
 import { recommendLlmSkill } from "./llm/recommend_llm";
 import { analyzeInputRiskSkill } from "./security/analyze_input_risk";
@@ -72,6 +73,7 @@ export function buildRegistry(): SkillRegistry {
   registry.register(requestClientIntakeSkill);
   registry.register(requestNegotiationScriptSkill);
   registry.register(requestFollowUpSkill);
+  registry.register(requestRecommendationRequestSkill);
   registry.register(runPacketSkill);
   registry.register(recommendLlmSkill);
   registry.register(analyzeInputRiskSkill);

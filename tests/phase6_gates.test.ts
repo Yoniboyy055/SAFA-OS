@@ -95,7 +95,7 @@ test("kill switch blocks run_packet even if execution enabled", async () => {
     "run",
     "run_packet",
     "--input",
-    `{\"path\":\"${path.join(rootDir, "data", "packet.json")}\"}`,
+      JSON.stringify({ path: path.join(rootDir, "data", "packet.json") }),
     "--mode",
     "SCRIPT",
     "--authority",

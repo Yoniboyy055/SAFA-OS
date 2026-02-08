@@ -12,6 +12,10 @@ const { memoryAddSkill } = require("../src/skills/memory/memory_add");
 const { memorySearchSkill } = require("../src/skills/memory/memory_search");
 const { memoryGetSkill } = require("../src/skills/memory/memory_get");
 const { requestVideoEditSkill } = require("../src/skills/requests/request_video_edit");
+const { requestClientIntakeSkill } = require("../src/skills/requests/request_client_intake");
+const { requestNegotiationScriptSkill } = require("../src/skills/requests/request_negotiation_script");
+const { requestFollowUpSkill } = require("../src/skills/requests/request_follow_up");
+const { requestRecommendationRequestSkill } = require("../src/skills/requests/request_recommendation_request");
 const { runPacketSkill } = require("../src/skills/runner/run_packet");
 const { recommendLlmSkill } = require("../src/skills/llm/recommend_llm");
 const { analyzeInputRiskSkill } = require("../src/skills/security/analyze_input_risk");
@@ -106,6 +110,10 @@ function buildRegistry() {
   registry.register(memorySearchSkill);
   registry.register(memoryGetSkill);
   registry.register(requestVideoEditSkill);
+  registry.register(requestClientIntakeSkill);
+  registry.register(requestNegotiationScriptSkill);
+  registry.register(requestFollowUpSkill);
+  registry.register(requestRecommendationRequestSkill);
   registry.register(runPacketSkill);
   registry.register(recommendLlmSkill);
   registry.register(analyzeInputRiskSkill);
@@ -173,6 +181,54 @@ test("request_video_edit creates artifact plan", async () => {
   );
   assert.equal(result.success, true);
   assert.equal(result.output.estimated_cost, 0);
+  assert.ok(fs.existsSync(result.output.artifactPath));
+});
+
+test("request_client_intake creates artifact plan", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const registry = buildRegistry();
+  const result = await registry.execute(
+    "request_client_intake",
+    { clientName: "Acme", projectType: "branding" },
+    buildContext(rootDir)
+  );
+  assert.equal(result.success, true);
+  assert.ok(fs.existsSync(result.output.artifactPath));
+});
+
+test("request_negotiation_script creates artifact plan", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const registry = buildRegistry();
+  const result = await registry.execute(
+    "request_negotiation_script",
+    { clientName: "Acme", offerSummary: "Retainer" },
+    buildContext(rootDir)
+  );
+  assert.equal(result.success, true);
+  assert.ok(fs.existsSync(result.output.artifactPath));
+});
+
+test("request_follow_up creates artifact plan", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const registry = buildRegistry();
+  const result = await registry.execute(
+    "request_follow_up",
+    { contactName: "Taylor", context: "Proposal" },
+    buildContext(rootDir)
+  );
+  assert.equal(result.success, true);
+  assert.ok(fs.existsSync(result.output.artifactPath));
+});
+
+test("request_recommendation_request creates artifact plan", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const registry = buildRegistry();
+  const result = await registry.execute(
+    "request_recommendation_request",
+    { recipientName: "Jordan", relationship: "project" },
+    buildContext(rootDir)
+  );
+  assert.equal(result.success, true);
   assert.ok(fs.existsSync(result.output.artifactPath));
 });
 

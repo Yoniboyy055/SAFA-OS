@@ -2,14 +2,17 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "CommonJS",
-    "moduleResolution": "Node",
+    "moduleResolution": "node",
+    "types": ["node"],
+    "lib": ["ES2022"],
     "outDir": "dist",
     "rootDir": ".",
     "strict": true,
+    "jsx": "react",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts"],
   "exclude": ["dist", "node_modules"]
 }

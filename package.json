@@ -10,13 +10,24 @@
     "postbuild": "node scripts/postbuild.js",
     "start": "node dist/cli/index.js",
     "dashboard": "node dist/dashboard/server.js",
+    "daemon": "node dist/daemon/daemon.js",
+    "dev:dashboard": "node --watch dist/dashboard/server.js",
+    "dev:daemon": "node --watch dist/daemon/daemon.js",
     "dashboard:dev": "node dist/src/dashboard/server.js",
     "dashboard:prod": "node dist/dashboard/server.js",
+    "scan:secrets": "pwsh scripts/scan-secrets.ps1",
     "desktop": "electron desktop/main.js",
-    "test": "npm run build && node scripts/run-node-tests.js"
+    "test": "npm run build && node scripts/run-node-tests.js",
+    "tui": "node dist/ui/tui/app.js"
+  },
+  "dependencies": {
+    "ink": "^3.2.0",
+    "react": "^17.0.2"
   },
   "devDependencies": {
     "electron": "^40.2.1",
+    "@types/node": "^25.2.1",
+    "@types/react": "^17.0.83",
     "typescript": "^5.9.3"
   }
 }

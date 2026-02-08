@@ -27,9 +27,9 @@ Jarvis OS is a single-core assistant system with modular capabilities, governed 
 - Governance files are treated as source-of-truth
 
 ## How to run
-1. Ensure Node.js 18+ is available.
+1. Ensure Node.js 20.11.1 is available.
 2. Review or edit `jarvis.config.json` (network stays OFF by default).
-3. Install dependencies: `npm install`
+3. Install dependencies: `npm ci`
 4. Build: `npm run build`
 5. Test: `npm test`
 6. Run:
@@ -77,6 +77,13 @@ jarvis line --text "JARVIS: RUN read_file {\"path\":\"README.md\"} --dry-run"
 ```
 See `docs/PHONE_UX.md` for more examples.
 
+## Voice Bridge (Local)
+Parse a transcript and store it for replay:
+```
+node dist/cli/index.js voice:parse --text "plan update the roadmap" --approve
+node dist/cli/index.js voice:replay --n 10
+```
+
 ## Memory (Store-All / Use-Approved)
 Jarvis maintains three memory tiers:
 - Tier 0: `memory/raw/` (append-only, redacted logs; not used for decisions)
@@ -113,6 +120,10 @@ node dist/cli/index.js run request_web_build --mode SCRIPT --authority OWNER --a
 node dist/cli/index.js run request_doc_pack --mode SCRIPT --authority OWNER --approve --input '{"title":"Spec","sections":["Intro","Scope"]}'
 node dist/cli/index.js run request_video_edit --mode SCRIPT --authority OWNER --approve --input '{"inputPath":"in.mp4","outputPath":"out.mp4"}'
 node dist/cli/index.js run request_image_edit --mode SCRIPT --authority OWNER --approve --input '{"inputPath":"in.png","outputPath":"out.png"}'
+node dist/cli/index.js run request_client_intake --mode SCRIPT --authority OWNER --approve --input '{"clientName":"Acme","projectType":"branding"}'
+node dist/cli/index.js run request_negotiation_script --mode SCRIPT --authority OWNER --approve --input '{"clientName":"Acme","offerSummary":"retainer"}'
+node dist/cli/index.js run request_follow_up --mode SCRIPT --authority OWNER --approve --input '{"contactName":"Taylor","context":"proposal"}'
+node dist/cli/index.js run request_recommendation_request --mode SCRIPT --authority OWNER --approve --input '{"recipientName":"Jordan","relationship":"project"}'
 ```
 
 ## Execution Runner (Disabled by Default)
@@ -150,12 +161,50 @@ node dist/cli/index.js run recommend_tool --mode SCRIPT --authority OWNER --appr
 ## Jarvis Cockpit v1 (Local UI)
 Open `ui/cockpit/index.html` in a local browser. This UI is static and local-only.
 
+## Jarvis TUI (Phase 8)
+Terminal UI for local-only control. It uses existing governed code paths and keeps
+network disabled by default.
+
+```
+npm install
+npm run build
+npm run tui
+```
+
+Optional flags:
+```
+npm run tui -- --config jarvis.config.json --actor local-user
+npm run tui -- --no-boot
+```
+
+Key bindings:
+- 1 Home
+- 2 Approvals
+- 3 Audit
+- 4 Command
+- 5 Settings
+- k palette
+- t theme
+- r refresh
+- ? help
+- q quit
+
+Reduced motion:
+- Set `JARVIS_REDUCED_MOTION=1` to disable animations.
+
 ## Dashboard Server (Local-only)
-The dashboard server binds only to `127.0.0.1` and exposes a minimal local UI at `/`.
-It requires the kill switch to remain **ON**. In safe mode, GET endpoints remain
-available, and POST /command supports governed local execution or dry-run previews.
-The UI includes a one-button freeze control and evidence-mode output.
-VR endpoints are available locally at `/vr/status`, `/vr/arm`, `/vr/disarm`.
+The dashboard server binds only to `127.0.0.1` and serves a local UI at `/`.
+All actions are governed and audit-logged. Approvals are required when strict
+mode or skill risk demands it. Network stays OFF by default.
+
+Startup hardening:
+- Requires `JARVIS_OWNER_TOKEN` to start.
+- Requires kill switch **ON** at start (safe mode).
+
+Extra local endpoints:
+- `POST /chat` (owner token required)
+- `POST /command` (owner token required)
+- `GET /vr/status`, `POST /vr/arm`, `POST /vr/disarm`
 
 ## Desktop Shell (Electron)
 Run the local dashboard in a desktop window:
@@ -164,25 +213,30 @@ npm run desktop
 ```
 The shell is restricted to `127.0.0.1` only.
 
-## Phone Control (Local-Only, Governed)
-The dashboard API exposes local-only endpoints:
-- `GET /health`
-- `GET /status`
-- `POST /command` (accepts `JARVIS: ...` line input)
-
-To start the server, set an owner token:
+Start the server:
 ```
-JARVIS_OWNER_TOKEN="set-a-long-random-token" npm run dashboard
+npm run dashboard
 ```
 
-For `POST /command`, send the token as `X-Owner-Token`.
+Runtime daemon (dashboard + health endpoint):
+```
+npm run daemon -- --dashboard-port 3777 --health-port 3778
+```
 
-Example (dry-run):
-```
-curl -Method POST "http://127.0.0.1:3777/command" `
-  -Headers @{ "Content-Type"="application/json"; "X-Owner-Token"="$env:JARVIS_OWNER_TOKEN" } `
-  -Body '{"line":"JARVIS: STATUS","mode":"SCRIPT","authority":"OWNER","dryRun":true}'
-```
+Local API endpoints:
+- `GET /api/state`
+- `GET /api/skills`
+- `POST /api/plan`
+- `POST /api/exec`
+- `POST /api/run`
+- `GET /api/audit/tail`
+- `GET /api/executions`
+- `GET /api/approvals`
+- `POST /api/approve`
+- `POST /api/kill`
+- `POST /api/network`
+
+Logs live under `logs/` (default: `logs/audit.log`).
 
 Remote access must be owner-controlled (documentation only):
 - Recommended: Tailscale (VPN)
@@ -190,5 +244,50 @@ Remote access must be owner-controlled (documentation only):
 
 **Warning:** Do NOT expose the dashboard directly to the public internet.
 
+## Companion Stubs (Desktop/Mobile)
+Design-only companions live in docs:
+- `docs/COMPANION_DESKTOP.md`
+- `docs/COMPANION_MOBILE.md`
+
+## Release Lock (Governance)
+Release locks can block non-local categories even with approvals. Configure in
+`jarvis.config.json` under `releaseLock`. See `docs/RELEASE_LOCKS.md`.
+
+## Go/No-Go Checklist
+Run before merge/tag:
+```
+npm ci && npm run build && npm test
+```
+
 ## Live Outbound (Disabled)
 Network corridor remains stub-only and live outbound is disabled by policy.
+
+## Timed Network Window
+Network access is OFF by default. A timed window can be opened to allow
+network/outbound skills for a bounded period (6 or 8 hours). The window state
+is stored durably in `data/network_window.json` so restarts do not bypass it.
+
+### CLI Commands
+```bash
+# Open a 6-hour window (requires OWNER authority + approval)
+jarvis net:open --hours 6 --mode SCRIPT --authority OWNER --approve
+
+# Open an 8-hour window
+jarvis net:open --hours 8 --mode SCRIPT --authority OWNER --approve
+
+# Close the window early
+jarvis net:close --mode SCRIPT --authority OWNER --approve
+
+# Check current window status
+jarvis net:status
+```
+
+### Dashboard Execution
+Dashboard actions route through the same governor/audit path as the CLI. When
+strict approval mode is enabled, every action requires approval first.
+
+### Governor Enforcement
+When a `networkWindow` is provided in the governance context, the Governor
+checks that the current time falls between `startAt` and `endAt`. If the
+window is closed or expired, network actions are denied automatically. All
+open/close/status events are recorded in the audit log.
