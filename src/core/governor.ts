@@ -55,8 +55,71 @@ export class Governor {
       config.governance.strictApprovalMode ||
       action.category === "network" ||
       action.category === "outbound_message" ||
+      action.category === "external_tool" ||
       action.requiresApproval ||
       action.riskLevel !== "LOW";
+
+    if (
+      approvalRequired &&
+      action.category === "network" &&
+      config.governance.networkApprovalMode === "plan_hash"
+    ) {
+      if (!context.approval) {
+        const reason = "Approval record with plan or payload hash required.";
+        context.audit.log({
+          timestamp: new Date().toISOString(),
+          actor: context.actor,
+          action: "approval.denied",
+          approved: false,
+          target: action.type,
+          result: reason
+        });
+        return { approved: false, reason };
+      }
+
+      const hasPlanHash =
+        typeof context.planHash === "string" && context.planHash.trim().length > 0;
+      const hasPayloadHash =
+        typeof context.payloadHash === "string" &&
+        context.payloadHash.trim().length > 0;
+      if (!hasPlanHash && !hasPayloadHash) {
+        const reason = "Plan or payload hash required for network approval.";
+        context.audit.log({
+          timestamp: new Date().toISOString(),
+          actor: context.actor,
+          action: "approval.denied",
+          approved: false,
+          target: action.type,
+          result: reason
+        });
+        return { approved: false, reason };
+      }
+
+      if (hasPlanHash && !context.approval.planHash) {
+        const reason = "Approval missing plan hash.";
+        context.audit.log({
+          timestamp: new Date().toISOString(),
+          actor: context.actor,
+          action: "approval.denied",
+          approved: false,
+          target: action.type,
+          result: reason
+        });
+        return { approved: false, reason };
+      }
+      if (!hasPlanHash && hasPayloadHash && !context.approval.payloadHash) {
+        const reason = "Approval missing payload hash.";
+        context.audit.log({
+          timestamp: new Date().toISOString(),
+          actor: context.actor,
+          action: "approval.denied",
+          approved: false,
+          target: action.type,
+          result: reason
+        });
+        return { approved: false, reason };
+      }
+    }
 
     if (!approvalRequired) {
       return { approved: true };

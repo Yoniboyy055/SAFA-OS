@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import { loadConfig } from "../core/config";
 import { AuditLogger } from "../core/audit";
@@ -16,9 +17,11 @@ import { buildRegistry } from "../skills/registry_factory";
 import {
   createApprovalRequest,
   approveRequest,
-  denyRequest
+  denyRequest,
+  type ApprovalRequest
 } from "../core/approvals";
 import { ApprovalStore } from "../core/approval_store";
+import { ExecutionStore } from "../core/execution_store";
 import { createPacket, loadPacket } from "../core/packet";
 import {
   openNetworkWindow,
@@ -36,6 +39,35 @@ function getFlagValue(args: string[], flag: string): string | undefined {
 
 function hasFlag(args: string[], flag: string): boolean {
   return args.includes(flag);
+}
+
+function hashValue(value: string): string {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function safeJson(value: unknown): string {
+  if (value === undefined) {
+    return "";
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function hashPayload(value: unknown): string {
+  return hashValue(safeJson(value ?? {}));
+}
+
+function findApprovedApproval(
+  store: ApprovalStore,
+  action: string,
+  payloadHash: string
+): ApprovalRequest | undefined {
+  return store
+    .list()
+    .find((entry) => entry.status === "APPROVED" && entry.action === action && entry.payloadHash === payloadHash);
 }
 
 function printUsage(): void {
@@ -231,11 +263,12 @@ export async function runWithArgs(
           payload = undefined;
         }
       }
+      const approvalPayload = { input: payload ?? null, skill };
       const approvalRequest = createApprovalRequest(
         {
           action: `run:${skill}`,
           target: skill,
-          payload
+          payload: approvalPayload
         },
         { actor: parsedActor, audit: lineAudit }
       );
@@ -504,6 +537,7 @@ export async function runWithArgs(
       authority: AuthorityLevel.OWNER,
       commandMode: commandMode ?? "CLARIFY"
     });
+    const planHash = hashPayload(plan);
     audit.log({
       timestamp: new Date().toISOString(),
       actor,
@@ -512,7 +546,7 @@ export async function runWithArgs(
       target: "task",
       result: "SUCCESS"
     });
-    console.log(JSON.stringify(plan, null, 2));
+    console.log(JSON.stringify({ plan, planHash }, null, 2));
     return;
   }
 
@@ -533,6 +567,7 @@ export async function runWithArgs(
     }
     const planner = new Planner();
     const plan = planner.createPlan(task);
+    const planHash = hashPayload(plan);
     const manager = new Manager(registry);
     const review = manager.reviewPlan(plan, config, approved);
 
@@ -546,12 +581,23 @@ export async function runWithArgs(
         result: `DENIED: ${review.reason ?? "Invalid plan."}`
       });
       console.error(review.reason ?? "Plan validation failed.");
-      console.log(JSON.stringify(plan, null, 2));
+      console.log(JSON.stringify({ plan, planHash }, null, 2));
       process.exit(1);
       return;
     }
 
     if (review.approvalRequired && !approved) {
+      const store = new ApprovalStore(config.rootDir);
+      const approvalRequest = createApprovalRequest(
+        {
+          action: "exec",
+          target: planHash,
+          plan,
+          policy: { requirePlanHash: true }
+        },
+        { actor, audit }
+      );
+      store.upsert(approvalRequest);
       audit.log({
         timestamp: new Date().toISOString(),
         actor,
@@ -574,6 +620,20 @@ export async function runWithArgs(
       authority: AuthorityLevel.OWNER,
       commandMode: commandMode ?? "SCRIPT"
     });
+    const executionStore = new ExecutionStore(config.rootDir);
+    executionStore.append({
+      id: `exec-${Date.now()}`,
+      kind: "plan",
+      actor,
+      success: execution.success,
+      createdAt: new Date().toISOString(),
+      planHash,
+      steps: execution.results.map((result) => ({
+        stepId: result.stepId,
+        skill: result.skill,
+        success: result.success
+      }))
+    });
     audit.log({
       timestamp: new Date().toISOString(),
       actor,
@@ -583,7 +643,7 @@ export async function runWithArgs(
       result: execution.success ? "SUCCESS" : "ERROR: Execution failed."
     });
     console.log(
-      JSON.stringify({ plan, results: execution.results }, null, 2)
+      JSON.stringify({ plan, planHash, results: execution.results }, null, 2)
     );
     if (!execution.success) {
       process.exit(1);
@@ -628,6 +688,13 @@ export async function runWithArgs(
     }
 
     assertSafeInput(inputRaw ?? "", audit, actor);
+    const approvalPayload = { input, skill: skillName };
+    const payloadHash = hashPayload(approvalPayload);
+    let approvalRecord: ApprovalRequest | undefined;
+    if (approved) {
+      const store = new ApprovalStore(config.rootDir);
+      approvalRecord = findApprovedApproval(store, `run:${skillName}`, payloadHash);
+    }
     const result = await registry.execute(skillName, input, {
       actor,
       approved,
@@ -635,7 +702,9 @@ export async function runWithArgs(
       commandMode: commandMode ?? "SCRIPT",
       config,
       audit,
-      governor
+      governor,
+      approval: approvalRecord,
+      payloadHash
     });
     if (result.success) {
       if (typeof result.output === "string") {
@@ -683,6 +752,31 @@ export async function runWithArgs(
       config.governance.maxNetworkPayloadBytes
     );
 
+    const approvalPayload = { url, method, purpose, body };
+    const payloadHash = hashPayload(approvalPayload);
+    let approvalRecord: ApprovalRequest | undefined;
+    if (config.governance.networkApprovalMode === "plan_hash") {
+      const store = new ApprovalStore(config.rootDir);
+      if (approved) {
+        approvalRecord = findApprovedApproval(store, "net:preview", payloadHash);
+      }
+      if (!approvalRecord) {
+        const approvalRequest = createApprovalRequest(
+          {
+            action: "net:preview",
+            target: url,
+            payload: approvalPayload,
+            policy: { requirePayloadHash: true }
+          },
+          { actor, audit }
+        );
+        store.upsert(approvalRequest);
+        console.error("Approval required. Request created.");
+        process.exit(1);
+        return;
+      }
+    }
+
     const governorDecision = governor.evaluate(
       {
         type: "network_preview",
@@ -701,7 +795,9 @@ export async function runWithArgs(
         defenseText: body,
         maturityLevel: 5,
         freshOwnerInput: true,
-        costEstimateUsd: 0
+        costEstimateUsd: 0,
+        approval: approvalRecord,
+        payloadHash
       },
       {
         id: "preview",

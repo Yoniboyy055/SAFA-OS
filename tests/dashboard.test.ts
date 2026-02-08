@@ -101,6 +101,10 @@ test("dashboard api enforces approval and redaction", async () => {
     assert.equal(runResult.status, "OK");
     assert.equal(runResult.output.content, "hello");
 
+    const executions = await api(port, "GET", "/api/executions?limit=5");
+    assert.ok(Array.isArray(executions.executions));
+    assert.ok(executions.executions.length > 0);
+
     const network = await api(port, "POST", "/api/network", {
       enabled: true,
       approve: true,

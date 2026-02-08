@@ -3,8 +3,7 @@ const state = {
   approvalId: null,
   pendingKillApproval: null,
   pendingNetworkApproval: null,
-  routerDefaultsApplied: false,
-  routerDefaults: null
+  lastPlan: null
 };
 
 function applyCardAttributes(card) {
@@ -25,7 +24,9 @@ const els = {
   navItems: Array.from(document.querySelectorAll(".nav-item")),
   panels: {
     home: document.getElementById("panel-home"),
+    plan: document.getElementById("panel-plan"),
     approvals: document.getElementById("panel-approvals"),
+    executions: document.getElementById("panel-executions"),
     audit: document.getElementById("panel-audit"),
     system: document.getElementById("panel-system")
   },
@@ -43,6 +44,9 @@ const els = {
   commandOutput: document.getElementById("commandOutput"),
   policyOutput: document.getElementById("policyOutput"),
   approvalsList: document.getElementById("approvalsList"),
+  planMeta: document.getElementById("planMeta"),
+  planSteps: document.getElementById("planSteps"),
+  executionList: document.getElementById("executionList"),
   auditOutput: document.getElementById("auditOutput"),
   systemState: document.getElementById("systemState"),
   killToggleBtn: document.getElementById("killToggleBtn"),
@@ -82,17 +86,6 @@ async function loadState() {
   if (!els.actorInput.value) {
     els.actorInput.value = data.actorDefault || "owner";
   }
-  if (data.routerDefaults && !state.routerDefaultsApplied) {
-    state.routerDefaults = data.routerDefaults;
-    if (data.routerDefaults.mode) {
-      els.modeSelect.value = data.routerDefaults.mode;
-    }
-    if (data.routerDefaults.model) {
-      const defaultValue = `${data.routerDefaults.provider || "openai"}:${data.routerDefaults.model}`;
-      els.modelSelect.value = defaultValue;
-    }
-    state.routerDefaultsApplied = true;
-  }
   updateRouterControls();
 }
 
@@ -116,10 +109,6 @@ async function loadModels() {
     option.textContent = `${model.label} (${model.provider})`;
     els.modelSelect.appendChild(option);
   });
-  if (state.routerDefaults && state.routerDefaults.model) {
-    const defaultValue = `${state.routerDefaults.provider || "openai"}:${state.routerDefaults.model}`;
-    els.modelSelect.value = defaultValue;
-  }
   updateRouterControls();
 }
 
@@ -148,6 +137,21 @@ function renderPolicySummary(data) {
     policy_trace: data.policy_trace
   };
   els.policyOutput.textContent = JSON.stringify(summary, null, 2);
+}
+
+function renderPlanViewer(planData) {
+  if (!planData || !planData.plan) {
+    els.planMeta.textContent = "No plan loaded.";
+    els.planSteps.textContent = "[]";
+    return;
+  }
+  const meta = {
+    planHash: planData.planHash,
+    valid: planData.valid,
+    requiresApproval: planData.requiresApproval
+  };
+  els.planMeta.textContent = JSON.stringify(meta, null, 2);
+  els.planSteps.textContent = JSON.stringify(planData.plan.steps ?? [], null, 2);
 }
 
 async function loadApprovals() {
@@ -199,6 +203,15 @@ async function loadAudit() {
   els.auditOutput.textContent = JSON.stringify(data.events, null, 2);
 }
 
+async function loadExecutions() {
+  const data = await api("/api/executions?limit=20");
+  if (!data.executions || data.executions.length === 0) {
+    els.executionList.textContent = "No executions yet.";
+    return;
+  }
+  els.executionList.textContent = JSON.stringify(data.executions, null, 2);
+}
+
 function parseSkillInput() {
   try {
     return JSON.parse(els.skillInput.value || "{}");
@@ -221,7 +234,9 @@ els.planBtn.addEventListener("click", async () => {
     body: JSON.stringify(payload)
   });
   state.planHash = data.planHash;
+  state.lastPlan = data;
   els.planOutput.textContent = JSON.stringify(data, null, 2);
+  renderPlanViewer(data);
   renderPolicySummary(data);
   els.execBtn.disabled = !data.planHash;
 });
@@ -249,6 +264,7 @@ els.execBtn.addEventListener("click", async () => {
   els.commandOutput.textContent = JSON.stringify(data, null, 2);
   renderPolicySummary(data);
   await loadApprovals();
+  await loadExecutions();
 });
 
 els.runBtn.addEventListener("click", async () => {
@@ -267,6 +283,7 @@ els.runBtn.addEventListener("click", async () => {
   }
   els.commandOutput.textContent = JSON.stringify(data, null, 2);
   await loadApprovals();
+  await loadExecutions();
 });
 
 els.viewApprovalsBtn.addEventListener("click", () => showPanel("approvals"));
@@ -314,8 +331,10 @@ async function boot() {
   await loadModels();
   await loadApprovals();
   await loadAudit();
+  await loadExecutions();
   setInterval(loadAudit, 4000);
   setInterval(loadState, 6000);
+  setInterval(loadExecutions, 6000);
   showPanel("home");
 }
 

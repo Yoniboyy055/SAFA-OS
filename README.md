@@ -27,9 +27,9 @@ Jarvis OS is a single-core assistant system with modular capabilities, governed 
 - Governance files are treated as source-of-truth
 
 ## How to run
-1. Ensure Node.js 18+ is available.
+1. Ensure Node.js 20.11.1 is available.
 2. Review or edit `jarvis.config.json` (network stays OFF by default).
-3. Install dependencies: `npm install`
+3. Install dependencies: `npm ci`
 4. Build: `npm run build`
 5. Test: `npm test`
 6. Run:
@@ -191,6 +191,11 @@ Start the server:
 npm run dashboard
 ```
 
+Runtime daemon (dashboard + health endpoint):
+```
+npm run daemon -- --dashboard-port 3777 --health-port 3778
+```
+
 Local API endpoints:
 - `GET /api/state`
 - `GET /api/skills`
@@ -198,16 +203,25 @@ Local API endpoints:
 - `POST /api/exec`
 - `POST /api/run`
 - `GET /api/audit/tail`
+- `GET /api/executions`
 - `GET /api/approvals`
 - `POST /api/approve`
 - `POST /api/kill`
 - `POST /api/network`
+
+Logs live under `logs/` (default: `logs/audit.log`).
 
 Remote access must be owner-controlled (documentation only):
 - Recommended: Tailscale (VPN)
 - Optional: Cloudflare Tunnel
 
 **Warning:** Do NOT expose the dashboard directly to the public internet.
+
+## Go/No-Go Checklist
+Run before merge/tag:
+```
+npm ci && npm run build && npm test
+```
 
 ## Live Outbound (Disabled)
 Network corridor remains stub-only and live outbound is disabled by policy.

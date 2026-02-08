@@ -144,6 +144,32 @@ test("governor allows low-risk local actions", () => {
   assert.equal(decision.allowed, true);
 });
 
+test("governor requires approval for external tools", () => {
+  const audit = new AuditLogger({ logPath: "/tmp/audit.log", redactKeys: [] });
+  const governor = new Governor();
+  const decision = governor.evaluate(
+    {
+      type: "run_packet",
+      category: "external_tool",
+      riskLevel: "LOW",
+      requiresApproval: false,
+      allowWhenNetworkOff: true
+    },
+    baseConfig,
+    {
+      actor: "tester",
+      approved: false,
+      authority: AuthorityLevel.OWNER,
+      commandMode: "DECIDE",
+      audit,
+      maturityLevel: 5,
+      freshOwnerInput: true
+    }
+  );
+  assert.equal(decision.allowed, false);
+  assert.match(decision.reason, /approval required/i);
+});
+
 test("strict approval mode requires approval for low risk", () => {
   const audit = new AuditLogger({ logPath: "/tmp/audit.log", redactKeys: [] });
   const governor = new Governor();
@@ -258,4 +284,118 @@ test("governor denies when approval is expired", () => {
   );
   assert.equal(decision.allowed, false);
   assert.match(decision.reason, /expired/i);
+});
+
+test("network plan-hash mode requires approval record", () => {
+  const audit = new AuditLogger({ logPath: "/tmp/audit.log", redactKeys: [] });
+  const governor = new Governor();
+  const decision = governor.evaluate(
+    {
+      type: "send_http_request",
+      category: "network",
+      riskLevel: "HIGH",
+      requiresApproval: true,
+      allowWhenNetworkOff: false
+    },
+    {
+      ...baseConfig,
+      governance: {
+        strictApprovalMode: false,
+        networkApprovalMode: "plan_hash",
+        maxNetworkPayloadBytes: 16384
+      },
+      network: {
+        enabled: true,
+        allowlist: [],
+        allowlistDomains: ["example.com"],
+        allowlistUrls: [],
+        timeoutMs: 10000,
+        maxBytes: 200000
+      }
+    },
+    {
+      actor: "tester",
+      approved: true,
+      authority: AuthorityLevel.OWNER,
+      commandMode: "DECIDE",
+      audit,
+      maturityLevel: 5,
+      freshOwnerInput: true,
+      planHash: "plan-1"
+    },
+    {
+      id: "req-1",
+      purpose: "test",
+      method: "GET",
+      url: "https://example.com",
+      headers: {},
+      bodySummary: "",
+      bodyHash: "hash",
+      riskLevel: "HIGH",
+      requiresApproval: true
+    }
+  );
+  assert.equal(decision.allowed, false);
+  assert.match(decision.reason, /plan hash required|approval record/i);
+});
+
+test("network plan-hash mode allows matching approval", () => {
+  const audit = new AuditLogger({ logPath: "/tmp/audit.log", redactKeys: [] });
+  const governor = new Governor();
+  const decision = governor.evaluate(
+    {
+      type: "send_http_request",
+      category: "network",
+      riskLevel: "HIGH",
+      requiresApproval: true,
+      allowWhenNetworkOff: false
+    },
+    {
+      ...baseConfig,
+      governance: {
+        strictApprovalMode: false,
+        networkApprovalMode: "plan_hash",
+        maxNetworkPayloadBytes: 16384
+      },
+      network: {
+        enabled: true,
+        allowlist: [],
+        allowlistDomains: ["example.com"],
+        allowlistUrls: [],
+        timeoutMs: 10000,
+        maxBytes: 200000
+      }
+    },
+    {
+      actor: "tester",
+      approved: true,
+      authority: AuthorityLevel.OWNER,
+      commandMode: "DECIDE",
+      audit,
+      maturityLevel: 5,
+      freshOwnerInput: true,
+      planHash: "plan-2",
+      approval: {
+        id: "apr-3",
+        action: "send_http_request",
+        target: "https://example.com",
+        actor: "owner",
+        status: "APPROVED",
+        createdAt: new Date().toISOString(),
+        planHash: "plan-2"
+      }
+    },
+    {
+      id: "req-2",
+      purpose: "test",
+      method: "GET",
+      url: "https://example.com",
+      headers: {},
+      bodySummary: "",
+      bodyHash: "hash",
+      riskLevel: "HIGH",
+      requiresApproval: true
+    }
+  );
+  assert.equal(decision.allowed, true);
 });

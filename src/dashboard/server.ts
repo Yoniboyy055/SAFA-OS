@@ -20,10 +20,13 @@ import { routeModel } from "../core/llm/router";
 import {
   approveRequest,
   createApprovalRequest,
-  denyRequest,
-  type ApprovalRequest,
-  type ApprovalStatus
+  denyRequest
 } from "../core/approvals";
+import {
+  ApprovalQueueStore,
+  type ApprovalQueueRecord
+} from "../core/approval_queue_store";
+import { ExecutionStore } from "../core/execution_store";
 
 const MAX_BODY_BYTES = 32 * 1024;
 const DEFAULT_PORT = 3777;
@@ -38,55 +41,10 @@ interface RuntimeOverrides {
   networkEnabled?: boolean;
 }
 
-interface ApprovalRecord {
-  request: ApprovalRequest;
-  status: ApprovalStatus;
-  key: string;
-  summary: string;
-}
-
 interface RouterDefaults {
   mode: Mode;
   provider: string;
   model: string;
-}
-
-class ApprovalQueue {
-  private readonly approvals = new Map<string, ApprovalRecord>();
-  private readonly keyIndex = new Map<string, string>();
-
-  create(record: ApprovalRecord): ApprovalRecord {
-    this.approvals.set(record.request.id, record);
-    this.keyIndex.set(record.key, record.request.id);
-    return record;
-  }
-
-  get(id: string): ApprovalRecord | undefined {
-    return this.approvals.get(id);
-  }
-
-  findApprovedByKey(key: string): ApprovalRecord | undefined {
-    const id = this.keyIndex.get(key);
-    if (!id) {
-      return undefined;
-    }
-    const record = this.approvals.get(id);
-    if (!record) {
-      return undefined;
-    }
-    return record.status === "APPROVED" ? record : undefined;
-  }
-
-  listPending(): ApprovalRecord[] {
-    return Array.from(this.approvals.values()).filter(
-      (record) => record.status === "PENDING"
-    );
-  }
-
-  update(record: ApprovalRecord): void {
-    this.approvals.set(record.request.id, record);
-    this.keyIndex.set(record.key, record.request.id);
-  }
 }
 
 function hashValue(value: string): string {
@@ -296,32 +254,32 @@ function summarizeApproval(action: string, target: string): string {
 }
 
 function createPendingApproval(
-  queue: ApprovalQueue,
+  queue: ApprovalQueueStore,
   audit: AuditLogger,
   actor: string,
   key: string,
   action: string,
   target: string,
   payload?: unknown
-): ApprovalRecord {
+): ApprovalQueueRecord {
   const request = createApprovalRequest(
     { action, target, payload },
     { actor, audit }
   );
-  const record: ApprovalRecord = {
+  const record: ApprovalQueueRecord = {
     request,
     status: request.status,
     key,
     summary: summarizeApproval(action, target)
   };
-  return queue.create(record);
+  return queue.upsert(record);
 }
 
 function ensureApproved(
-  queue: ApprovalQueue,
+  queue: ApprovalQueueStore,
   key: string,
   approvalId?: string
-): ApprovalRecord | undefined {
+): ApprovalQueueRecord | undefined {
   if (approvalId) {
     const record = queue.get(approvalId);
     return record && record.status === "APPROVED" ? record : undefined;
@@ -355,7 +313,6 @@ export function createDashboardServer(options?: {
 }): Server {
   const registry = buildRegistry();
   const governor = new Governor();
-  const approvals = new ApprovalQueue();
   const overrides: RuntimeOverrides = options?.overrides ?? {};
   const actorDefault = options?.actorDefault ?? "dashboard";
   const version = loadVersion();
@@ -381,6 +338,8 @@ export function createDashboardServer(options?: {
       logPath: config.audit.logPath,
       redactKeys: config.audit.redactKeys
     });
+    const approvalStore = new ApprovalQueueStore(config.rootDir);
+    const executionStore = new ExecutionStore(config.rootDir);
 
     if (req.method === "GET" && pathName === "/api/state") {
       return sendJson(res, 200, {
@@ -388,8 +347,7 @@ export function createDashboardServer(options?: {
         killSwitchEnabled: config.killSwitch.enabled,
         strictApprovalMode: config.governance.strictApprovalMode,
         actorDefault,
-        version,
-        routerDefaults
+        version
       });
     }
 
@@ -421,8 +379,14 @@ export function createDashboardServer(options?: {
       return sendJson(res, 200, { events });
     }
 
+    if (req.method === "GET" && pathName === "/api/executions") {
+      const limit = Number(url.searchParams.get("limit") ?? "20");
+      const entries = executionStore.list(Number.isNaN(limit) ? 20 : limit);
+      return sendJson(res, 200, { executions: entries });
+    }
+
     if (req.method === "GET" && pathName === "/api/approvals") {
-      const pending = approvals.listPending().map((record) => ({
+      const pending = approvalStore.listPending().map((record) => ({
         id: record.request.id,
         action: record.request.action,
         target: record.request.target,
@@ -445,7 +409,7 @@ export function createDashboardServer(options?: {
         if (decision !== "APPROVE" && decision !== "DENY") {
           return sendJson(res, 400, { error: "decision must be APPROVE or DENY" });
         }
-        const record = approvals.get(approvalId);
+        const record = approvalStore.get(approvalId);
         if (!record) {
           return sendJson(res, 404, { error: "Approval not found" });
         }
@@ -456,7 +420,7 @@ export function createDashboardServer(options?: {
           record.request = denyRequest(record.request, { actor, audit }, "Denied by owner.");
           record.status = record.request.status;
         }
-        approvals.update(record);
+        approvalStore.upsert(record);
         audit.log({
           timestamp: new Date().toISOString(),
           actor,
@@ -564,7 +528,7 @@ export function createDashboardServer(options?: {
         if (stored.review.approvalRequired) {
           if (!approve) {
             const record = createPendingApproval(
-              approvals,
+              approvalStore,
               audit,
               actor,
               approvalKey,
@@ -587,7 +551,7 @@ export function createDashboardServer(options?: {
               }
             });
           }
-          const approvedRecord = ensureApproved(approvals, approvalKey, approvalId);
+          const approvedRecord = ensureApproved(approvalStore, approvalKey, approvalId);
           if (!approvedRecord) {
             return sendJson(res, 403, { error: "Approval not recorded." });
           }
@@ -600,6 +564,19 @@ export function createDashboardServer(options?: {
           config,
           authority: AuthorityLevel.OWNER,
           commandMode: "SCRIPT"
+        });
+        executionStore.append({
+          id: `exec-${Date.now()}`,
+          kind: "plan",
+          actor,
+          success: execution.success,
+          createdAt: new Date().toISOString(),
+          planHash,
+          steps: execution.results.map((result) => ({
+            stepId: result.stepId,
+            skill: result.skill,
+            success: result.success
+          }))
         });
         audit.log({
           timestamp: new Date().toISOString(),
@@ -643,18 +620,20 @@ export function createDashboardServer(options?: {
           return sendJson(res, 404, { error: "Unknown skill" });
         }
         const approvalRequired = config.governance.strictApprovalMode || skill.requiresApproval;
-        const payloadHash = hashPayload(input);
+        const approvalPayload = { input, skill: skillName };
+        const payloadHash = hashPayload(approvalPayload);
         const approvalKey = `run:${skillName}:${payloadHash}`;
+        let approvedRecord: ApprovalQueueRecord | undefined;
         if (approvalRequired) {
           if (!approve) {
             const record = createPendingApproval(
-              approvals,
+              approvalStore,
               audit,
               actor,
               approvalKey,
               "run",
               skillName,
-              { input, skill: skillName }
+              approvalPayload
             );
             return sendJson(res, 202, {
               status: "PENDING_APPROVAL",
@@ -662,7 +641,7 @@ export function createDashboardServer(options?: {
               summary: record.summary
             });
           }
-          const approvedRecord = ensureApproved(approvals, approvalKey, approvalId);
+          approvedRecord = ensureApproved(approvalStore, approvalKey, approvalId);
           if (!approvedRecord) {
             return sendJson(res, 403, { error: "Approval not recorded." });
           }
@@ -687,7 +666,9 @@ export function createDashboardServer(options?: {
             defenseText: JSON.stringify(input ?? {}),
             maturityLevel: 5,
             freshOwnerInput: true,
-            costEstimateUsd: 0
+            costEstimateUsd: 0,
+            approval: approvedRecord?.request,
+            payloadHash
           },
           buildNetworkRequest(skill, input)
         );
@@ -712,7 +693,18 @@ export function createDashboardServer(options?: {
           commandMode: "SCRIPT",
           config,
           audit,
-          governor
+          governor,
+          approval: approvedRecord?.request,
+          payloadHash
+        });
+        executionStore.append({
+          id: `run-${Date.now()}`,
+          kind: "skill",
+          actor,
+          success: result.success,
+          createdAt: new Date().toISOString(),
+          skill: skillName,
+          error: result.success ? undefined : result.error
         });
         audit.log({
           timestamp: new Date().toISOString(),
@@ -747,7 +739,7 @@ export function createDashboardServer(options?: {
         const approvalKey = `kill:${enabled ? "on" : "off"}`;
         if (!approve) {
           const record = createPendingApproval(
-            approvals,
+            approvalStore,
             audit,
             actor,
             approvalKey,
@@ -761,7 +753,7 @@ export function createDashboardServer(options?: {
             summary: record.summary
           });
         }
-        const approvedRecord = ensureApproved(approvals, approvalKey, approvalId);
+        const approvedRecord = ensureApproved(approvalStore, approvalKey, approvalId);
         if (!approvedRecord) {
           return sendJson(res, 403, { error: "Approval not recorded." });
         }
@@ -804,7 +796,7 @@ export function createDashboardServer(options?: {
         const approvalKey = `network:${enabled ? "on" : "off"}`;
         if (!approve) {
           const record = createPendingApproval(
-            approvals,
+            approvalStore,
             audit,
             actor,
             approvalKey,
@@ -818,7 +810,7 @@ export function createDashboardServer(options?: {
             summary: record.summary
           });
         }
-        const approvedRecord = ensureApproved(approvals, approvalKey, approvalId);
+        const approvedRecord = ensureApproved(approvalStore, approvalKey, approvalId);
         if (!approvedRecord) {
           return sendJson(res, 403, { error: "Approval not recorded." });
         }
