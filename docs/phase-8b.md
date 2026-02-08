@@ -7,4 +7,5 @@
 - Accessibility hooks
 
 ## Status
-ACTIVE. Theme state is derived from kill switch/freeze/network status.
+ACTIVE. Theme state maps kill switch/freeze/network/VR status to UI accents,
+including risk colors, motion rules, and accessibility toggles.

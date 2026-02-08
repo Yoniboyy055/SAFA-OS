@@ -683,6 +683,11 @@ function renderDashboardUi(): string {
       transform: translateY(-1px);
       box-shadow: 0 6px 16px var(--glow);
     }
+    .nav-item.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 12px var(--glow);
+    }
     .operator-content { display: grid; gap: 16px; }
     .world-map {
       display: grid;
@@ -703,6 +708,23 @@ function renderDashboardUi(): string {
       background: rgba(15, 23, 42, 0.7);
       font-size: 12px;
     }
+    .world-node.active { border-color: rgba(56, 189, 248, 0.4); box-shadow: 0 0 12px var(--glow); }
+    .world-node.locked { opacity: 0.7; }
+    .world-node.disabled { opacity: 0.45; }
+    .portal-btn {
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(30, 41, 59, 0.7);
+      color: #e2e8f0;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .portal-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 10px var(--glow);
+    }
     .avatar-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -714,6 +736,9 @@ function renderDashboardUi(): string {
       border: 1px solid rgba(148, 163, 184, 0.2);
       background: rgba(15, 23, 42, 0.7);
     }
+    .avatar-card.active { border-color: var(--accent); box-shadow: 0 0 12px var(--glow); }
+    .avatar-card.watching { border-color: rgba(250, 204, 21, 0.5); }
+    .avatar-card.locked { border-color: rgba(248, 113, 113, 0.5); opacity: 0.7; }
     .avatar-name { font-weight: 600; margin-bottom: 4px; }
     .avatar-role { font-size: 12px; color: #94a3b8; }
     .avatar-status { font-size: 11px; color: var(--accent); margin-top: 6px; }
@@ -724,6 +749,42 @@ function renderDashboardUi(): string {
       border: 1px solid rgba(148, 163, 184, 0.2);
       background: rgba(9, 14, 28, 0.7);
     }
+    .risk-low { color: #6ee7b7; }
+    .risk-medium { color: #facc15; }
+    .risk-high { color: #f87171; }
+    .zone { display: grid; gap: 16px; opacity: 1; transform: translateY(0); transition: opacity 0.2s ease, transform 0.2s ease; }
+    .zone.hidden { opacity: 0; transform: translateY(8px); pointer-events: none; height: 0; overflow: hidden; }
+    .timeline {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .timeline-node {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(148, 163, 184, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+    .timeline-node.active { background: var(--accent); box-shadow: 0 0 8px var(--glow); }
+    .timeline-line {
+      flex: 1;
+      height: 2px;
+      background: rgba(148, 163, 184, 0.3);
+    }
+    .accessibility-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .high-contrast .card {
+      border-color: rgba(255, 255, 255, 0.45);
+      background: rgba(15, 23, 42, 0.8);
+    }
+    .large-text { font-size: 110%; }
+    .reduce-motion * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
   </style>
 </head>
   <body>
@@ -767,174 +828,206 @@ function renderDashboardUi(): string {
     <div class="operator-shell">
       <nav class="operator-nav">
         <div class="nav-logo">J</div>
-        <div class="nav-item">HOME</div>
-        <div class="nav-item">SYS</div>
-        <div class="nav-item">AUD</div>
-        <div class="nav-item">OPS</div>
+        <div class="nav-item" data-zone="home">HOME</div>
+        <div class="nav-item" data-zone="systems">SYS</div>
+        <div class="nav-item" data-zone="vr">VR</div>
+        <div class="nav-item" data-zone="ops">OPS</div>
+        <div class="nav-item" data-zone="audit">AUD</div>
       </nav>
       <div class="operator-content">
-    <div class="grid">
-      <div class="card">
-        <div class="label">Status Core</div>
-        <div class="status-grid" id="status">Loading...</div>
-        <div class="badge-row" id="statusBadges"></div>
-        <div class="control-row">
-          <button id="freezeBtn" class="danger">Freeze System</button>
-          <button id="unfreezeBtn" class="secondary">Unfreeze</button>
+        <div class="zone" data-zone="home">
+          <div class="grid">
+            <div class="card">
+              <div class="label">Status Core</div>
+              <div class="status-grid" id="status">Loading...</div>
+              <div class="badge-row" id="statusBadges"></div>
+              <div class="control-row">
+                <button id="freezeBtn" class="danger">Freeze System</button>
+                <button id="unfreezeBtn" class="secondary">Unfreeze</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="label">Evidence & Audit</div>
+              <div class="badge-row">
+                <span class="badge safe">Evidence Mode: ON</span>
+                <span class="badge safe">Shadow Run: ON</span>
+                <span class="badge">Audit Logs: Redacted</span>
+              </div>
+              <div style="margin-top:10px; font-size:12px; color:#94a3b8;">
+                Every command is logged with redaction markers. No secrets are exposed.
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="label">Skill Matrix</div>
+            <div id="skills">Loading...</div>
+          </div>
+          <div class="grid">
+            <div class="card">
+              <div class="label">World Wireframe</div>
+              <div id="worldMap" class="world-map"></div>
+              <div class="timeline">
+                <div class="timeline-node active"></div>
+                <div class="timeline-line"></div>
+                <div class="timeline-node"></div>
+                <div class="timeline-line"></div>
+                <div class="timeline-node"></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="label">Agent Avatars</div>
+              <div id="avatarGrid" class="avatar-grid"></div>
+            </div>
+          </div>
+        </div>
+        <div class="zone hidden" data-zone="systems">
+          <div class="grid">
+            <div class="card">
+              <div class="label">Model Router (Advisory)</div>
+              <div class="status-grid">
+                <div>Local models preferred</div>
+                <div>Cloud adapters: LOCKED</div>
+                <div>Auto-route: Disabled</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="label">Voice Bridge</div>
+              <div class="status-grid">
+                <div>Parsing: ENABLED</div>
+                <div>Audio capture: DISABLED</div>
+                <div>Approval gates: ON</div>
+              </div>
+            </div>
+          </div>
+          <div class="grid">
+            <div class="card">
+              <div class="label">Business Ops</div>
+              <div class="status-grid">
+                <div>Client intake: Preview only</div>
+                <div>Negotiation: Preview only</div>
+                <div>Follow-up: Preview only</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="label">Accessibility</div>
+              <div class="status-grid">
+                <label class="accessibility-toggle">
+                  <input type="checkbox" id="reduceMotionToggle" /> Reduce motion
+                </label>
+                <label class="accessibility-toggle">
+                  <input type="checkbox" id="highContrastToggle" /> High contrast
+                </label>
+                <label class="accessibility-toggle">
+                  <input type="checkbox" id="largeTextToggle" /> Large text
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="zone hidden" data-zone="vr">
+          <div class="grid">
+            <div class="card">
+              <div class="label">VR Control</div>
+              <div id="vrStatus" class="status-grid">Loading...</div>
+              <div class="badge-row" style="margin-top:8px;">
+                <span class="badge safe">VR Module: Enabled</span>
+                <span class="badge">Hardware: Disarmed by default</span>
+              </div>
+              <div class="control-row">
+                <label class="badge">
+                  <input type="checkbox" id="vrOverrideCheck" />
+                  Override Kill Switch (VR only)
+                </label>
+              </div>
+              <div class="control-row">
+                <button id="vrArmBtn">Arm VR</button>
+                <button id="vrDisarmBtn" class="secondary">Disarm VR</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="label">3D / VR Pipeline</div>
+              <div class="pill">Scaffold Active (No heavy render)</div>
+              <div style="margin-top:10px; font-size:12px; color:#94a3b8;">
+                Three.js placeholder ready. No device calls until VR is armed.
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="label">Immersive Preview</div>
+            <canvas id="sceneCanvas" class="scene-canvas"></canvas>
+            <div class="pill" style="margin-top:8px;">2.5D scaffold</div>
+          </div>
+        </div>
+        <div class="zone hidden" data-zone="ops">
+          <div class="card">
+            <div class="label">Command Console (Governed)</div>
+            <textarea id="commandInput" rows="4" placeholder="JARVIS: STATUS"></textarea>
+            <div class="grid" style="margin-top:12px;">
+              <div>
+                <label class="label">Mode</label>
+                <select id="modeSelect">
+                  <option value="SCRIPT">SCRIPT</option>
+                  <option value="CREATE">CREATE</option>
+                  <option value="BUILD">BUILD</option>
+                  <option value="DECIDE">DECIDE</option>
+                  <option value="CLARIFY">CLARIFY</option>
+                </select>
+              </div>
+              <div>
+                <label class="label">Authority</label>
+                <select id="authoritySelect">
+                  <option value="OWNER">OWNER</option>
+                </select>
+              </div>
+              <div>
+                <label class="label">Approve</label>
+                <input type="checkbox" id="approveCheck" />
+              </div>
+              <div>
+                <label class="label">Dry-Run</label>
+                <input type="checkbox" id="dryRunCheck" checked />
+              </div>
+              <div>
+                <label class="label">Owner Token</label>
+                <input type="password" id="tokenInput" placeholder="X-Owner-Token" />
+              </div>
+              <div>
+                <label class="label">Evidence Mode</label>
+                <input type="checkbox" id="evidenceCheck" checked />
+              </div>
+              <div>
+                <label class="label">Shadow Run</label>
+                <input type="checkbox" id="shadowCheck" checked />
+              </div>
+            </div>
+            <button id="sendBtn" style="margin-top:12px;">Send (Dry-Run)</button>
+          </div>
+          <div class="grid">
+            <div class="card">
+              <div class="label">Parsed Packet</div>
+              <pre id="packetPanel">{}</pre>
+            </div>
+            <div class="card">
+              <div class="label">Governor Decision</div>
+              <pre id="decisionPanel">{}</pre>
+            </div>
+          </div>
+          <div class="card">
+            <div class="label">Evidence Panel</div>
+            <pre id="evidencePanel">{}</pre>
+          </div>
+        </div>
+        <div class="zone hidden" data-zone="audit">
+          <div class="card">
+            <div class="label">Activity / Audit Feed</div>
+            <div class="feed" id="auditFeed"></div>
+          </div>
+          <div class="card">
+            <div class="label">Response</div>
+            <pre id="responsePanel">{}</pre>
+          </div>
         </div>
       </div>
-      <div class="card">
-        <div class="label">Evidence & Audit</div>
-        <div class="badge-row">
-          <span class="badge safe">Evidence Mode: ON</span>
-          <span class="badge safe">Shadow Run: ON</span>
-          <span class="badge">Audit Logs: Redacted</span>
-        </div>
-        <div style="margin-top:10px; font-size:12px; color:#94a3b8;">
-          Every command is logged with redaction markers. No secrets are exposed.
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="label">Skill Matrix</div>
-      <div id="skills">Loading...</div>
-    </div>
-    <div class="grid">
-      <div class="card">
-        <div class="label">World Wireframe</div>
-        <div id="worldMap" class="world-map"></div>
-      </div>
-      <div class="card">
-        <div class="label">Agent Avatars</div>
-        <div id="avatarGrid" class="avatar-grid"></div>
-      </div>
-    </div>
-    <div class="grid">
-      <div class="card">
-        <div class="label">Immersive Preview</div>
-        <canvas id="sceneCanvas" class="scene-canvas"></canvas>
-        <div class="pill" style="margin-top:8px;">2.5D scaffold</div>
-      </div>
-      <div class="card">
-        <div class="label">Model Router (Advisory)</div>
-        <div class="status-grid">
-          <div>Local models preferred</div>
-          <div>Cloud adapters: LOCKED</div>
-          <div>Auto-route: Disabled</div>
-        </div>
-      </div>
-    </div>
-    <div class="grid">
-      <div class="card">
-        <div class="label">Voice Bridge</div>
-        <div class="status-grid">
-          <div>Parsing: ENABLED</div>
-          <div>Audio capture: DISABLED</div>
-          <div>Approval gates: ON</div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="label">Business Ops</div>
-        <div class="status-grid">
-          <div>Client intake: Preview only</div>
-          <div>Negotiation: Preview only</div>
-          <div>Follow-up: Preview only</div>
-        </div>
-      </div>
-    </div>
-    <div class="grid">
-      <div class="card">
-        <div class="label">VR Control</div>
-        <div id="vrStatus" class="status-grid">Loading...</div>
-        <div class="badge-row" style="margin-top:8px;">
-          <span class="badge safe">VR Module: Enabled</span>
-          <span class="badge">Hardware: Disarmed by default</span>
-        </div>
-        <div class="control-row">
-          <label class="badge">
-            <input type="checkbox" id="vrOverrideCheck" />
-            Override Kill Switch (VR only)
-          </label>
-        </div>
-        <div class="control-row">
-          <button id="vrArmBtn">Arm VR</button>
-          <button id="vrDisarmBtn" class="secondary">Disarm VR</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="label">3D / VR Pipeline</div>
-        <div class="pill">Scaffold Active (No heavy render)</div>
-        <div style="margin-top:10px; font-size:12px; color:#94a3b8;">
-          Three.js placeholder ready. No device calls until VR is armed.
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="label">Command Console (Governed)</div>
-      <textarea id="commandInput" rows="4" placeholder="JARVIS: STATUS"></textarea>
-      <div class="grid" style="margin-top:12px;">
-        <div>
-          <label class="label">Mode</label>
-          <select id="modeSelect">
-            <option value="SCRIPT">SCRIPT</option>
-            <option value="CREATE">CREATE</option>
-            <option value="BUILD">BUILD</option>
-            <option value="DECIDE">DECIDE</option>
-            <option value="CLARIFY">CLARIFY</option>
-          </select>
-        </div>
-        <div>
-          <label class="label">Authority</label>
-          <select id="authoritySelect">
-            <option value="OWNER">OWNER</option>
-          </select>
-        </div>
-        <div>
-          <label class="label">Approve</label>
-          <input type="checkbox" id="approveCheck" />
-        </div>
-        <div>
-          <label class="label">Dry-Run</label>
-          <input type="checkbox" id="dryRunCheck" checked />
-        </div>
-        <div>
-          <label class="label">Owner Token</label>
-          <input type="password" id="tokenInput" placeholder="X-Owner-Token" />
-        </div>
-        <div>
-          <label class="label">Evidence Mode</label>
-          <input type="checkbox" id="evidenceCheck" checked />
-        </div>
-        <div>
-          <label class="label">Shadow Run</label>
-          <input type="checkbox" id="shadowCheck" checked />
-        </div>
-      </div>
-      <button id="sendBtn" style="margin-top:12px;">Send (Dry-Run)</button>
-    </div>
-    <div class="grid">
-      <div class="card">
-        <div class="label">Parsed Packet</div>
-        <pre id="packetPanel">{}</pre>
-      </div>
-      <div class="card">
-        <div class="label">Governor Decision</div>
-        <pre id="decisionPanel">{}</pre>
-      </div>
-    </div>
-    <div class="card">
-      <div class="label">Evidence Panel</div>
-      <pre id="evidencePanel">{}</pre>
-    </div>
-    <div class="card">
-      <div class="label">Activity / Audit Feed</div>
-      <div class="feed" id="auditFeed"></div>
-    </div>
-    <div class="card">
-      <div class="label">Response</div>
-      <pre id="responsePanel">{}</pre>
-    </div>
-    </div>
     </div>
     </section>
   </main>
@@ -993,19 +1086,39 @@ function renderDashboardUi(): string {
       if (!container) {
         return;
       }
+      const zoneMap = {
+        audit: "audit",
+        control: "systems",
+        planner: "home",
+        ops: "ops",
+        outbound: "systems"
+      };
       const rows = (rooms || []).map((room) => {
+        const zone = zoneMap[room.id];
+        const portal = zone
+          ? '<button class="portal-btn" data-zone="' + zone + '">Portal</button>'
+          : "<span></span>";
         return (
-          '<div class="world-node">' +
+          '<div class="world-node ' +
+          room.status.toLowerCase() +
+          '">' +
           "<span>" +
           room.label +
           "</span>" +
           "<span>" +
           room.status +
           "</span>" +
+          portal +
           "</div>"
         );
       }).join("");
       container.innerHTML = rows || "<div class='world-node'>No rooms loaded.</div>";
+      container.querySelectorAll(".portal-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+          const target = button.dataset.zone || "home";
+          setZone(target);
+        });
+      });
     }
     function renderAvatars(avatars) {
       const container = document.getElementById("avatarGrid");
@@ -1013,8 +1126,12 @@ function renderDashboardUi(): string {
         return;
       }
       const cards = (avatars || []).map((avatar) => {
+        const statusClass = avatar.status ? avatar.status.toLowerCase() : "";
+        const boundary = avatar.status === "LOCKED" ? "LOCKED" : "GOVERNED";
         return (
-          '<div class="avatar-card">' +
+          '<div class="avatar-card ' +
+          statusClass +
+          '">' +
           '<div class="avatar-name">' +
           avatar.name +
           "</div>" +
@@ -1023,6 +1140,9 @@ function renderDashboardUi(): string {
           "</div>" +
           '<div class="avatar-status">' +
           avatar.status +
+          "</div>" +
+          '<div class="avatar-status">Boundary: ' +
+          boundary +
           "</div>" +
           "</div>"
         );
@@ -1082,6 +1202,12 @@ function renderDashboardUi(): string {
       \`;
       if (data.theme && data.theme.id) {
         document.body.dataset.theme = data.theme.id;
+        if (data.theme.accent) {
+          document.body.style.setProperty("--accent", data.theme.accent);
+        }
+        if (data.theme.glow) {
+          document.body.style.setProperty("--glow", data.theme.glow);
+        }
       }
       renderWorldMap(data.worldRooms);
       renderAvatars(data.avatars);
@@ -1132,12 +1258,18 @@ function renderDashboardUi(): string {
             : skill.state === "DISABLED"
               ? "state-disabled"
               : "state-enabled";
+        const riskClass =
+          skill.riskLevel === "HIGH"
+            ? "risk-high"
+            : skill.riskLevel === "MEDIUM"
+              ? "risk-medium"
+              : "risk-low";
         const title = [skill.description, skill.lockReason].filter(Boolean).join(" — ");
         const enabledLabel = skill.enabled ? "ENABLED" : "DISABLED";
         return \`
           <tr title="\${title}">
             <td>\${skill.name}</td>
-            <td>\${skill.riskLevel}</td>
+            <td class="\${riskClass}">\${skill.riskLevel}</td>
             <td>\${skill.requiresApproval}</td>
             <td>\${skill.networkRequired}</td>
             <td>\${enabledLabel}</td>
@@ -1314,6 +1446,22 @@ function renderDashboardUi(): string {
     document.getElementById("vrDisarmBtn").addEventListener("click", () => {
       sendVrAction("/vr/disarm");
     });
+    const zoneButtons = Array.from(document.querySelectorAll(".nav-item"));
+    const zones = Array.from(document.querySelectorAll(".zone"));
+    function setZone(zoneId) {
+      zones.forEach((zone) => {
+        zone.classList.toggle("hidden", zone.dataset.zone !== zoneId);
+      });
+      zoneButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.zone === zoneId);
+      });
+    }
+    zoneButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = button.dataset.zone || "home";
+        setZone(target);
+      });
+    });
     const toggleBtn = document.getElementById("toggleOperator");
     const chatView = document.getElementById("chatView");
     const operatorView = document.getElementById("operatorView");
@@ -1330,6 +1478,31 @@ function renderDashboardUi(): string {
       document.getElementById("tokenInput").value = storedToken;
       chatTokenField.style.display = "none";
     }
+    const reduceMotionToggle = document.getElementById("reduceMotionToggle");
+    const highContrastToggle = document.getElementById("highContrastToggle");
+    const largeTextToggle = document.getElementById("largeTextToggle");
+    const motionKey = "jarvas_reduce_motion";
+    const contrastKey = "jarvas_high_contrast";
+    const textKey = "jarvas_large_text";
+    function applyAccessibility() {
+      const reduceMotion = localStorage.getItem(motionKey) === "true";
+      const highContrast = localStorage.getItem(contrastKey) === "true";
+      const largeText = localStorage.getItem(textKey) === "true";
+      document.body.classList.toggle("reduce-motion", reduceMotion);
+      document.body.classList.toggle("high-contrast", highContrast);
+      document.body.classList.toggle("large-text", largeText);
+      reduceMotionToggle.checked = reduceMotion;
+      highContrastToggle.checked = highContrast;
+      largeTextToggle.checked = largeText;
+    }
+    [reduceMotionToggle, highContrastToggle, largeTextToggle].forEach((toggle) => {
+      toggle.addEventListener("change", () => {
+        localStorage.setItem(motionKey, String(reduceMotionToggle.checked));
+        localStorage.setItem(contrastKey, String(highContrastToggle.checked));
+        localStorage.setItem(textKey, String(largeTextToggle.checked));
+        applyAccessibility();
+      });
+    });
     chatTokenField.addEventListener("change", () => {
       const value = chatTokenField.value.trim();
       if (value) {
@@ -1346,6 +1519,8 @@ function renderDashboardUi(): string {
     loadStatus();
     loadSkills();
     loadVrStatus();
+    applyAccessibility();
+    setZone("home");
     appendChatMessage(greeting(), "assistant");
   </script>
 </body>

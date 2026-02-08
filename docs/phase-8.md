@@ -7,4 +7,5 @@
 - Consistent visual language
 
 ## Status
-ACTIVE. UI presents an OS-like cockpit with glass panels and nav rails.
+ACTIVE. UI presents an OS-like cockpit with glass panels, nav rail,
+zone switching, and premium card/badge language.

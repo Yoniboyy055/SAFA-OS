@@ -7,4 +7,5 @@
 - Performance fallbacks
 
 ## Status
-Scaffolded. A 2.5D preview canvas is available in the operator console.
+ACTIVE. Zone-based operator view, camera-like transitions, and a 2.5D
+preview canvas with reduce-motion fallbacks.

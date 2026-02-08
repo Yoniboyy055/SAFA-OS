@@ -7,4 +7,4 @@
 - Visual authority boundaries
 
 ## Status
-Scaffolded. Avatar cards render in the operator console.
+ACTIVE. Avatar cards render with authority boundaries and role states.

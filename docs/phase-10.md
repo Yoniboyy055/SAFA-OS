@@ -7,4 +7,5 @@
 - Timeline visualization
 
 ## Status
-Scaffolded. World wireframe room list is rendered in the operator console.
+ACTIVE. World wireframe rooms render with portal cues, ambient motion,
+and a timeline visualization in the operator console.

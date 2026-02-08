@@ -37,6 +37,9 @@ import { analyzeInputRiskSkill } from "./security/analyze_input_risk";
 import { freezeSystemSkill } from "./security/freeze_system";
 import { unfreezeSystemSkill } from "./security/unfreeze_system";
 import { parseVoiceCommandSkill } from "./voice/parse_voice_command";
+import { logVoiceTranscriptSkill } from "./voice/log_voice_transcript";
+import { listVoiceLogsSkill } from "./voice/list_voice_logs";
+import { getVoiceLogSkill } from "./voice/get_voice_log";
 
 export function buildRegistry(): SkillRegistry {
   const registry = new SkillRegistry();
@@ -78,5 +81,8 @@ export function buildRegistry(): SkillRegistry {
   registry.register(freezeSystemSkill);
   registry.register(unfreezeSystemSkill);
   registry.register(parseVoiceCommandSkill);
+  registry.register(logVoiceTranscriptSkill);
+  registry.register(listVoiceLogsSkill);
+  registry.register(getVoiceLogSkill);
   return registry;
 }
