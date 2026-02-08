@@ -8,6 +8,13 @@ import type {
   SkillExecutionResult,
   SkillExecutionContext
 } from "../types/skill";
+import {
+  createReceiptId,
+  hashInput,
+  hashOutput,
+  recordSkillReceipt,
+  type SkillReceiptStatus
+} from "../core/skill_receipt_store";
 
 export interface SkillRunContext {
   actor: string;
@@ -46,6 +53,8 @@ export class SkillRegistry {
     context: SkillRunContext
   ): Promise<SkillExecutionResult> {
     const skill = this.skills.get(name);
+    const createdAt = new Date().toISOString();
+    const inputHash = hashInput(input);
     if (!skill) {
       context.audit.log({
         timestamp: new Date().toISOString(),
@@ -54,6 +63,16 @@ export class SkillRegistry {
         approved: context.approved,
         target: name,
         result: "DENIED: Unknown skill."
+      });
+      recordSkillReceipt(context.config.rootDir, {
+        id: createReceiptId(name, createdAt),
+        skill: name,
+        status: "DENIED",
+        actor: context.actor,
+        approved: context.approved,
+        createdAt,
+        inputHash,
+        error: "Unknown skill."
       });
       return {
         success: false,
@@ -139,10 +158,48 @@ export class SkillRegistry {
         target,
         result: `DENIED: ${decision.reason}`
       });
+      recordSkillReceipt(context.config.rootDir, {
+        id: createReceiptId(skill.name, createdAt),
+        skill: skill.name,
+        status: "DENIED",
+        actor: context.actor,
+        approved: context.approved,
+        createdAt,
+        inputHash,
+        error: decision.reason
+      });
       return {
         success: false,
         error: decision.reason
       };
+    }
+
+    if (
+      skill.category === "external_tool" &&
+      context.config.execution.enabled &&
+      context.config.execution.allowCommands.length > 0 &&
+      !context.config.execution.allowCommands.includes(skill.name)
+    ) {
+      const reason = "Skill not allowlisted for execution.";
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: skill.auditTemplate.action,
+        approved: context.approved,
+        target,
+        result: `DENIED: ${reason}`
+      });
+      recordSkillReceipt(context.config.rootDir, {
+        id: createReceiptId(skill.name, createdAt),
+        skill: skill.name,
+        status: "DENIED",
+        actor: context.actor,
+        approved: context.approved,
+        createdAt,
+        inputHash,
+        error: reason
+      });
+      return { success: false, error: reason };
     }
 
     const skillContext: SkillExecutionContext = {
@@ -165,6 +222,16 @@ export class SkillRegistry {
         target,
         result: "SUCCESS"
       });
+      recordSkillReceipt(context.config.rootDir, {
+        id: createReceiptId(skill.name, createdAt),
+        skill: skill.name,
+        status: "SUCCESS",
+        actor: context.actor,
+        approved: context.approved,
+        createdAt,
+        inputHash,
+        outputHash: hashOutput(output)
+      });
       return {
         success: true,
         output
@@ -178,6 +245,16 @@ export class SkillRegistry {
         approved: context.approved,
         target,
         result: `ERROR: ${message}`
+      });
+      recordSkillReceipt(context.config.rootDir, {
+        id: createReceiptId(skill.name, createdAt),
+        skill: skill.name,
+        status: "ERROR",
+        actor: context.actor,
+        approved: context.approved,
+        createdAt,
+        inputHash,
+        error: message
       });
       return {
         success: false,
