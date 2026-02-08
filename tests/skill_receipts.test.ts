@@ -12,7 +12,7 @@ const {
 } = require("../src/core/skill_receipt_store");
 
 test("skill receipts persist to json and log", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-skill-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-skill-"));
   const receipt = {
     id: "rcpt-test",
     skill: "read_file",

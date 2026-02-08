@@ -68,7 +68,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
       callTemplateAllowlist: ["https://example.com/twiml"]
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
   return {
@@ -83,7 +83,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
 }
 
 test("post preview requires approval", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-prev-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-prev-"));
   const context = buildContext(rootDir);
   assert.throws(
     () =>
@@ -96,7 +96,7 @@ test("post preview requires approval", () => {
 });
 
 test("stripe preview returns plan + cost estimate", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-prev-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-prev-"));
   const context = buildContext(rootDir);
   const result = await previewPaymentIntent(
     { priceId: "price_basic", currency: "usd", customerEmail: "user@allow.com" },
@@ -108,7 +108,7 @@ test("stripe preview returns plan + cost estimate", async () => {
 });
 
 test("email preview returns outbox path", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-prev-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-prev-"));
   const context = buildContext(rootDir);
   const result = await previewSend(
     { to: ["user@allow.com"], subject: "Subject", body: "Draft" },
@@ -119,7 +119,7 @@ test("email preview returns outbox path", async () => {
 });
 
 test("call preview returns plan", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-prev-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-prev-"));
   const context = buildContext(rootDir);
   const result = await previewDial(
     { toNumber: "+15550002222", intent: "sales" },

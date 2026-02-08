@@ -105,5 +105,5 @@ export function useTheme(): ThemeContextValue {
 }
 
 export function getReducedMotion(): boolean {
-  return process.env.JARVIS_REDUCED_MOTION === "1";
+  return process.env.SAFA_REDUCED_MOTION === "1";
 }

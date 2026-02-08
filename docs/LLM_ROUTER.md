@@ -67,4 +67,4 @@ in `src/core/phase12/locked.ts`. They require:
 - `OPENAI_API_KEY` (provider configured)
 - Network allowlists include the provider domain
 - Network window is open
-- `JARVIS_NETWORK_LIVE=1` to permit real I/O
+- `SAFA_NETWORK_LIVE=1` to permit real I/O

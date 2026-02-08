@@ -7,7 +7,7 @@ const path = require("path");
 const { upsertTask, listTasks } = require("../src/core/task_store");
 
 test("task store persists tasks and events", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-tasks-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-tasks-"));
   const task = upsertTask(rootDir, {
     commandText: "Run unit test",
     status: "PLANNED",

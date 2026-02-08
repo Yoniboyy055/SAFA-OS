@@ -16,7 +16,7 @@ import {
   loadNetworkWindow,
   type NetworkWindowState
 } from "../../../core/network_window";
-import { parseJarvisLine } from "../../../cli/jarvis_line";
+import { parseSAFALine } from "../../../cli/safa_line";
 import { runWithArgs } from "../../../cli/index";
 
 export interface StatusSnapshot {
@@ -34,7 +34,7 @@ export interface RunResult {
   exitCode: number;
 }
 
-export class JarvisApi {
+export class SAFAApi {
   constructor(
     private readonly options: { configPath?: string; actor: string }
   ) {}
@@ -134,7 +134,7 @@ export class JarvisApi {
   }
 
   async runLine(line: string): Promise<RunResult> {
-    return this.runArgs(parseJarvisLine(line));
+    return this.runArgs(parseSAFALine(line));
   }
 
   async runArgs(args: string[]): Promise<RunResult> {

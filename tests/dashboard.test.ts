@@ -47,10 +47,10 @@ async function api(
 }
 
 test("dashboard api enforces approval and redaction", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-dashboard-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-dashboard-"));
   const samplePath = path.join(rootDir, "sample.txt");
   fs.writeFileSync(samplePath, "hello");
-  const configPath = path.join(rootDir, "jarvis.config.json");
+  const configPath = path.join(rootDir, "safa.config.json");
   fs.writeFileSync(
     configPath,
     JSON.stringify(

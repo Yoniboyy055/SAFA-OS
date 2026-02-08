@@ -1,10 +1,10 @@
-# JARVIS OS — FULL FORENSIC AUDIT REPORT
+# SAFA OS — FULL FORENSIC AUDIT REPORT
 
 **Audit Date:** 2026-02-07
 **Auditor:** Automated Forensic Systems Auditor
-**Repository:** Yoniboyy055/jarvis-os
+**Repository:** Yoniboyy055/safa-os
 **Commit Range:** `8f31d9d` (initial) → `50a5cfd` (current HEAD)
-**Branch:** `copilot/audit-jarvis-os-commit-history`
+**Branch:** (audit branch name omitted)
 **Tags:** None
 **Total Commits:** 2 (shallow clone; `8f31d9d` is the single source commit containing all 149 files)
 
@@ -27,7 +27,7 @@
 
 #### Phase 0 — Conception
 - **Evidence:** `specs/SPEC.md` (lines 1–35)
-- **Declared Intent:** Define JARVIS OS as Node.js + TypeScript local-first assistant; outline Phases 0–5
+- **Declared Intent:** Define SAFA OS as Node.js + TypeScript local-first assistant; outline Phases 0–5
 - **Actual Implementation:** Spec document only
 - **Security State:** N/A
 - **Status:** ✅ Implemented (spec exists)
@@ -42,7 +42,7 @@
 #### Phase 2 — Network Corridor (Scaffold)
 - **Evidence:** `docs/PHASE2.md`, `docs/PHASE2A2.md`, `docs/PHASE2A2_PLAN.md`, `docs/NETWORK_CORRIDOR.md`, `docs/CORRIDOR_APPROVALS.md`, `src/core/network/client.ts`, `src/core/network/policy.ts`, `src/core/network/types.ts`, `src/skills/network/send_http_request.ts`
 - **Declared Intent:** Safe network gateway with allowlist, approval gates, audit; stub mode only
-- **Actual Implementation:** Network client exists but returns stub/dummy responses (line 75–80 in `src/core/network/client.ts`). URL validation, domain allowlisting, payload size enforcement, method allowlist (GET/POST only) all implemented. Network disabled by default (`jarvis.config.json` line 3).
+- **Actual Implementation:** Network client exists but returns stub/dummy responses (line 75–80 in `src/core/network/client.ts`). URL validation, domain allowlisting, payload size enforcement, method allowlist (GET/POST only) all implemented. Network disabled by default (`safa.config.json` line 3).
 - **Security State:** Network OFF by default; kill switch blocks all network; stub responses only
 - **Status:** ⚠️ Partial — Framework exists, real HTTP I/O not implemented
 
@@ -87,7 +87,7 @@
 - **Status:** ❌ Missing — No documentation or code evidence
 
 #### Phase 7 — NOT FOUND IN THIS BRANCH
-- **Evidence:** CI shows `cursor/jarvis-phase-zero-c417` branch with commits "Add Phase 7 docs and desktop shell" and "Update Phase 7 docs and desktop shell" — these exist on a different branch, not merged here.
+- **Evidence:** CI shows a feature branch with commits "Add Phase 7 docs and desktop shell" and "Update Phase 7 docs and desktop shell" — these exist on a different branch, not merged here.
 - **Status:** ❌ Not present in audited branch
 
 ---
@@ -101,8 +101,8 @@
 | **Evidence Mode** | Audit trail for all actions | Append-only audit logger | ✅ Active | — |
 | **Dry-Run Preview** | Preview before execution | Email/payment/call preview | ✅ Active | — |
 | **Real Execution** | Live outbound actions | Blocked in Phase 3 | ❌ Not active | `src/core/email/client.ts:345-354`, `src/core/calls/client.ts:220-229`, `src/core/packet_runner.ts:42` |
-| **Kill Switch Override** | Emergency stop | Kill switch enabled by default | ✅ Active (blocking) | `jarvis.config.json:14` (`killSwitch.enabled: true`) |
-| **Network Control** | Governed HTTP I/O | Stub responses only | ❌ No real HTTP | `src/core/network/client.ts:75-80` (returns dummy), `jarvis.config.json:3` (`network.enabled: false`) |
+| **Kill Switch Override** | Emergency stop | Kill switch enabled by default | ✅ Active (blocking) | `safa.config.json:14` (`killSwitch.enabled: true`) |
+| **Network Control** | Governed HTTP I/O | Stub responses only | ❌ No real HTTP | `src/core/network/client.ts:75-80` (returns dummy), `safa.config.json:3` (`network.enabled: false`) |
 | **Phone Control** | Twilio call execution | Preview plan only | ❌ Not active | `src/core/calls/client.ts:220-229` ("Phase 3: live call execution not yet enabled") |
 | **OS Skin (Electron/Tauri)** | Desktop OS wrapper | Not present | ❌ Not implemented | No Electron/Tauri dependency in `package.json` |
 | **3D / VR Module** | 3D control surface | Not present | ❌ Not implemented | No Three.js/WebGL/VR imports anywhere |
@@ -121,18 +121,18 @@
 
 | # | Lock | File | Line(s) | Condition | Removable? |
 |---|------|------|---------|-----------|------------|
-| 1 | **Kill Switch** | `jarvis.config.json` | 14 | `killSwitch.enabled: true` | Config change only |
+| 1 | **Kill Switch** | `safa.config.json` | 14 | `killSwitch.enabled: true` | Config change only |
 | 2 | **Kill Switch Enforcement** | `src/core/governor.ts` | 200–212, 304–317 | Blocks all network/outbound/external when `killSwitch.enabled` | Foundational — guards all outbound |
-| 3 | **Network Disabled** | `jarvis.config.json` | 3 | `network.enabled: false` | Config change only |
+| 3 | **Network Disabled** | `safa.config.json` | 3 | `network.enabled: false` | Config change only |
 | 4 | **Network Disabled Enforcement** | `src/core/governor.ts` | 214–218 | Denies network category when network OFF | Foundational — network gate |
 | 5 | **Dashboard Dry-Run Only** | `src/dashboard/server.ts` | 362, 376–391, 533 | `dryRun` forced true; non-dry-run rejected | Hardcoded — requires code change |
 | 6 | **Email Live Send Blocked** | `src/core/email/client.ts` | 345–354 | Returns "Phase 3: live email send not yet enabled" | Requires implementation |
 | 7 | **Call Live Execution Blocked** | `src/core/calls/client.ts` | 220–229 | Returns "Phase 3: live call execution not yet enabled" | Requires implementation |
-| 8 | **Email Dry-Run Default** | `jarvis.config.json` | 22 | `email.dryRunDefault: true` | Config change only |
-| 9 | **Stripe Dry-Run Default** | `jarvis.config.json` | 32 | `stripe.dryRunDefault: true` | Config change only |
-| 10 | **Calls Dry-Run Default** | `jarvis.config.json` | 47 | `calls.dryRunDefault: true` | Config change only |
-| 11 | **Strict Approval Mode** | `jarvis.config.json` | 56 | `strictApprovalMode: true` | Config change only |
-| 12 | **Execution Disabled** | `jarvis.config.json` | 58 | `execution.enabled: false` | Config change only |
+| 8 | **Email Dry-Run Default** | `safa.config.json` | 22 | `email.dryRunDefault: true` | Config change only |
+| 9 | **Stripe Dry-Run Default** | `safa.config.json` | 32 | `stripe.dryRunDefault: true` | Config change only |
+| 10 | **Calls Dry-Run Default** | `safa.config.json` | 47 | `calls.dryRunDefault: true` | Config change only |
+| 11 | **Strict Approval Mode** | `safa.config.json` | 56 | `strictApprovalMode: true` | Config change only |
+| 12 | **Execution Disabled** | `safa.config.json` | 58 | `execution.enabled: false` | Config change only |
 | 13 | **Packet Runner Disabled** | `src/core/packet_runner.ts` | 15–19 | Returns DENIED when `execution.enabled: false` | Config change only |
 | 14 | **Packet Runner NOT_IMPLEMENTED** | `src/core/packet_runner.ts` | 42 | Returns NOT_IMPLEMENTED even when enabled | Requires implementation |
 | 15 | **Network Stub Response** | `src/core/network/client.ts` | 75–80 | Returns dummy response instead of real HTTP | Requires implementation |
@@ -145,7 +145,7 @@
 
 ### Lock Classification
 
-- **Config-removable (change `jarvis.config.json`):** Locks 1, 3, 8, 9, 10, 11, 12
+- **Config-removable (change `safa.config.json`):** Locks 1, 3, 8, 9, 10, 11, 12
 - **Code-hardcoded (requires code change):** Locks 5, 6, 7, 14, 15, 20
 - **Foundational (should NOT be removed):** Locks 2, 4, 16, 17, 18, 19, 21
 
@@ -339,7 +339,7 @@ This is a **Node.js CLI application** with a **server-rendered HTML dashboard** 
 ### C) What exists ONLY in prompts/docs (no code evidence)
 
 1. **Phase 4** — No documentation or code found
-2. **Phase 7** — Exists on separate branch (`cursor/jarvis-phase-zero-c417`), not merged
+2. **Phase 7** — Exists on separate branch (name omitted), not merged
 3. **Cockpit as operational control surface** — Only static demo exists
 4. **Plan-hash approval mode** — Referenced in docs, not fully implemented
 5. **Real-time activity feed** — Referenced in Phase 3 docs, no streaming implementation
@@ -348,7 +348,7 @@ This is a **Node.js CLI application** with a **server-rendered HTML dashboard** 
 ### D) What remains to reach stated goals
 
 #### Full Local Execution
-- Remove execution disable: `jarvis.config.json` → `execution.enabled: true`
+- Remove execution disable: `safa.config.json` → `execution.enabled: true`
 - Implement packet runner logic: `src/core/packet_runner.ts:42` (currently returns `NOT_IMPLEMENTED`)
 - Remove non-local skill block: `src/core/operator.ts:87-102` (or add execution paths for non-local skills)
 
@@ -361,8 +361,8 @@ This is a **Node.js CLI application** with a **server-rendered HTML dashboard** 
 
 #### Phone Control
 - Implement live Twilio call execution: `src/core/calls/client.ts:220-229`
-- Enable network: `jarvis.config.json` → `network.enabled: true`
-- Disable kill switch: `jarvis.config.json` → `killSwitch.enabled: false`
+- Enable network: `safa.config.json` → `network.enabled: true`
+- Disable kill switch: `safa.config.json` → `killSwitch.enabled: false`
 - Add Twilio SDK dependency to `package.json`
 - Configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN in `.env`
 
@@ -380,13 +380,13 @@ This is a **Node.js CLI application** with a **server-rendered HTML dashboard** 
 
 | Item | File | Change | Type |
 |------|------|--------|------|
-| Enable network | `jarvis.config.json:3` | `"enabled": false` → `"enabled": true` | activation |
-| Disable kill switch | `jarvis.config.json:14` | `"enabled": true` → `"enabled": false` | activation |
-| Enable execution | `jarvis.config.json:58` | `"enabled": false` → `"enabled": true` | activation |
-| Disable email dry-run default | `jarvis.config.json:22` | `"dryRunDefault": true` → `"dryRunDefault": false` | activation |
-| Disable stripe dry-run default | `jarvis.config.json:32` | `"dryRunDefault": true` → `"dryRunDefault": false` | activation |
-| Disable calls dry-run default | `jarvis.config.json:47` | `"dryRunDefault": true` → `"dryRunDefault": false` | activation |
-| Disable strict approval mode | `jarvis.config.json:56` | `"strictApprovalMode": true` → `"strictApprovalMode": false` | activation |
+| Enable network | `safa.config.json:3` | `"enabled": false` → `"enabled": true` | activation |
+| Disable kill switch | `safa.config.json:14` | `"enabled": true` → `"enabled": false` | activation |
+| Enable execution | `safa.config.json:58` | `"enabled": false` → `"enabled": true` | activation |
+| Disable email dry-run default | `safa.config.json:22` | `"dryRunDefault": true` → `"dryRunDefault": false` | activation |
+| Disable stripe dry-run default | `safa.config.json:32` | `"dryRunDefault": true` → `"dryRunDefault": false` | activation |
+| Disable calls dry-run default | `safa.config.json:47` | `"dryRunDefault": true` → `"dryRunDefault": false` | activation |
+| Disable strict approval mode | `safa.config.json:56` | `"strictApprovalMode": true` → `"strictApprovalMode": false` | activation |
 
 ### Missing Implementation (code must be written)
 
@@ -430,7 +430,7 @@ This is a **Node.js CLI application** with a **server-rendered HTML dashboard** 
 **Skills** (32 files):
 `src/skills/registry.ts`, `src/skills/registry_factory.ts`, `src/skills/local/list_files.ts`, `src/skills/local/read_file.ts`, `src/skills/local/write_file.ts`, `src/skills/local/search_text.ts`, `src/skills/local/run_tests.ts`, `src/skills/outbound/send_email.ts`, `src/skills/outbound/request_payment.ts`, `src/skills/outbound/make_call.ts`, `src/skills/outbound/send_email_request.ts`, `src/skills/outbound/request_phone_call.ts`, `src/skills/memory/log_interaction.ts`, `src/skills/memory/memory_add.ts`, `src/skills/memory/memory_get.ts`, `src/skills/memory/memory_list.ts`, `src/skills/memory/memory_search.ts`, `src/skills/memory/promote_to_canon_memory.ts`, `src/skills/memory/query_canon_memory.ts`, `src/skills/memory/search_raw_logs.ts`, `src/skills/memory/write_session_summary.ts`, `src/skills/knowledge/add_knowledge_doc.ts`, `src/skills/knowledge/list_knowledge.ts`, `src/skills/knowledge/search_knowledge.ts`, `src/skills/network/send_http_request.ts`, `src/skills/requests/request_doc_pack.ts`, `src/skills/requests/request_image_edit.ts`, `src/skills/requests/request_video_edit.ts`, `src/skills/requests/request_web_build.ts`, `src/skills/runner/run_packet.ts`, `src/skills/security/analyze_input_risk.ts`, `src/skills/tools/list_tools.ts`, `src/skills/tools/recommend_tool.ts`, `src/skills/llm/recommend_llm.ts`
 
-**CLI** (3 files): `src/cli/index.ts`, `src/cli/jarvis_line.ts`, `src/cli/command_mode.ts`
+**CLI** (3 files): `src/cli/index.ts`, `src/cli/safa_line.ts`, `src/cli/command_mode.ts`
 
 **Dashboard** (3 files): `src/dashboard/server.ts`, `src/dashboard/routes.ts`, `src/dashboard/ui.ts`
 
@@ -440,11 +440,11 @@ This is a **Node.js CLI application** with a **server-rendered HTML dashboard** 
 
 ### Configuration Files
 
-`package.json`, `tsconfig.json`, `jarvis.config.json`, `.env.example`, `.gitignore`, `.github/workflows/ci.yml`
+`package.json`, `tsconfig.json`, `safa.config.json`, `.env.example`, `.gitignore`, `.github/workflows/ci.yml`
 
 ### Documentation (25 files)
 
-`README.md`, `specs/SPEC.md`, `governance/GOVERNOR.md`, `governance/SECURITY.md`, `governance/BUILD_ENV.md`, `docs/PHASE2.md`, `docs/PHASE2A2.md`, `docs/PHASE2A2_PLAN.md`, `docs/PHASE3_FULL_POWER.md`, `docs/PHASE5.md`, `docs/PHASE6.md`, `docs/SECURITY_MODEL.md`, `docs/APPROVALS.md`, `docs/APPROVAL_UX_PHASE2.md`, `docs/APPROVAL_UX_PHASE3.md`, `docs/JARVIS_GOVERNANCE_LOCK.md`, `docs/OWNER_CHECKLIST.md`, `docs/EMAIL.md`, `docs/PAYMENTS_STRIPE.md`, `docs/CALLS.md`, `docs/NETWORK_CORRIDOR.md`, `docs/CORRIDOR_APPROVALS.md`, `docs/CLI_SPEC.md`, `docs/PHONE_UX.md`, `docs/STRESS_TESTS.md`
+`README.md`, `specs/SPEC.md`, `governance/GOVERNOR.md`, `governance/SECURITY.md`, `governance/BUILD_ENV.md`, `docs/PHASE2.md`, `docs/PHASE2A2.md`, `docs/PHASE2A2_PLAN.md`, `docs/PHASE3_FULL_POWER.md`, `docs/PHASE5.md`, `docs/PHASE6.md`, `docs/SECURITY_MODEL.md`, `docs/APPROVALS.md`, `docs/APPROVAL_UX_PHASE2.md`, `docs/APPROVAL_UX_PHASE3.md`, `docs/SAFA_GOVERNANCE_LOCK.md`, `docs/OWNER_CHECKLIST.md`, `docs/EMAIL.md`, `docs/PAYMENTS_STRIPE.md`, `docs/CALLS.md`, `docs/NETWORK_CORRIDOR.md`, `docs/CORRIDOR_APPROVALS.md`, `docs/CLI_SPEC.md`, `docs/PHONE_UX.md`, `docs/STRESS_TESTS.md`
 
 ---
 
@@ -462,7 +462,7 @@ Test categories:
 - Email (8 tests)
 - Governance locks (6 tests)
 - Governor (6 tests)
-- JARVIS line parser (4 tests)
+- SAFA line parser (4 tests)
 - Calls (5 tests)
 - Memory/Knowledge (8 tests)
 - Network corridor (15 tests)

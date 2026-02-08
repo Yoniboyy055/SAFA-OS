@@ -7,7 +7,7 @@ const path = require("path");
 const { ApprovalStore } = require("../src/core/approval_store");
 
 test("approval store persists approvals and log", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-approvals-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-approvals-"));
   const store = new ApprovalStore(rootDir);
   const request = {
     id: "apr-test",

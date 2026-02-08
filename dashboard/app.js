@@ -79,7 +79,7 @@ function updatePresence() {
   if (!window.IntentResolver) {
     return;
   }
-  const lastSeenRaw = window.localStorage.getItem("jarvis.lastSeen");
+  const lastSeenRaw = window.localStorage.getItem("safa.lastSeen");
   const lastSeen = lastSeenRaw ? Number(lastSeenRaw) : undefined;
   const actor = els.actorInput.value || "there";
   const presence = window.IntentResolver.buildPresence(new Date(), actor, lastSeen);
@@ -88,7 +88,7 @@ function updatePresence() {
 }
 
 function touchPresence() {
-  window.localStorage.setItem("jarvis.lastSeen", String(Date.now()));
+  window.localStorage.setItem("safa.lastSeen", String(Date.now()));
   updatePresence();
 }
 
@@ -409,7 +409,7 @@ async function boot() {
   await loadAudit();
   await loadExecutions();
   updatePresence();
-  addMessage("jarvis", "Say what you want to handle, and I will translate it into a plan.");
+  addMessage("safa", "Say what you want to handle, and I will translate it into a plan.");
   setInterval(loadAudit, 4000);
   setInterval(loadState, 6000);
   setInterval(loadExecutions, 6000);
@@ -429,12 +429,12 @@ els.chatSend.addEventListener("click", async () => {
   addMessage("user", text);
   touchPresence();
   if (!window.IntentResolver) {
-    addMessage("jarvis", "Intent resolver is not available.");
+    addMessage("safa", "Intent resolver is not available.");
     return;
   }
   const intent = window.IntentResolver.resolveIntent(text);
   if (intent.response) {
-    addMessage("jarvis", intent.response);
+    addMessage("safa", intent.response);
   }
   if (intent.type === "panel" && intent.panel) {
     showPanel(intent.panel);
@@ -443,36 +443,36 @@ els.chatSend.addEventListener("click", async () => {
   if (intent.type === "run_skill") {
     const result = await runSkill(intent.skill, intent.input ?? {}, false);
     if (result.status === "PENDING_APPROVAL") {
-      addMessage("jarvis", "Approval required. Review it in the approvals panel.");
+      addMessage("safa", "Approval required. Review it in the approvals panel.");
     } else if (result.success === false) {
-      addMessage("jarvis", result.error ?? "The request was blocked.");
+      addMessage("safa", result.error ?? "The request was blocked.");
     } else {
-      addMessage("jarvis", "Done. Check the timeline for details.");
+      addMessage("safa", "Done. Check the timeline for details.");
     }
     return;
   }
   if (intent.type === "exec") {
     if (!state.planHash) {
-      addMessage("jarvis", "I need a plan first. Tell me what to plan.");
+      addMessage("safa", "I need a plan first. Tell me what to plan.");
       return;
     }
     const result = await runExec(false);
     if (result.status === "PENDING_APPROVAL") {
-      addMessage("jarvis", "Approval required. Review it in the approvals panel.");
+      addMessage("safa", "Approval required. Review it in the approvals panel.");
     } else if (result.success === false) {
-      addMessage("jarvis", result.error ?? "Execution was blocked.");
+      addMessage("safa", result.error ?? "Execution was blocked.");
     } else {
-      addMessage("jarvis", "Execution complete. Timeline updated.");
+      addMessage("safa", "Execution complete. Timeline updated.");
     }
     return;
   }
   if (intent.type === "plan") {
     const planResult = await runPlan(text, "auto");
     if (planResult.plan && Array.isArray(planResult.plan.steps)) {
-      addMessage("jarvis", `Plan ready with ${planResult.plan.steps.length} steps.`);
-      addMessage("jarvis", "Review it in Plan Viewer or tell me to execute.");
+      addMessage("safa", `Plan ready with ${planResult.plan.steps.length} steps.`);
+      addMessage("safa", "Review it in Plan Viewer or tell me to execute.");
     } else {
-      addMessage("jarvis", "Plan ready. Review it in Plan Viewer.");
+      addMessage("safa", "Plan ready. Review it in Plan Viewer.");
     }
   }
 });

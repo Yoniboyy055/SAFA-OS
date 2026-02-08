@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Box, Text } from "ink";
-import { JarvisApi, type StatusSnapshot } from "../adapters/jarvis_api";
+import { SAFAApi, type StatusSnapshot } from "../adapters/safa_api";
 import { Section } from "../components/Section";
 import { useTheme } from "../theme";
 
 interface HomeScreenProps {
-  api: JarvisApi;
+  api: SAFAApi;
   refreshToken: number;
   active: boolean;
 }
@@ -32,7 +32,7 @@ export function HomeScreen(props: HomeScreenProps) {
 
   return (
     <Box flexDirection="column">
-      <Text color={theme.accent}>Jarvis OS TUI</Text>
+      <Text color={theme.accent}>SAFA OS TUI</Text>
       <Section title="HUD">
         <Text>Network: {status?.networkEnabled ? "ON" : "OFF"}</Text>
         <Text>Kill Switch: {status?.killSwitchEnabled ? "ON" : "OFF"}</Text>

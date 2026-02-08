@@ -7,7 +7,7 @@
 
 ## Permission boundaries
 - [ ] Network is OFF by default.
-- [ ] Live network requires allowlist + window + JARVIS_NETWORK_LIVE=1.
+- [ ] Live network requires allowlist + window + SAFA_NETWORK_LIVE=1.
 - [ ] Kill switch blocks outbound categories.
 - [ ] Allowlists/denylists enforced (paths + domains/URLs if corridor exists).
 - [ ] Approval required for risky actions (write, outbound, external).

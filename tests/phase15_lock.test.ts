@@ -10,7 +10,7 @@ const {
 } = require("../src/core/phase15/locked");
 
 test("phase 15 network window activation writes state", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase15-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase15-"));
   const state = activateNetworkWindow(rootDir, 6, "owner");
   assert.equal(state.enabled, true);
   assert.ok(state.startAt);
@@ -19,8 +19,8 @@ test("phase 15 network window activation writes state", () => {
 });
 
 test("phase 15 registerLiveProvider updates config allowlists", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase15-"));
-  const configPath = path.join(rootDir, "jarvis.config.json");
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase15-"));
+  const configPath = path.join(rootDir, "safa.config.json");
   fs.writeFileSync(
     configPath,
     JSON.stringify({ network: { allowlistDomains: [], allowlistUrls: [] } }, null, 2),

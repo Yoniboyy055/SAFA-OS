@@ -1,21 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { Box, Text, useInput } from "ink";
-import { JarvisApi, type RunResult } from "../adapters/jarvis_api";
+import { SAFAApi, type RunResult } from "../adapters/safa_api";
 import { Section } from "../components/Section";
 import { useToasts } from "../toasts";
 
 interface CommandScreenProps {
-  api: JarvisApi;
+  api: SAFAApi;
   active: boolean;
   onInputModeChange: (enabled: boolean) => void;
   onAction?: (message: string) => void;
 }
 
 function enforceDryRun(line: string): string {
-  if (!/^\s*jarvis:/i.test(line)) {
+  if (!/^\s*safa:/i.test(line)) {
     return line;
   }
-  if (/^\s*jarvis:\s*run\b/i.test(line) && !/--dry-run\b/i.test(line)) {
+  if (/^\s*safa:\s*run\b/i.test(line) && !/--dry-run\b/i.test(line)) {
     return `${line.trimEnd()} --dry-run`;
   }
   return line;
@@ -94,15 +94,15 @@ export function CommandScreen(props: CommandScreenProps) {
   return (
     <Box flexDirection="column">
       <Section title="Command Runner (Safe Mode)">
-        <Text>Enter a JARVIS line. RUN commands enforce --dry-run.</Text>
+        <Text>Enter a SAFA line. RUN commands enforce --dry-run.</Text>
         <Text color="yellow">&gt; {line}{busy ? " (running...)" : ""}</Text>
       </Section>
       <Section title="Output">
         <Text>{output || "No output yet."}</Text>
       </Section>
       <Section title="Hints">
-        <Text>Example: JARVIS: STATUS</Text>
-        <Text>{'Example: JARVIS: RUN read_file {"path":"README.md"}'}</Text>
+        <Text>Example: SAFA: STATUS</Text>
+        <Text>{'Example: SAFA: RUN read_file {"path":"README.md"}'}</Text>
       </Section>
     </Box>
   );

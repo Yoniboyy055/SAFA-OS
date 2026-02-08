@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-const FILE_NAME = ".jarvis-ui.json";
+const FILE_NAME = ".safa-ui.json";
 
 function tryRead(filePath: string): string | undefined {
   if (!fs.existsSync(filePath)) {
@@ -28,7 +28,7 @@ function tryWrite(filePath: string, content: string): boolean {
 
 function resolvePaths(): string[] {
   const cwdPath = path.join(process.cwd(), FILE_NAME);
-  const homePath = path.join(os.homedir(), ".jarvis-os", FILE_NAME);
+  const homePath = path.join(os.homedir(), ".safa-os", FILE_NAME);
   return [cwdPath, homePath];
 }
 

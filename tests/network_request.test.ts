@@ -66,7 +66,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
   openNetworkWindow(rootDir, 6, "tester");
@@ -82,7 +82,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
 }
 
 test("deny when network OFF", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const context = buildContext(rootDir, {
     network: {
       enabled: false,
@@ -114,7 +114,7 @@ test("deny when network OFF", async () => {
 });
 
 test("deny when domain not allowlisted", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const context = buildContext(rootDir, {
     network: {
       enabled: true,
@@ -146,7 +146,7 @@ test("deny when domain not allowlisted", async () => {
 });
 
 test("payload size enforcement", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const context = buildContext(rootDir);
   const bigBody = "a".repeat(20000);
   await assert.rejects(
@@ -170,7 +170,7 @@ test("payload size enforcement", async () => {
 });
 
 test("method allowlist enforces GET/POST", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const context = buildContext(rootDir);
   await assert.rejects(
     () =>
@@ -193,7 +193,7 @@ test("method allowlist enforces GET/POST", async () => {
 });
 
 test("allowlisted request returns stub response", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const context = buildContext(rootDir);
   const result = await requestNetwork(
     {

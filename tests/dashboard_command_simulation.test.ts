@@ -8,7 +8,7 @@ const { loadConfig } = require("../src/core/config");
 const { createDashboardServer } = require("../src/dashboard/server");
 
 function writeConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
-  const configPath = path.join(rootDir, "jarvis.config.json");
+  const configPath = path.join(rootDir, "safa.config.json");
   fs.writeFileSync(configPath, JSON.stringify(overrides, null, 2));
   return loadConfig(configPath);
 }
@@ -86,7 +86,7 @@ async function withServer(
 }
 
 test("dashboard run read_file succeeds", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-cmd-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-cmd-"));
   const config = writeConfig(rootDir, {
     killSwitch: { enabled: true },
     governance: { strictApprovalMode: false },
@@ -107,7 +107,7 @@ test("dashboard run read_file succeeds", async () => {
 });
 
 test("dashboard denies network command when network OFF", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-cmd-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-cmd-"));
   const config = writeConfig(rootDir, {
     killSwitch: { enabled: false },
     governance: { strictApprovalMode: false }
@@ -138,14 +138,14 @@ test("dashboard denies network command when network OFF", async () => {
 });
 
 test("dashboard denies network command when kill switch ON", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-cmd-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-cmd-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
     const response = await postCommand(
       port,
       { "X-Owner-Token": "token" },
       {
-        line: 'JARVIS: RUN send_http_request {"method":"GET","url":"https://example.com"}',
+        line: 'SAFA: RUN send_http_request {"method":"GET","url":"https://example.com"}',
         mode: "SCRIPT",
         authority: "OWNER",
         approve: true,
@@ -158,14 +158,14 @@ test("dashboard denies network command when kill switch ON", async () => {
 });
 
 test("dashboard allows high-risk local skills with approval", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-cmd-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-cmd-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
     const response = await postCommand(
       port,
       { "X-Owner-Token": "token" },
       {
-        line: 'JARVIS: RUN request_web_build {"projectName":"demo","description":"site"}',
+        line: 'SAFA: RUN request_web_build {"projectName":"demo","description":"site"}',
         mode: "SCRIPT",
         authority: "OWNER",
         approve: true,
@@ -178,14 +178,14 @@ test("dashboard allows high-risk local skills with approval", async () => {
 });
 
 test("dashboard allows local execution when dryRun is false", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-cmd-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-cmd-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
     const response = await postCommand(
       port,
       { "X-Owner-Token": "token" },
       {
-        line: 'JARVIS: RUN write_file {"path":"data/local.txt","content":"ok","createDirs":true}',
+        line: 'SAFA: RUN write_file {"path":"data/local.txt","content":"ok","createDirs":true}',
         mode: "SCRIPT",
         authority: "OWNER",
         approve: true,
@@ -199,14 +199,14 @@ test("dashboard allows local execution when dryRun is false", async () => {
 });
 
 test("dashboard freeze blocks further activity", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-freeze-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-freeze-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
     const freezeResponse = await postCommand(
       port,
       { "X-Owner-Token": "token" },
       {
-        line: 'JARVIS: RUN freeze_system {"reason":"test"}',
+        line: 'SAFA: RUN freeze_system {"reason":"test"}',
         mode: "SCRIPT",
         authority: "OWNER",
         approve: true,
@@ -220,7 +220,7 @@ test("dashboard freeze blocks further activity", async () => {
       port,
       { "X-Owner-Token": "token" },
       {
-        line: 'JARVIS: RUN read_file {"path":"README.md"}',
+        line: 'SAFA: RUN read_file {"path":"README.md"}',
         mode: "SCRIPT",
         authority: "OWNER",
         approve: true,

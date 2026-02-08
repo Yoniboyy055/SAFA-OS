@@ -19,7 +19,7 @@ function buildAudit(rootDir: string) {
 }
 
 test("approval request hashes plan + payload and logs", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-approval-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-approval-"));
   const audit = buildAudit(rootDir);
   const approval = createApprovalRequest(
     {
@@ -40,7 +40,7 @@ test("approval request hashes plan + payload and logs", () => {
 });
 
 test("approval denial is recorded", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-approval-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-approval-"));
   const audit = buildAudit(rootDir);
   const approval = createApprovalRequest(
     {
@@ -55,7 +55,7 @@ test("approval denial is recorded", () => {
 });
 
 test("approval can be revoked", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-approval-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-approval-"));
   const audit = buildAudit(rootDir);
   const approval = createApprovalRequest(
     {
@@ -70,7 +70,7 @@ test("approval can be revoked", () => {
 });
 
 test("approval expiry is detected", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-approval-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-approval-"));
   const audit = buildAudit(rootDir);
   const approval = createApprovalRequest(
     {
@@ -84,7 +84,7 @@ test("approval expiry is detected", () => {
 });
 
 test("receipt is immutable and audited", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-approval-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-approval-"));
   const audit = buildAudit(rootDir);
   const approval = createApprovalRequest(
     {

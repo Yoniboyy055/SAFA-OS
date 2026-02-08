@@ -67,7 +67,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
   return {
@@ -82,7 +82,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
 }
 
 test("send_email_request returns draft payload and requires approval", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-stub-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-stub-"));
   const registry = new SkillRegistry();
   registry.register(sendEmailRequestSkill);
   const context = buildContext(rootDir);
@@ -105,7 +105,7 @@ test("send_email_request returns draft payload and requires approval", async () 
 });
 
 test("request_phone_call returns script payload and requires approval", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-stub-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-stub-"));
   const registry = new SkillRegistry();
   registry.register(requestPhoneCallSkill);
   const context = buildContext(rootDir);

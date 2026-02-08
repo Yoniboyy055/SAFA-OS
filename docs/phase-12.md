@@ -12,7 +12,7 @@ ACTIVE. Live adapters can call configured providers when:
 - `OPENAI_API_KEY` is set (provider configured)
 - Network allowlists include the provider domain
 - Network window is open
-- `JARVIS_NETWORK_LIVE=1` is set to permit live I/O
+- `SAFA_NETWORK_LIVE=1` is set to permit live I/O
 
 Core entry points:
 - `connectLiveModel`

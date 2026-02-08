@@ -19,7 +19,7 @@ function buildRunner(rootDir: string, overrides: Record<string, unknown> = {}) {
 }
 
 test("runner skips unapproved intents", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-runner-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-runner-"));
   const runner = buildRunner(rootDir);
   runner.enqueue({
     id: "intent-1",
@@ -32,7 +32,7 @@ test("runner skips unapproved intents", async () => {
 });
 
 test("runner executes approved intents", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-runner-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-runner-"));
   const runner = buildRunner(rootDir);
   runner.enqueue({
     id: "intent-2",
@@ -46,20 +46,20 @@ test("runner executes approved intents", async () => {
 });
 
 test("runner blocks when kill switch enabled", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-runner-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-runner-"));
   const runner = buildRunner(rootDir, { killSwitch: { enabled: true } });
   await assert.rejects(() => runner.runNext(async () => {}), /Kill switch/i);
 });
 
 test("runner blocks when freeze enabled", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-runner-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-runner-"));
   enableFreeze(rootDir, "owner", "test");
   const runner = buildRunner(rootDir);
   await assert.rejects(() => runner.runNext(async () => {}), /Freeze engaged/i);
 });
 
 test("runner can be interrupted during execution", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-runner-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-runner-"));
   const runner = buildRunner(rootDir);
   runner.enqueue({
     id: "intent-3",

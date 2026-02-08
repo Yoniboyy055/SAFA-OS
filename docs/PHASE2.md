@@ -41,7 +41,7 @@ Constraints:
 - Audit logging remains append-only with redaction.
 
 ## 2C — UI Shell
-Purpose: Provide a local user interface shell for interacting with Jarvis OS.
+Purpose: Provide a local user interface shell for interacting with SAFA OS.
 
 What it would contain:
 - A minimal local UI (CLI TUI or local web UI) that does not enable networking.

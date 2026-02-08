@@ -75,7 +75,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
   return {
@@ -90,7 +90,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
 }
 
 test("phase 12 live adapters require network enable", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-llm-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-llm-"));
   const context = buildContext(rootDir);
   const originalKey = process.env.OPENAI_API_KEY;
   process.env.OPENAI_API_KEY = "test-key";
@@ -117,7 +117,7 @@ test("phase 12 live adapters require network enable", async () => {
 });
 
 test("phase 12 auto route respects network gates", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-llm-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-llm-"));
   const context = buildContext(rootDir);
   const originalKey = process.env.OPENAI_API_KEY;
   process.env.OPENAI_API_KEY = "test-key";

@@ -2,7 +2,7 @@ import React from "react";
 import { Box, Text } from "ink";
 import { Section } from "../components/Section";
 import { useTheme, getReducedMotion } from "../theme";
-import type { StatusSnapshot } from "../adapters/jarvis_api";
+import type { StatusSnapshot } from "../adapters/safa_api";
 
 interface SettingsScreenProps {
   status?: StatusSnapshot;
@@ -19,7 +19,7 @@ export function SettingsScreen(props: SettingsScreenProps) {
       </Section>
       <Section title="Motion">
         <Text>Reduced motion: {getReducedMotion() ? "ON" : "OFF"}</Text>
-        <Text>Set JARVIS_REDUCED_MOTION=1 to disable animations.</Text>
+        <Text>Set SAFA_REDUCED_MOTION=1 to disable animations.</Text>
       </Section>
       <Section title="Network">
         <Text>Network: {props.status?.networkEnabled ? "ON" : "OFF"}</Text>

@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
-import { JarvisApi } from "../adapters/jarvis_api";
+import { SAFAApi } from "../adapters/safa_api";
 import { Section } from "../components/Section";
 import { useToasts } from "../toasts";
 
 interface ApprovalsScreenProps {
-  api: JarvisApi;
+  api: SAFAApi;
   refreshToken: number;
   active: boolean;
   onAction?: (message: string) => void;

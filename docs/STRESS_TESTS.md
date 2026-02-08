@@ -41,7 +41,7 @@ location. All actions must be audited (append-only).
 8) **Attempt to overwrite root config files**
 - Expected: request denied.
 - Prevention: root file denylist (`package.json`, `tsconfig.json`,
-  `jarvis.config.json`, `README.md`).
+  `safa.config.json`, `README.md`).
 - Audit: `write_file` event with `DENIED` result.
 
 9) **Approval bypass (no `--approve`)**

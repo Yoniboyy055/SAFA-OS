@@ -46,7 +46,7 @@ export function parseVoiceTranscript(transcript: string): VoiceParseResult {
     normalized,
     intent,
     commandText,
-    suggestedLine: `JARVIS: PLAN ${commandText}`,
+    suggestedLine: `SAFA: PLAN ${commandText}`,
     confidence
   };
 }

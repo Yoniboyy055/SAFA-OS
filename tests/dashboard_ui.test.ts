@@ -9,7 +9,7 @@ const { loadConfig } = require("../src/core/config");
 const { createDashboardServer } = require("../src/dashboard/server");
 
 function writeConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
-  const configPath = path.join(rootDir, "jarvis.config.json");
+  const configPath = path.join(rootDir, "safa.config.json");
   fs.writeFileSync(configPath, JSON.stringify(overrides, null, 2));
   return loadConfig(configPath);
 }
@@ -50,13 +50,13 @@ async function withServer(
 }
 
 test("dashboard UI returns HTML", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-ui-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-ui-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
     const response = await request("/", port);
     assert.equal(response.statusCode, 200);
-    assert.ok(response.body.includes("JARVIS"));
-    assert.ok(response.body.includes("JARVIS"));
+    assert.ok(response.body.includes("SAFA"));
+    assert.ok(response.body.includes("SAFA"));
     assert.ok(response.body.includes("Conversation"));
   });
 });

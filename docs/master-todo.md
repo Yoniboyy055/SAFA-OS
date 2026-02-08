@@ -1,4 +1,4 @@
-# JARVIS OS — Master TODO List (Phase 0 → 17)
+# SAFA OS — Master TODO List (Phase 0 → 17)
 
 > This file captures the **work to be done** (not a status report).
 
@@ -22,10 +22,10 @@ Goal: Create a controllable system shell.
 ---
 
 ## PHASE 1 — AUTHORITY & GOVERNANCE
-Goal: Jarvis cannot act without permission.
+Goal: SAFA cannot act without permission.
 
 ### TODO
-- [ ] Implement authority chain (Owner → Jarvis → Tools)
+- [ ] Implement authority chain (Owner → SAFA → Tools)
 - [ ] Implement kill switch (global + scoped)
 - [ ] Add approval requirement by risk level
 - [ ] Add immutable audit logger
@@ -39,7 +39,7 @@ Goal: Jarvis cannot act without permission.
 ---
 
 ## PHASE 2 — SKILL SYSTEM
-Goal: Give Jarvis controlled hands.
+Goal: Give SAFA controlled hands.
 
 ### PHASE 2A — LOCAL SKILLS
 #### TODO
@@ -74,7 +74,7 @@ Goal: Maximum intelligence with zero real-world effect.
 - [ ] Add safe dashboard simulation mode
 
 ### DONE WHEN
-- Jarvis can plan complex systems
+- SAFA can plan complex systems
 - Nothing touches network or money
 
 ---
@@ -126,7 +126,7 @@ Goal: Intelligence without manipulation.
 - [ ] Memory deletion + review flow
 
 ### DONE WHEN
-- Jarvis remembers facts only with approval
+- SAFA remembers facts only with approval
 - Cannot influence decisions covertly
 
 ---
@@ -245,7 +245,7 @@ Goal: Flexible brain.
 - [ ] No silent switching
 
 ### DONE WHEN
-- Jarvis can recommend models transparently
+- SAFA can recommend models transparently
 
 ---
 
@@ -315,5 +315,5 @@ Goal: Maximum intelligence under maximum alignment.
 - [ ] Owner sign-off
 
 ### DONE WHEN
-- Jarvis is complete, safe, and loyal
+- SAFA is complete, safe, and loyal
 - No further autonomy possible

@@ -7,7 +7,7 @@ const path = require("path");
 const { AuditLogger, redactSensitive } = require("../src/core/audit");
 
 test("audit logger appends and redacts sensitive fields", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-audit-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-audit-"));
   const logPath = path.join(dir, "audit.log");
   const logger = new AuditLogger({
     logPath,

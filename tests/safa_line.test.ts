@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { parseJarvisLine } = require("../src/cli/jarvis_line");
+const { parseSAFALine } = require("../src/cli/safa_line");
 const { runWithArgs } = require("../src/cli/index");
 
 async function runLine(args: string[]) {
@@ -33,8 +33,8 @@ async function runLine(args: string[]) {
 }
 
 test("parse RUN with JSON and flags", () => {
-  const argv = parseJarvisLine(
-    'JARVIS: RUN read_file {"path":"README.md"} --dry-run --explain'
+  const argv = parseSAFALine(
+    'SAFA: RUN read_file {"path":"README.md"} --dry-run --explain'
   );
   assert.equal(argv[0], "run");
   assert.equal(argv[1], "read_file");
@@ -50,30 +50,30 @@ test("parse RUN with JSON and flags", () => {
 
 test("invalid JSON fails closed", () => {
   assert.throws(
-    () => parseJarvisLine("JARVIS: RUN read_file {bad"),
+    () => parseSAFALine("SAFA: RUN read_file {bad"),
     /Invalid JSON|Unterminated JSON/i
   );
 });
 
-test("jarvis line --text lists skills and status", async () => {
-  const skills = await runLine(["line", "--text", "JARVIS: SKILLS"]);
+test("safa line --text lists skills and status", async () => {
+  const skills = await runLine(["line", "--text", "SAFA: SKILLS"]);
   assert.equal(skills.exitCode, 0);
   assert.ok(skills.logs.join("\n").includes("read_file"));
 
-  const status = await runLine(["line", "--text", "JARVIS: STATUS"]);
+  const status = await runLine(["line", "--text", "SAFA: STATUS"]);
   assert.equal(status.exitCode, 0);
   const parsed = JSON.parse(status.logs.join("\n"));
   assert.equal(parsed.networkEnabled, false);
 });
 
-test("JARVIS RUN write_file creates approval ticket and does not execute", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-line-"));
-  const configPath = path.join(rootDir, "jarvis.config.json");
+test("SAFA RUN write_file creates approval ticket and does not execute", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-line-"));
+  const configPath = path.join(rootDir, "safa.config.json");
   fs.writeFileSync(configPath, "{}", "utf8");
   const result = await runLine([
     "line",
     "--text",
-    'JARVIS: RUN write_file {"path":"data/line.txt","content":"hi"}',
+    'SAFA: RUN write_file {"path":"data/line.txt","content":"hi"}',
     "--config",
     configPath
   ]);
@@ -87,6 +87,6 @@ test("JARVIS RUN write_file creates approval ticket and does not execute", async
 
   const auditPath = path.join(rootDir, "logs", "audit.log");
   const auditLog = fs.readFileSync(auditPath, "utf8");
-  assert.ok(auditLog.includes("jarvis_line"));
+  assert.ok(auditLog.includes("safa_line"));
   assert.ok(!auditLog.includes("data/line.txt"));
 });

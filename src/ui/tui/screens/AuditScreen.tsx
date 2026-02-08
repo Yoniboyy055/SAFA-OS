@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Box, Text } from "ink";
-import { JarvisApi } from "../adapters/jarvis_api";
+import { SAFAApi } from "../adapters/safa_api";
 import { Section } from "../components/Section";
 
 interface AuditScreenProps {
-  api: JarvisApi;
+  api: SAFAApi;
   refreshToken: number;
   active: boolean;
 }

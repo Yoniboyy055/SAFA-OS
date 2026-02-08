@@ -65,7 +65,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
   return {
@@ -80,7 +80,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
 }
 
 test("email queue dry-run writes outbox file", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-email-"));
   const context = buildContext(rootDir);
   const result = await sendEmailSkill.handler(
     {

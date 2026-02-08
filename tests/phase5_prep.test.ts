@@ -86,7 +86,7 @@ function buildConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
 }
@@ -121,7 +121,7 @@ function buildRegistry() {
 }
 
 test("memory_add redacts secrets and requires approval", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase5-"));
   const registry = buildRegistry();
   const denied = await registry.execute(
     "memory_add",
@@ -143,7 +143,7 @@ test("memory_add redacts secrets and requires approval", async () => {
 });
 
 test("memory_search requires approval", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase5-"));
   const registry = buildRegistry();
   const result = await registry.execute(
     "memory_search",
@@ -155,7 +155,7 @@ test("memory_search requires approval", async () => {
 });
 
 test("memory_get returns entry when approved", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase5-"));
   const registry = buildRegistry();
   const added = await registry.execute(
     "memory_add",
@@ -172,7 +172,7 @@ test("memory_get returns entry when approved", async () => {
 });
 
 test("request_video_edit creates artifact plan", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase5-"));
   const registry = buildRegistry();
   const result = await registry.execute(
     "request_video_edit",
@@ -185,7 +185,7 @@ test("request_video_edit creates artifact plan", async () => {
 });
 
 test("request_client_intake creates artifact plan", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase5-"));
   const registry = buildRegistry();
   const result = await registry.execute(
     "request_client_intake",
@@ -197,7 +197,7 @@ test("request_client_intake creates artifact plan", async () => {
 });
 
 test("request_negotiation_script creates artifact plan", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase5-"));
   const registry = buildRegistry();
   const result = await registry.execute(
     "request_negotiation_script",
@@ -209,7 +209,7 @@ test("request_negotiation_script creates artifact plan", async () => {
 });
 
 test("request_follow_up creates artifact plan", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase5-"));
   const registry = buildRegistry();
   const result = await registry.execute(
     "request_follow_up",
@@ -221,7 +221,7 @@ test("request_follow_up creates artifact plan", async () => {
 });
 
 test("request_recommendation_request creates artifact plan", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase5-"));
   const registry = buildRegistry();
   const result = await registry.execute(
     "request_recommendation_request",
@@ -233,7 +233,7 @@ test("request_recommendation_request creates artifact plan", async () => {
 });
 
 test("run_packet denied when execution disabled", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase5-"));
   const registry = buildRegistry();
   const result = await registry.execute(
     "run_packet",
@@ -245,7 +245,7 @@ test("run_packet denied when execution disabled", async () => {
 });
 
 test("recommend_llm returns ranked recommendations", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase5-"));
   const registry = buildRegistry();
   const result = await registry.execute(
     "recommend_llm",
@@ -257,7 +257,7 @@ test("recommend_llm returns ranked recommendations", async () => {
 });
 
 test("analyze_input_risk flags injection", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase5-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase5-"));
   const registry = buildRegistry();
   const result = await registry.execute(
     "analyze_input_risk",

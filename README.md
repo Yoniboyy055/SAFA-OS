@@ -1,6 +1,6 @@
-# Jarvis OS (Governed)
+# SAFA OS (Governed)
 
-Jarvis OS is a single-core assistant system with modular capabilities, governed by strict policies and permission gates.
+SAFA OS is a single-core assistant system with modular capabilities, governed by strict policies and permission gates.
 
 ## Goals
 - Local-first execution
@@ -28,7 +28,7 @@ Jarvis OS is a single-core assistant system with modular capabilities, governed 
 
 ## How to run
 1. Ensure Node.js 20.11.1 is available.
-2. Review or edit `jarvis.config.json` (network stays OFF by default).
+2. Review or edit `safa.config.json` (network stays OFF by default).
 3. Install dependencies: `npm ci`
 4. Build: `npm run build`
 5. Test: `npm test`
@@ -69,11 +69,11 @@ node dist/cli/index.js call:make --approve --input '{"toNumber":"+15550002222","
 # (Blocked in Phase 3; preview only)
 ```
 
-## One-line Commands (JARVIS:)
+## One-line Commands (SAFA:)
 Use the line adapter for phone-to-laptop relay:
 ```
-jarvis line --text "JARVIS: SKILLS"
-jarvis line --text "JARVIS: RUN read_file {\"path\":\"README.md\"} --dry-run"
+safa line --text "SAFA: SKILLS"
+safa line --text "SAFA: RUN read_file {\"path\":\"README.md\"} --dry-run"
 ```
 See `docs/PHONE_UX.md` for more examples.
 
@@ -85,10 +85,10 @@ node dist/cli/index.js voice:replay --n 10
 ```
 
 ## Memory (Store-All / Use-Approved)
-Jarvis maintains three memory tiers:
+SAFA maintains three memory tiers:
 - Tier 0: `memory/raw/` (append-only, redacted logs; not used for decisions)
 - Tier 1: `memory/work/` (session summaries; approval required)
-- Tier 2: `memory/canon/` (owner-approved facts; used by Jarvis)
+- Tier 2: `memory/canon/` (owner-approved facts; used by SAFA)
 
 Commands:
 ```
@@ -158,10 +158,10 @@ node dist/cli/index.js run list_tools --mode SCRIPT --authority OWNER --input '{
 node dist/cli/index.js run recommend_tool --mode SCRIPT --authority OWNER --approve --input '{"task":"search docs","budgetCapUsd":0}'
 ```
 
-## Jarvis Cockpit v1 (Local UI)
+## SAFA Cockpit v1 (Local UI)
 Open `ui/cockpit/index.html` in a local browser. This UI is static and local-only.
 
-## Jarvis TUI (Phase 8)
+## SAFA TUI (Phase 8)
 Terminal UI for local-only control. It uses existing governed code paths and keeps
 network disabled by default.
 
@@ -173,7 +173,7 @@ npm run tui
 
 Optional flags:
 ```
-npm run tui -- --config jarvis.config.json --actor local-user
+npm run tui -- --config safa.config.json --actor local-user
 npm run tui -- --no-boot
 ```
 
@@ -190,7 +190,7 @@ Key bindings:
 - q quit
 
 Reduced motion:
-- Set `JARVIS_REDUCED_MOTION=1` to disable animations.
+- Set `SAFA_REDUCED_MOTION=1` to disable animations.
 
 ## Dashboard Server (Local-only)
 The dashboard server binds only to `127.0.0.1` and serves a local UI at `/`.
@@ -198,7 +198,7 @@ All actions are governed and audit-logged. Approvals are required when strict
 mode or skill risk demands it. Network stays OFF by default.
 
 Startup hardening:
-- Requires `JARVIS_OWNER_TOKEN` to start.
+- Requires `SAFA_OWNER_TOKEN` to start.
 - Requires kill switch **ON** at start (safe mode).
 
 Extra local endpoints:
@@ -251,7 +251,7 @@ Design-only companions live in docs:
 
 ## Release Lock (Governance)
 Release locks can block non-local categories even with approvals. Configure in
-`jarvis.config.json` under `releaseLock`. See `docs/RELEASE_LOCKS.md`.
+`safa.config.json` under `releaseLock`. See `docs/RELEASE_LOCKS.md`.
 
 ## Go/No-Go Checklist
 Run before merge/tag:
@@ -261,9 +261,9 @@ npm ci && npm run build && npm test
 
 ## Live Outbound (Gated)
 Live network I/O requires explicit enablement:
-- Network allowlists in `jarvis.config.json`
+- Network allowlists in `safa.config.json`
 - An active network window (`net:open`)
-- `JARVIS_NETWORK_LIVE=1` for real requests
+- `SAFA_NETWORK_LIVE=1` for real requests
 
 ## Timed Network Window
 Network access is OFF by default. A timed window can be opened to allow
@@ -273,16 +273,16 @@ is stored durably in `data/network_window.json` so restarts do not bypass it.
 ### CLI Commands
 ```bash
 # Open a 6-hour window (requires OWNER authority + approval)
-jarvis net:open --hours 6 --mode SCRIPT --authority OWNER --approve
+safa net:open --hours 6 --mode SCRIPT --authority OWNER --approve
 
 # Open an 8-hour window
-jarvis net:open --hours 8 --mode SCRIPT --authority OWNER --approve
+safa net:open --hours 8 --mode SCRIPT --authority OWNER --approve
 
 # Close the window early
-jarvis net:close --mode SCRIPT --authority OWNER --approve
+safa net:close --mode SCRIPT --authority OWNER --approve
 
 # Check current window status
-jarvis net:status
+safa net:status
 ```
 
 ### Dashboard Execution

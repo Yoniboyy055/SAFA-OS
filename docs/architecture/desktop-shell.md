@@ -8,7 +8,7 @@ in a fullscreen window (no browser chrome). 3D/VR pipeline is a placeholder only
 ## Run locally
 1. Start dashboard server (kill switch must be ON):
    ```
-   export JARVIS_OWNER_TOKEN="LONG_RANDOM_TOKEN"
+   export SAFA_OWNER_TOKEN="LONG_RANDOM_TOKEN"
    node dist/dashboard/server.js
    ```
 2. Launch desktop shell:

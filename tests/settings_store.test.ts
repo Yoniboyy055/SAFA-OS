@@ -11,7 +11,7 @@ const {
 } = require("../src/core/settings_store");
 
 test("settings store writes and merges values", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-settings-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-settings-"));
   const first = updateSettings(rootDir, { mode: "auto" });
   assert.equal(first.values.mode, "auto");
   const second = setSetting(rootDir, "theme", "glass");

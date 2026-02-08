@@ -1,6 +1,6 @@
-# JARVIS v1.0 Governance Lock (FINAL / LOCKED)
+# SAFA v1.0 Governance Lock (FINAL / LOCKED)
 
-This document defines hard, non-bypassable constraints for Jarvis v1.0.
+This document defines hard, non-bypassable constraints for SAFA v1.0.
 These rules are enforced in code and cannot be overridden without explicit
 owner changes.
 
@@ -39,5 +39,5 @@ Valid modes: **CREATE**, **BUILD**, **DECIDE**, **CLARIFY**, **SCRIPT**.
 Any execution without an explicit mode is refused.
 
 ## No AGI by Design
-Jarvis does not set goals, initiate actions, or modify its own rules. The
+SAFA does not set goals, initiate actions, or modify its own rules. The
 governance lock is permanent unless the OWNER explicitly changes it.

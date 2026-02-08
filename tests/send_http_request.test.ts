@@ -67,7 +67,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
   openNetworkWindow(rootDir, 6, "tester");
@@ -83,7 +83,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
 }
 
 test("send_http_request denied when network OFF", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-http-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-http-"));
   const registry = new SkillRegistry();
   registry.register(sendHttpRequestSkill);
   const context = buildContext(rootDir, {
@@ -105,7 +105,7 @@ test("send_http_request denied when network OFF", async () => {
 });
 
 test("send_http_request allows allowlisted domain with approval", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-http-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-http-"));
   const registry = new SkillRegistry();
   registry.register(sendHttpRequestSkill);
   const context = buildContext(rootDir);
@@ -120,7 +120,7 @@ test("send_http_request allows allowlisted domain with approval", async () => {
 });
 
 test("send_http_request denied without approval", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-http-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-http-"));
   const registry = new SkillRegistry();
   registry.register(sendHttpRequestSkill);
   const context = buildContext(rootDir);
@@ -133,7 +133,7 @@ test("send_http_request denied without approval", async () => {
 });
 
 test("send_http_request blocked by kill switch", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-http-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-http-"));
   const registry = new SkillRegistry();
   registry.register(sendHttpRequestSkill);
   const context = buildContext(rootDir, {

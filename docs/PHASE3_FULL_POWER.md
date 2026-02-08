@@ -22,7 +22,7 @@ defaults. Network access remains OFF by default and the corridor is stub-only.
 - **Per-request**: each outbound action is explicitly approved.
 - **Plan-hash (future)**: approve a plan digest once, execute matching steps.
 
-## Jarvis Cockpit v1 (Local UI)
+## SAFA Cockpit v1 (Local UI)
 The cockpit is a static, local-only UI that visualizes governance and approvals:
 - Intent Queue (local tasks only)
 - Approval Inbox (explicit approvals required)
@@ -76,19 +76,19 @@ audit, dry-run, and tests.
 - Category: outbound_message (MEDIUM/HIGH)
 - Requires: allowlisted recipients + approval + audit + dry-run
 ```
-jarvis review:request --to "user@allow.com" --template "..." --approve
+safa review:request --to "user@allow.com" --template "..." --approve
 ```
 
 ### publish_post
 - Category: outbound_message or external_tool (HIGH)
 - Requires: allowlisted accounts + approval + audit + dry-run
 ```
-jarvis post:publish --channel "x.com" --content "..." --approve
+safa post:publish --channel "x.com" --content "..." --approve
 ```
 
 ### store_product_upsert
 - Category: external_tool (HIGH)
 - Requires: allowlisted stores + approval + audit + dry-run
 ```
-jarvis store:product_upsert --store "shop123" --sku "SKU-1" --title "..." --approve
+safa store:product_upsert --store "shop123" --sku "SKU-1" --title "..." --approve
 ```

@@ -9,7 +9,7 @@ const { loadConfig } = require("../src/core/config");
 const { createDashboardServer } = require("../src/dashboard/server");
 
 function writeConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
-  const configPath = path.join(rootDir, "jarvis.config.json");
+  const configPath = path.join(rootDir, "safa.config.json");
   fs.writeFileSync(configPath, JSON.stringify(overrides, null, 2));
   return loadConfig(configPath);
 }
@@ -60,7 +60,7 @@ async function withServer(
 }
 
 test("chat requires token", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-chat-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-chat-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
     const response = await postChat(port, {}, { message: "Status" });
@@ -69,7 +69,7 @@ test("chat requires token", async () => {
 });
 
 test("chat returns a draft plan", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-chat-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-chat-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
     const response = await postChat(
@@ -84,7 +84,7 @@ test("chat returns a draft plan", async () => {
 });
 
 test("chat approval flow executes read_file", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-chat-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-chat-"));
   const docsDir = path.join(rootDir, "docs");
   fs.mkdirSync(docsDir, { recursive: true });
   fs.writeFileSync(path.join(docsDir, "note.txt"), "hello", "utf8");

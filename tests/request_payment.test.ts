@@ -65,7 +65,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
   return {
@@ -80,7 +80,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
 }
 
 test("deny real Stripe execution when Phase 7B is locked", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-pay-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-pay-"));
   const context = buildContext(rootDir, {
     stripe: {
       enabled: true,
@@ -111,7 +111,7 @@ test("deny real Stripe execution when Phase 7B is locked", async () => {
 });
 
 test("deny when allowlists fail", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-pay-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-pay-"));
   const context = buildContext(rootDir);
   await assert.rejects(
     () =>
@@ -124,7 +124,7 @@ test("deny when allowlists fail", async () => {
 });
 
 test("dryRun returns preview", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-pay-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-pay-"));
   const context = buildContext(rootDir);
   const result = await requestPaymentSkill.handler(
     { priceId: "price_basic", currency: "usd", customerEmail: "user@allow.com", dryRun: true },
@@ -135,7 +135,7 @@ test("dryRun returns preview", async () => {
 });
 
 test("approval still required even for previews (strict mode)", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-pay-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-pay-"));
   const context = buildContext(rootDir, {
     governance: { strictApprovalMode: true, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 }
   });
@@ -150,7 +150,7 @@ test("approval still required even for previews (strict mode)", async () => {
 });
 
 test("audit does not log secrets", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-pay-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-pay-"));
   process.env.STRIPE_SECRET_KEY = "sk_test_secret";
   const context = buildContext(rootDir);
   await requestPaymentSkill.handler(

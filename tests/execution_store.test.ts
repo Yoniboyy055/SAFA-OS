@@ -7,7 +7,7 @@ const path = require("node:path");
 const { ExecutionStore } = require("../src/core/execution_store");
 
 test("execution store appends and returns recent entries", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-exec-store-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-exec-store-"));
   const store = new ExecutionStore(rootDir);
   store.append({
     id: "exec-1",

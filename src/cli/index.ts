@@ -15,7 +15,7 @@ import { readFreezeState } from "../core/freeze";
 import { getLayerDefinitions } from "../core/layers";
 import { readVrState } from "../core/vr";
 import { parseCommandMode } from "./command_mode";
-import { summarizeJarvisLine } from "./jarvis_line";
+import { summarizeSAFALine } from "./safa_line";
 import { buildRegistry } from "../skills/registry_factory";
 import {
   createApprovalRequest,
@@ -76,35 +76,35 @@ function findApprovedApproval(
 }
 
 function printUsage(): void {
-  console.log(`Jarvis OS (Governed) - Phase 0 CLI
+  console.log(`SAFA OS (Governed) - Phase 0 CLI
 
 Usage:
-  jarvis skills [--config <path>] [--actor <name>]
-  jarvis status [--config <path>] [--actor <name>]
-  jarvis line [--text "<JARVIS: ...>"] [--config <path>] [--actor <name>]
-  jarvis approvals <list|show|approve|deny> [args...]
-  jarvis audit tail --n 50
-  jarvis packet <create|apply> [args...]
-  jarvis plan "<task>" [--config <path>] [--actor <name>]
-  jarvis exec "<task>" [--approve] [--config <path>] [--actor <name>]
-  jarvis payment:preview --input <json> [--config <path>] [--actor <name>]
-  jarvis payment:request --approve --input <json> [--config <path>] [--actor <name>]
-  jarvis email:preview --input <json> [--config <path>] [--actor <name>]
-  jarvis email:send --approve --input <json> [--config <path>] [--actor <name>]
-  jarvis call:preview --input <json> [--config <path>] [--actor <name>]
-  jarvis call:make --approve --input <json> [--config <path>] [--actor <name>]
-  jarvis net:preview --method GET --url https://example.com --purpose "..." [--body "..."] [--approve] [--config <path>] [--actor <name>]
-  jarvis net:open --hours <6|8> --mode SCRIPT --authority OWNER --approve
-  jarvis net:close --mode SCRIPT --authority OWNER --approve
-  jarvis net:status
-  jarvis voice:parse --text "<transcript>" [--execute --approve]
-  jarvis voice:replay [--n 20]
-  jarvis run <skill> --input <json> --mode SCRIPT --authority OWNER [--approve]
-  jarvis <command> --mode <CREATE|BUILD|DECIDE|CLARIFY|SCRIPT> --authority OWNER
-  jarvis help
+  safa skills [--config <path>] [--actor <name>]
+  safa status [--config <path>] [--actor <name>]
+  safa line [--text "<SAFA: ...>"] [--config <path>] [--actor <name>]
+  safa approvals <list|show|approve|deny> [args...]
+  safa audit tail --n 50
+  safa packet <create|apply> [args...]
+  safa plan "<task>" [--config <path>] [--actor <name>]
+  safa exec "<task>" [--approve] [--config <path>] [--actor <name>]
+  safa payment:preview --input <json> [--config <path>] [--actor <name>]
+  safa payment:request --approve --input <json> [--config <path>] [--actor <name>]
+  safa email:preview --input <json> [--config <path>] [--actor <name>]
+  safa email:send --approve --input <json> [--config <path>] [--actor <name>]
+  safa call:preview --input <json> [--config <path>] [--actor <name>]
+  safa call:make --approve --input <json> [--config <path>] [--actor <name>]
+  safa net:preview --method GET --url https://example.com --purpose "..." [--body "..."] [--approve] [--config <path>] [--actor <name>]
+  safa net:open --hours <6|8> --mode SCRIPT --authority OWNER --approve
+  safa net:close --mode SCRIPT --authority OWNER --approve
+  safa net:status
+  safa voice:parse --text "<transcript>" [--execute --approve]
+  safa voice:replay [--n 20]
+  safa run <skill> --input <json> --mode SCRIPT --authority OWNER [--approve]
+  safa <command> --mode <CREATE|BUILD|DECIDE|CLARIFY|SCRIPT> --authority OWNER
+  safa help
 
 Notes:
-  - Use "jarvis skills" to list available skills.
+  - Use "safa skills" to list available skills.
   - --approve is required for risky actions.
   - Network stays OFF by default.
 `);
@@ -210,23 +210,23 @@ export async function runWithArgs(
       audit.log({
         timestamp: new Date().toISOString(),
         actor,
-        action: "jarvis_line",
+        action: "safa_line",
         approved,
         target: "line",
         result: "ERROR: Missing input."
       });
-      console.error("JARVIS line text is required.");
+      console.error("SAFA line text is required.");
       process.exit(1);
       return;
     }
     let parsed;
     try {
-      parsed = summarizeJarvisLine(line);
+      parsed = summarizeSAFALine(line);
     } catch (error) {
       audit.log({
         timestamp: new Date().toISOString(),
         actor,
-        action: "jarvis_line",
+        action: "safa_line",
         approved,
         target: "line",
         result: `ERROR: ${error instanceof Error ? error.message : String(error)}`
@@ -247,7 +247,7 @@ export async function runWithArgs(
     lineAudit.log({
       timestamp: new Date().toISOString(),
       actor: parsedActor,
-      action: "jarvis_line",
+      action: "safa_line",
       approved: parsed.argv.includes("--approve"),
       target: parsed.command,
       result: JSON.stringify({
@@ -467,14 +467,14 @@ export async function runWithArgs(
           return;
         }
       }
-      const jarvisLine =
-        payload && typeof payload.jarvisLine === "string"
-          ? String(payload.jarvisLine)
+      const safaLine =
+        payload && typeof payload.safaLine === "string"
+          ? String(payload.safaLine)
           : undefined;
       const packet = createPacket(config.rootDir, {
         mode: mode ?? undefined,
         payload,
-        jarvisLine
+        safaLine
       });
       audit.log({
         timestamp: new Date().toISOString(),
@@ -495,8 +495,8 @@ export async function runWithArgs(
         return;
       }
       const packet = loadPacket(config.rootDir, id);
-      if (packet.jarvisLine) {
-        const parsed = summarizeJarvisLine(packet.jarvisLine);
+      if (packet.safaLine) {
+        const parsed = summarizeSAFALine(packet.safaLine);
         audit.log({
           timestamp: new Date().toISOString(),
           actor,

@@ -83,13 +83,13 @@ const baseConfig = {
     callTemplateAllowlist: []
   },
   rootDir: "/tmp",
-  configPath: "/tmp/jarvis.config.json"
+  configPath: "/tmp/safa.config.json"
 };
 
 // --- NetworkWindow unit tests ---
 
 test("openNetworkWindow creates valid state", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-nw-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-nw-"));
   const state = openNetworkWindow(rootDir, 6, "owner");
   assert.equal(state.enabled, true);
   assert.ok(state.startAt);
@@ -102,20 +102,20 @@ test("openNetworkWindow creates valid state", () => {
 });
 
 test("closeNetworkWindow disables the window", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-nw-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-nw-"));
   openNetworkWindow(rootDir, 8, "owner");
   const state = closeNetworkWindow(rootDir, "owner");
   assert.equal(state.enabled, false);
 });
 
 test("loadNetworkWindow returns empty state when file does not exist", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-nw-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-nw-"));
   const state = loadNetworkWindow(rootDir);
   assert.equal(state.enabled, false);
 });
 
 test("loadNetworkWindow persists across reload", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-nw-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-nw-"));
   openNetworkWindow(rootDir, 6, "owner");
   const loaded = loadNetworkWindow(rootDir);
   assert.equal(loaded.enabled, true);
@@ -337,7 +337,7 @@ test("governor denies network when window has expired", () => {
 // --- Dashboard: refuses non-local execution ---
 
 function writeConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
-  const configPath = path.join(rootDir, "jarvis.config.json");
+  const configPath = path.join(rootDir, "safa.config.json");
   fs.writeFileSync(configPath, JSON.stringify(overrides, null, 2));
   return loadConfig(configPath);
 }
@@ -385,7 +385,7 @@ async function withServer(
 }
 
 test("dashboard allows local run when strict approval is off", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-nw-dash-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-nw-dash-"));
   fs.writeFileSync(path.join(rootDir, "test.txt"), "hello world");
   const config = writeConfig(rootDir, {
     killSwitch: { enabled: false },
@@ -407,7 +407,7 @@ test("dashboard allows local run when strict approval is off", async () => {
 });
 
 test("dashboard denies network run when network is off", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-nw-dash-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-nw-dash-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: false } });
   await withServer(config, async (port) => {
     const pending = await api(port, "/api/run", {
@@ -435,7 +435,7 @@ test("dashboard denies network run when network is off", async () => {
 });
 
 test("dashboard returns pending approval in strict mode", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-nw-dash-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-nw-dash-"));
   const config = writeConfig(rootDir, {
     killSwitch: { enabled: true },
     governance: { strictApprovalMode: true }

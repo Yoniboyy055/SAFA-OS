@@ -32,7 +32,7 @@ export function BootScreen(props: { onComplete: () => void }) {
 
   return (
     <Box flexDirection="column" padding={1}>
-      <Text color={theme.accent}>JARVIS OS</Text>
+      <Text color={theme.accent}>SAFA OS</Text>
       <Text color={theme.accentSoft}>[BOOT SEQUENCE]</Text>
       <Box marginTop={1} flexDirection="column">
         {STEPS.map((step, stepIndex) => (

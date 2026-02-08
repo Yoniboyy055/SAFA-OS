@@ -8,7 +8,7 @@ const { VoiceLogStore } = require("../src/core/voice/voice_store");
 const { parseVoiceTranscript } = require("../src/core/voice/voice_parser");
 
 test("voice log store appends and lists entries", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-voice-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-voice-"));
   const store = new VoiceLogStore(rootDir);
   const parsed = parseVoiceTranscript("plan update the roadmap");
   store.append({

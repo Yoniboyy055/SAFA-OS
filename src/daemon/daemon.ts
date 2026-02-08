@@ -61,7 +61,7 @@ async function startHealthServer(
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.includes("--help") || args.includes("-h")) {
-    console.log(`Jarvis daemon
+    console.log(`SAFA daemon
 
 Usage:
   node dist/daemon/daemon.js [--dashboard-port 3777] [--health-port 3778] [--config <path>] [--actor <name>]

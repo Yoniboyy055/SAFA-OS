@@ -77,7 +77,7 @@ function buildConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
 }
@@ -109,7 +109,7 @@ function buildRegistry() {
 }
 
 test("tier0 logs redact secrets and PII", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-memory-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-memory-"));
   const registry = buildRegistry();
   const context = buildContext(rootDir);
   const result = await registry.execute(
@@ -131,7 +131,7 @@ test("tier0 logs redact secrets and PII", async () => {
 });
 
 test("tier1 summary requires approval", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-memory-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-memory-"));
   const registry = buildRegistry();
   const context = buildContext(rootDir);
   const result = await registry.execute(
@@ -144,7 +144,7 @@ test("tier1 summary requires approval", async () => {
 });
 
 test("tier2 canon requires approval and blocks secrets", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-memory-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-memory-"));
   const registry = buildRegistry();
   const context = buildContext(rootDir);
   const denied = await registry.execute(
@@ -166,7 +166,7 @@ test("tier2 canon requires approval and blocks secrets", async () => {
 });
 
 test("query_canon_memory does not touch raw logs", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-memory-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-memory-"));
   const registry = buildRegistry();
   const context = buildContext(rootDir, { governance: { strictApprovalMode: false } });
   fs.mkdirSync(path.join(rootDir, "memory", "raw"), { recursive: true });
@@ -187,7 +187,7 @@ test("query_canon_memory does not touch raw logs", async () => {
 });
 
 test("search_raw_logs requires approval", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-memory-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-memory-"));
   const registry = buildRegistry();
   const context = buildContext(rootDir);
   const result = await registry.execute(
@@ -200,7 +200,7 @@ test("search_raw_logs requires approval", async () => {
 });
 
 test("add_knowledge_doc requires approval", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-knowledge-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-knowledge-"));
   const registry = buildRegistry();
   const context = buildContext(rootDir);
   const result = await registry.execute(
@@ -213,7 +213,7 @@ test("add_knowledge_doc requires approval", async () => {
 });
 
 test("tool recommendations require approval and return tradeoffs", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-tools-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-tools-"));
   fs.mkdirSync(path.join(rootDir, "tools"), { recursive: true });
   fs.writeFileSync(
     path.join(rootDir, "tools", "tools.catalog.json"),

@@ -9,7 +9,7 @@ high-risk capabilities during development.
 - Suggested block list: network, outbound_message, external_tool.
 
 ## Config
-Example in `jarvis.config.json`:
+Example in `safa.config.json`:
 ```
 "releaseLock": {
   "enabled": true,

@@ -11,7 +11,7 @@ const {
 } = require("../src/core/voice_log");
 
 test("voice logs append and replay", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-voice-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-voice-"));
   const entry = appendVoiceLog(rootDir, "Status check sk-SECRET");
   assert.ok(entry.id);
   assert.equal(entry.intent, "status");

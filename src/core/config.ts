@@ -95,7 +95,7 @@ export interface PermissionsConfig {
   callTemplateAllowlist: string[];
 }
 
-export interface JarvisConfig {
+export interface SAFAConfig {
   network: NetworkConfig;
   telemetry: TelemetryConfig;
   killSwitch: KillSwitchConfig;
@@ -109,12 +109,12 @@ export interface JarvisConfig {
   permissions: PermissionsConfig;
 }
 
-export interface ResolvedConfig extends JarvisConfig {
+export interface ResolvedConfig extends SAFAConfig {
   configPath: string;
   rootDir: string;
 }
 
-const DEFAULT_CONFIG: JarvisConfig = {
+const DEFAULT_CONFIG: SAFAConfig = {
   network: {
     enabled: false,
     allowlist: [],
@@ -219,9 +219,9 @@ function normalizeStringArray(value: unknown): string[] {
 }
 
 function mergeConfig(
-  base: JarvisConfig,
-  overrides: Partial<JarvisConfig>
-): JarvisConfig {
+  base: SAFAConfig,
+  overrides: Partial<SAFAConfig>
+): SAFAConfig {
   const baseReleaseLock: ReleaseLockConfig =
     base.releaseLock ?? {
       enabled: false,
@@ -376,13 +376,13 @@ function mergeConfig(
 export function loadConfig(configPath?: string): ResolvedConfig {
   const resolvedConfigPath = configPath
     ? path.resolve(process.cwd(), configPath)
-    : path.resolve(process.cwd(), "jarvis.config.json");
-  let fileConfig: Partial<JarvisConfig> = {};
+    : path.resolve(process.cwd(), "safa.config.json");
+  let fileConfig: Partial<SAFAConfig> = {};
 
   if (fs.existsSync(resolvedConfigPath)) {
     const raw = fs.readFileSync(resolvedConfigPath, "utf8");
     try {
-      fileConfig = JSON.parse(raw) as Partial<JarvisConfig>;
+      fileConfig = JSON.parse(raw) as Partial<SAFAConfig>;
     } catch (error) {
       throw new Error(
         `Invalid config JSON at ${resolvedConfigPath}: ${String(error)}`

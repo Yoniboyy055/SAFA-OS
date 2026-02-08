@@ -122,7 +122,7 @@ export async function requestNetwork(
   }
 
   let response: NetworkResponseMeta;
-  if (process.env.JARVIS_NETWORK_LIVE === "1") {
+  if (process.env.SAFA_NETWORK_LIVE === "1") {
     response = await performLiveRequest(request, policy);
   } else {
     response = {

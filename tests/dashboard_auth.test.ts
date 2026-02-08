@@ -8,7 +8,7 @@ const { loadConfig } = require("../src/core/config");
 const { createDashboardServer } = require("../src/dashboard/server");
 
 function writeConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
-  const configPath = path.join(rootDir, "jarvis.config.json");
+  const configPath = path.join(rootDir, "safa.config.json");
   fs.writeFileSync(configPath, JSON.stringify(overrides, null, 2));
   return loadConfig(configPath);
 }
@@ -56,7 +56,7 @@ async function withServer(
 }
 
 test("dashboard run requires approval in strict mode", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-auth-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-auth-"));
   const config = writeConfig(rootDir, {
     killSwitch: { enabled: true },
     governance: { strictApprovalMode: true },

@@ -27,7 +27,7 @@ Strict governance prevents accidental execution and protects sensitive data.
 2) `npm test`
 3) Start dashboard:
    ```
-   $env:JARVIS_OWNER_TOKEN="LONG_RANDOM_TOKEN"
+   $env:SAFA_OWNER_TOKEN="LONG_RANDOM_TOKEN"
    node dist/dashboard/server.js
    ```
 4) Open:

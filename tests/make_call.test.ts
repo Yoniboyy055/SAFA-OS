@@ -65,7 +65,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
       callTemplateAllowlist: ["https://example.com/twiml"]
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
   return {
@@ -80,7 +80,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
 }
 
 test("deny real call execution when Phase 7B is locked", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-call-"));
   const context = buildContext(rootDir, {
     calls: { enabled: true, provider: "twilio", fromNumberAllowlist: ["+15550001111"], toNumberAllowlist: ["+15550002222"], countryAllowlist: ["+1"], twimlUrl: "https://example.com/twiml", recordCalls: false, dryRunDefault: false },
     network: {
@@ -103,7 +103,7 @@ test("deny real call execution when Phase 7B is locked", async () => {
 });
 
 test("deny when allowlists fail", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-call-"));
   const context = buildContext(rootDir);
   await assert.rejects(
     () =>
@@ -116,7 +116,7 @@ test("deny when allowlists fail", async () => {
 });
 
 test("deny when twimlUrl missing or not allowlisted", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-call-"));
   const context = buildContext(rootDir, {
     calls: {
       enabled: false,
@@ -152,7 +152,7 @@ test("deny when twimlUrl missing or not allowlisted", async () => {
 });
 
 test("dryRun returns preview", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-call-"));
   const context = buildContext(rootDir);
   const result = await makeCallSkill.handler(
     { toNumber: "+15550002222", intent: "sales", dryRun: true },
@@ -163,7 +163,7 @@ test("dryRun returns preview", async () => {
 });
 
 test("approval required for previews in strict mode", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-call-"));
   const context = buildContext(rootDir, {
     governance: { strictApprovalMode: true, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 }
   });
@@ -178,7 +178,7 @@ test("approval required for previews in strict mode", async () => {
 });
 
 test("audit does not log notes body", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-call-"));
   const context = buildContext(rootDir);
   await makeCallSkill.handler(
     { toNumber: "+15550002222", intent: "sales", notes: "PRIVATE_NOTE", dryRun: true },

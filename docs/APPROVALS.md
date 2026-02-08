@@ -1,6 +1,6 @@
 # Approval UX Modes
 
-This document defines approval modes for Jarvis OS. It is a specification only
+This document defines approval modes for SAFA OS. It is a specification only
 and does not implement any new behavior.
 
 ## Modes
@@ -20,9 +20,9 @@ plan hash. If the plan changes, approval must be re-issued.
 Recommended default: **Plan-hash approval**.
 
 ## CLI Contract Examples (Specification Only)
-- `jarvis plan "..."`
-- `jarvis exec "..." --approve-plan <hash>`
-- `jarvis exec "..." --approve` (legacy)
+- `safa plan "..."`
+- `safa exec "..." --approve-plan <hash>`
+- `safa exec "..." --approve` (legacy)
 
 ## Audit Logging Requirements
 All approval decisions must be logged in the append-only audit log with:

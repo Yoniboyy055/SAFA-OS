@@ -80,7 +80,7 @@ function buildContext(rootDir: string) {
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json")
+    configPath: path.join(rootDir, "safa.config.json")
   };
   return {
     actor: "tester",
@@ -94,7 +94,7 @@ function buildContext(rootDir: string) {
 }
 
 test("phase 13 business ops flows run with approval", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-phase13-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase13-"));
   const context = buildContext(rootDir);
   const intake = await runClientIntake(
     { clientName: "Acme", projectType: "roadmap" },

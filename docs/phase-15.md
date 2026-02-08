@@ -8,9 +8,9 @@
 
 ## Status
 ACTIVE. Live network requires explicit enablement:
-- `jarvis.config.json` network enabled + allowlists
+- `safa.config.json` network enabled + allowlists
 - network window opened (`net:open` or `activateNetworkWindow`)
-- `JARVIS_NETWORK_LIVE=1` for real I/O
+- `SAFA_NETWORK_LIVE=1` for real I/O
 
 Emergency rollback: close the window via `net:close`.
 

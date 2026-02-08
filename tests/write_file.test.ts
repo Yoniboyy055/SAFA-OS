@@ -66,7 +66,7 @@ function buildConfig(rootDir: string) {
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json")
+    configPath: path.join(rootDir, "safa.config.json")
   };
 }
 
@@ -83,7 +83,7 @@ function buildContext(rootDir: string) {
 }
 
 test("write_file rejects absolute paths", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-write-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-write-"));
   const context = buildContext(rootDir);
   const absolutePath = path.join(rootDir, "data", "abs.txt");
   assert.throws(() => {
@@ -95,7 +95,7 @@ test("write_file rejects absolute paths", () => {
 });
 
 test("write_file rejects traversal paths", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-write-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-write-"));
   const context = buildContext(rootDir);
   assert.throws(() => {
     writeFileSkill.handler(
@@ -106,8 +106,8 @@ test("write_file rejects traversal paths", () => {
 });
 
 test("write_file rejects symlink escapes", (t: any) => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-write-"));
-  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-outside-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-write-"));
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-outside-"));
   fs.mkdirSync(path.join(rootDir, "data"), { recursive: true });
   try {
     fs.symlinkSync(outsideDir, path.join(rootDir, "data", "escape"), "dir");
@@ -129,7 +129,7 @@ test("write_file rejects symlink escapes", (t: any) => {
 });
 
 test("write_file blocks protected directories and root files", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-write-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-write-"));
   const context = buildContext(rootDir);
   assert.throws(() => {
     writeFileSkill.handler(
@@ -146,7 +146,7 @@ test("write_file blocks protected directories and root files", () => {
 });
 
 test("write_file writes when approved", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-write-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-write-"));
   const context = buildContext(rootDir);
   const target = path.join(rootDir, "data", "note.txt");
   const result = writeFileSkill.handler(

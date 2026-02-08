@@ -40,7 +40,7 @@ import {
 import { redactSensitiveText } from "../core/sensitive";
 import { armVr, disarmVr, readVrState } from "../core/vr";
 import { parseCommandMode } from "../cli/command_mode";
-import { summarizeJarvisLine } from "../cli/jarvis_line";
+import { summarizeSAFALine } from "../cli/safa_line";
 
 const MAX_BODY_BYTES = 32 * 1024;
 const DEFAULT_PORT = 3777;
@@ -1180,7 +1180,7 @@ function renderDashboardUi(): string {
         <div class="zone hidden" data-zone="ops">
           <div class="card">
             <div class="label">Command Console (Governed)</div>
-            <textarea id="commandInput" rows="4" placeholder="JARVIS: STATUS"></textarea>
+            <textarea id="commandInput" rows="4" placeholder="SAFA: STATUS"></textarea>
             <div class="grid" style="margin-top:12px;">
               <div>
                 <label class="label">Mode</label>
@@ -1251,8 +1251,8 @@ function renderDashboardUi(): string {
     </section>
   </main>
   <script>
-    const chatSessionKey = "jarvas_chat_session";
-    const tokenStorageKey = "jarvas_owner_token";
+    const chatSessionKey = "safa_chat_session";
+    const tokenStorageKey = "safa_owner_token";
     function getChatSessionId() {
       const stored = localStorage.getItem(chatSessionKey);
       if (stored) {
@@ -1654,10 +1654,10 @@ function renderDashboardUi(): string {
     dryRunToggle.addEventListener("change", updateSendLabel);
     updateSendLabel();
     document.getElementById("freezeBtn").addEventListener("click", () => {
-      sendCommand('JARVIS: RUN freeze_system {"reason":"dashboard"}');
+      sendCommand('SAFA: RUN freeze_system {"reason":"dashboard"}');
     });
     document.getElementById("unfreezeBtn").addEventListener("click", () => {
-      sendCommand('JARVIS: RUN unfreeze_system {"reason":"dashboard"} --approve');
+      sendCommand('SAFA: RUN unfreeze_system {"reason":"dashboard"} --approve');
     });
     document.getElementById("vrArmBtn").addEventListener("click", () => {
       sendVrAction("/vr/arm");
@@ -1700,9 +1700,9 @@ function renderDashboardUi(): string {
     const reduceMotionToggle = document.getElementById("reduceMotionToggle");
     const highContrastToggle = document.getElementById("highContrastToggle");
     const largeTextToggle = document.getElementById("largeTextToggle");
-    const motionKey = "jarvas_reduce_motion";
-    const contrastKey = "jarvas_high_contrast";
-    const textKey = "jarvas_large_text";
+    const motionKey = "safa_reduce_motion";
+    const contrastKey = "safa_high_contrast";
+    const textKey = "safa_large_text";
     function applyAccessibility() {
       const reduceMotion = localStorage.getItem(motionKey) === "true";
       const highContrast = localStorage.getItem(contrastKey) === "true";
@@ -2707,7 +2707,7 @@ export function createDashboardServer(
           }
           let summary;
           try {
-            summary = summarizeJarvisLine(line);
+            summary = summarizeSAFALine(line);
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             audit.log({
@@ -3216,11 +3216,11 @@ export function startDashboardServer(
     redactKeys: config.audit.redactKeys
   });
   const actor = actorDefault;
-  const ownerToken = process.env.JARVIS_OWNER_TOKEN;
+  const ownerToken = process.env.SAFA_OWNER_TOKEN;
   const logger = console;
 
   if (!ownerToken) {
-    logger.error("DENIED: JARVIS_OWNER_TOKEN is required to start the dashboard.");
+    logger.error("DENIED: SAFA_OWNER_TOKEN is required to start the dashboard.");
     if (exit) {
       exit(1);
       throw new Error("__EXIT__:1");

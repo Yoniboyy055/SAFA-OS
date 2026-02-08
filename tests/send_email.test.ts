@@ -70,7 +70,7 @@ function buildConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
 }
@@ -89,7 +89,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
 }
 
 test("deny real send when network is disabled", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-email-"));
   const context = buildContext(rootDir, {
     email: {
       enabled: true,
@@ -126,7 +126,7 @@ test("deny real send when network is disabled", async () => {
 });
 
 test("allow dry-run when network is off (writes outbox)", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-email-"));
   const context = buildContext(rootDir, {
     email: {
       enabled: false,
@@ -162,7 +162,7 @@ test("allow dry-run when network is off (writes outbox)", async () => {
 });
 
 test("deny when recipient not allowlisted", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-email-"));
   const context = buildContext(rootDir, {
     email: {
       enabled: false,
@@ -191,7 +191,7 @@ test("deny when recipient not allowlisted", async () => {
 });
 
 test("deny when kill switch enabled", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-email-"));
   const context = buildContext(rootDir, {
     killSwitch: { enabled: true }
   });
@@ -211,7 +211,7 @@ test("deny when kill switch enabled", async () => {
 });
 
 test("real email send is blocked when Phase 7B is locked", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-email-"));
   const context = buildContext(rootDir, {
     email: {
       enabled: true,
@@ -248,7 +248,7 @@ test("real email send is blocked when Phase 7B is locked", async () => {
 });
 
 test("audit does not log smtp pass or full body", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-email-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-email-"));
   process.env.SMTP_PASS = "supersecret";
   const context = buildContext(rootDir, {
     governance: { strictApprovalMode: false, networkApprovalMode: "per_request", maxNetworkPayloadBytes: 16384 }

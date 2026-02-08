@@ -77,7 +77,7 @@ function buildConfig(rootDir: string) {
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json")
+    configPath: path.join(rootDir, "safa.config.json")
   };
 }
 
@@ -95,7 +95,7 @@ function buildContext(rootDir: string) {
 }
 
 test("client intake request creates artifact", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-biz-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-biz-"));
   const context = buildContext(rootDir);
   const result = requestClientIntakeSkill.handler(
     { clientName: "Acme", summary: "New project" },
@@ -105,7 +105,7 @@ test("client intake request creates artifact", () => {
 });
 
 test("negotiation script request creates artifact", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-biz-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-biz-"));
   const context = buildContext(rootDir);
   const result = requestNegotiationScriptSkill.handler(
     { counterpart: "Vendor", objective: "Renew contract" },
@@ -115,7 +115,7 @@ test("negotiation script request creates artifact", () => {
 });
 
 test("follow-up request creates artifact", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-biz-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-biz-"));
   const context = buildContext(rootDir);
   const result = requestFollowUpSkill.handler(
     { recipient: "Client", purpose: "Check-in" },

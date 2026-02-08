@@ -67,7 +67,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
   return {
@@ -82,7 +82,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
 }
 
 test("run_tests loads compiled test modules", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-run-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-run-"));
   const testsDir = path.join(rootDir, "dist", "tests");
   fs.mkdirSync(testsDir, { recursive: true });
   const testFile = path.join(testsDir, "sample.test.js");
@@ -99,7 +99,7 @@ test("run_tests loads compiled test modules", async () => {
 });
 
 test("run_tests respects kill switch", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-run-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-run-"));
   const testsDir = path.join(rootDir, "dist", "tests");
   fs.mkdirSync(testsDir, { recursive: true });
   const testFile = path.join(testsDir, "sample.test.js");
@@ -119,7 +119,7 @@ test("run_tests respects kill switch", async () => {
 });
 
 test("run_tests returns note when no test files exist", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-run-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-run-"));
   const result = await runTestsSkill.handler({}, buildContext(rootDir));
   assert.equal(result.loaded, 0);
   assert.ok(result.note);

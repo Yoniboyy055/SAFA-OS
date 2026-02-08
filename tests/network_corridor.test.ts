@@ -72,7 +72,7 @@ function buildConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
 }
@@ -106,7 +106,7 @@ function buildSkillContext(rootDir: string, overrides: Record<string, unknown> =
 }
 
 test("network disabled denies send_http_request", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const registry = new SkillRegistry();
   registry.register(sendHttpRequestSkill);
   const context = buildSkillContext(rootDir, {
@@ -128,7 +128,7 @@ test("network disabled denies send_http_request", async () => {
 });
 
 test("allowlist empty denies send_http_request", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const registry = new SkillRegistry();
   registry.register(sendHttpRequestSkill);
   const context = buildSkillContext(rootDir, {
@@ -150,7 +150,7 @@ test("allowlist empty denies send_http_request", async () => {
 });
 
 test("allowlisted domain + approval returns stub response", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const registry = new SkillRegistry();
   registry.register(sendHttpRequestSkill);
   const context = buildSkillContext(rootDir, {
@@ -173,7 +173,7 @@ test("allowlisted domain + approval returns stub response", async () => {
 });
 
 test("network disabled: governor denies and client throws", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const config = buildConfig(rootDir, {
     network: { ...buildConfig(rootDir).network, enabled: false }
   });
@@ -211,7 +211,7 @@ test("network disabled: governor denies and client throws", async () => {
 });
 
 test("network enabled but allowlistDomains empty => deny", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const config = buildConfig(rootDir, {
     network: {
       enabled: true,
@@ -241,7 +241,7 @@ test("network enabled but allowlistDomains empty => deny", () => {
 });
 
 test("strict approval mode denies when not approved", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const config = buildConfig(rootDir, {
     network: {
       enabled: true,
@@ -272,7 +272,7 @@ test("strict approval mode denies when not approved", () => {
 });
 
 test("approval required for outbound-intent requests", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const config = buildConfig(rootDir, {
     network: {
       enabled: true,
@@ -306,7 +306,7 @@ test("approval required for outbound-intent requests", () => {
 });
 
 test("payload limits deny oversized requests", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const config = buildConfig(rootDir, {
     network: {
       enabled: true,
@@ -343,7 +343,7 @@ test("payload limits deny oversized requests", async () => {
 });
 
 test("kill switch blocks network corridor", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const config = buildConfig(rootDir, {
     network: {
       enabled: true,
@@ -420,7 +420,7 @@ test("allowlist urls require exact match", () => {
 });
 
 test("allowlisted domain executes only with approval", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const config = buildConfig(rootDir, {
     network: {
       enabled: true,
@@ -449,7 +449,7 @@ test("allowlisted domain executes only with approval", async () => {
 });
 
 test("allowlisted domain denied without approval", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const config = buildConfig(rootDir, {
     network: {
       enabled: true,
@@ -479,7 +479,7 @@ test("allowlisted domain denied without approval", async () => {
 });
 
 test("audit redaction prevents authorization/cookie leakage", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-net-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-net-"));
   const logPath = path.join(rootDir, "audit.log");
   const logger = new AuditLogger({ logPath, redactKeys: [] });
 

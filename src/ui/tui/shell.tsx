@@ -4,7 +4,7 @@ import { BootScreen } from "./boot";
 import { CommandPalette, type PaletteCommand } from "./palette";
 import { ThemeProvider, getReducedMotion, useTheme } from "./theme";
 import { ToastProvider, useToasts } from "./toasts";
-import { JarvisApi, type StatusSnapshot } from "./adapters/jarvis_api";
+import { SAFAApi, type StatusSnapshot } from "./adapters/safa_api";
 import { HomeScreen } from "./screens/HomeScreen";
 import { ApprovalsScreen } from "./screens/ApprovalsScreen";
 import { AuditScreen } from "./screens/AuditScreen";
@@ -92,7 +92,7 @@ function ShellLayout(props: { configPath?: string; actor: string }) {
   const { theme, cycleTheme } = useTheme();
   const { pushToast } = useToasts();
   const api = useMemo(
-    () => new JarvisApi({ configPath: props.configPath, actor: props.actor }),
+    () => new SAFAApi({ configPath: props.configPath, actor: props.actor }),
     [props.configPath, props.actor]
   );
 
@@ -174,7 +174,7 @@ function ShellLayout(props: { configPath?: string; actor: string }) {
         title: "Safe: run_tests",
         description: "Run tests (approved)",
         run: async () => {
-          const result = await api.runLine("JARVIS: RUN run_tests {} --approve");
+          const result = await api.runLine("SAFA: RUN run_tests {} --approve");
           setLastAction("run_tests executed.");
           if (result.exitCode === 0) {
             pushToast("success", "run_tests completed.");
@@ -188,7 +188,7 @@ function ShellLayout(props: { configPath?: string; actor: string }) {
         title: "Safe: list skills",
         description: "List registered skills",
         run: async () => {
-          const result = await api.runLine("JARVIS: SKILLS");
+          const result = await api.runLine("SAFA: SKILLS");
           setLastAction("Skills listed.");
           if (result.exitCode === 0) {
             pushToast("success", "Skills listed.");

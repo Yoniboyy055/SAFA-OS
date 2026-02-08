@@ -100,8 +100,8 @@ function summarizeMessages(messages: LlmMessage[]): string {
 }
 
 function requireLiveNetwork(): void {
-  if (process.env.JARVIS_NETWORK_LIVE !== "1") {
-    throw new Error("Live network disabled. Set JARVIS_NETWORK_LIVE=1 to enable.");
+  if (process.env.SAFA_NETWORK_LIVE !== "1") {
+    throw new Error("Live network disabled. Set SAFA_NETWORK_LIVE=1 to enable.");
   }
 }
 

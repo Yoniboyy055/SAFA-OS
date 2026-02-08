@@ -27,7 +27,7 @@ const DENY_DIRECTORIES = new Set([
 const DENY_ROOT_FILES = new Set([
   "package.json",
   "tsconfig.json",
-  "jarvis.config.json",
+  "safa.config.json",
   "README.md"
 ]);
 

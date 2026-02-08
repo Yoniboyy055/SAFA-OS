@@ -7,7 +7,7 @@ export interface Packet {
   createdAt: string;
   mode?: string;
   payload?: Record<string, unknown>;
-  jarvisLine?: string;
+  safaLine?: string;
 }
 
 function hashValue(value: string): string {
@@ -25,7 +25,7 @@ export function createPacket(
     createdAt,
     mode: input.mode,
     payload: input.payload,
-    jarvisLine: input.jarvisLine
+    safaLine: input.safaLine
   };
   const dir = path.join(rootDir, "data", "packets");
   fs.mkdirSync(dir, { recursive: true });

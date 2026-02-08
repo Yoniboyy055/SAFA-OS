@@ -1,4 +1,4 @@
-# SPEC v1 — Jarvis OS (Governed)
+# SPEC v1 — SAFA OS (Governed)
 
 ## Target Stack
 Pick ONE later (Cursor phase):
@@ -7,7 +7,7 @@ Pick ONE later (Cursor phase):
 
 ## Phase 0 — Scaffolding (local-only)
 Deliverables:
-- CLI entrypoint (jarvis)
+- CLI entrypoint (safa)
 - Config system (yaml/json)
 - Audit logger (append-only)
 - Skills registry interface (no network skills)

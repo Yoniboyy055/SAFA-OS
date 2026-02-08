@@ -7,5 +7,5 @@ test("voice parser extracts plan text", () => {
   const parsed = parseVoiceTranscript("plan launch checklist");
   assert.equal(parsed.intent, "plan");
   assert.equal(parsed.commandText, "launch checklist");
-  assert.ok(parsed.suggestedLine.includes("JARVIS: PLAN"));
+  assert.ok(parsed.suggestedLine.includes("SAFA: PLAN"));
 });

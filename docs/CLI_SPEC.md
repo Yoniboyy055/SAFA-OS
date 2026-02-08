@@ -1,29 +1,29 @@
 # CLI Contract Specification
 
-This document defines the CLI commands and expected outputs for Jarvis OS.
+This document defines the CLI commands and expected outputs for SAFA OS.
 Specification only — no new CLI commands are implemented here.
 
 ## Commands
 
-### `jarvis skills`
+### `safa skills`
 Output:
 - JSON array of available skills and metadata.
 
-### `jarvis plan "<task>"`
+### `safa plan "<task>"`
 Output:
 - JSON plan object containing steps, stress tests, and assumptions.
 
-### `jarvis exec "<task>"`
+### `safa exec "<task>"`
 Requirements:
 - Approval is required (strict approval mode).
 Output:
 - JSON object containing the plan and execution results.
 
-### `jarvis audit tail [--n 50]`
+### `safa audit tail [--n 50]`
 Output:
 - The most recent N audit log entries (default 50).
 
-### `jarvis config show`
+### `safa config show`
 Output:
 - The current resolved configuration.
 

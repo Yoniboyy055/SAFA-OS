@@ -1,6 +1,6 @@
 import * as crypto from "node:crypto";
 
-export interface ParsedJarvisLine {
+export interface ParsedSAFALine {
   argv: string[];
   command: string;
   inputHash: string;
@@ -133,19 +133,19 @@ function consumeFlag(
   return { present: true, value };
 }
 
-export function parseJarvisLine(line: string): string[] {
+export function parseSAFALine(line: string): string[] {
   const trimmed = line.trim();
-  if (!/^jarvis:/i.test(trimmed)) {
-    throw new Error("Line must start with JARVIS: prefix.");
+  if (!/^safa:/i.test(trimmed)) {
+    throw new Error("Line must start with SAFA: prefix.");
   }
-  const body = trimmed.replace(/^jarvis:/i, "").trim();
+  const body = trimmed.replace(/^safa:/i, "").trim();
   if (!body) {
-    throw new Error("Missing JARVIS command.");
+    throw new Error("Missing SAFA command.");
   }
   const tokens = tokenize(body);
   const primary = tokens.shift();
   if (!primary) {
-    throw new Error("Missing JARVIS command.");
+    throw new Error("Missing SAFA command.");
   }
 
   const command = primary.toUpperCase();
@@ -289,11 +289,11 @@ export function parseJarvisLine(line: string): string[] {
     throw new Error(`Unknown packet subcommand: ${sub}`);
   }
 
-  throw new Error(`Unknown JARVIS command: ${command}`);
+  throw new Error(`Unknown SAFA command: ${command}`);
 }
 
-export function summarizeJarvisLine(line: string): ParsedJarvisLine {
-  const argv = parseJarvisLine(line);
+export function summarizeSAFALine(line: string): ParsedSAFALine {
+  const argv = parseSAFALine(line);
   return {
     argv,
     command: argv[0] ?? "unknown",

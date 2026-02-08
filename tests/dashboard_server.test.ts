@@ -7,16 +7,16 @@ const path = require("path");
 const { startDashboardServer } = require("../src/dashboard/server");
 
 function writeConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
-  const configPath = path.join(rootDir, "jarvis.config.json");
+  const configPath = path.join(rootDir, "safa.config.json");
   fs.writeFileSync(configPath, JSON.stringify(overrides, null, 2));
   return configPath;
 }
 
 test("dashboard start requires owner token", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-dashboard-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-dashboard-"));
   const configPath = writeConfig(rootDir, {});
-  const previous = process.env.JARVIS_OWNER_TOKEN;
-  delete process.env.JARVIS_OWNER_TOKEN;
+  const previous = process.env.SAFA_OWNER_TOKEN;
+  delete process.env.SAFA_OWNER_TOKEN;
   let exitCode: number | undefined;
   try {
     await startDashboardServer(["--config", configPath, "--port", "0"], {
@@ -30,16 +30,16 @@ test("dashboard start requires owner token", async () => {
     }
   } finally {
     if (previous !== undefined) {
-      process.env.JARVIS_OWNER_TOKEN = previous;
+      process.env.SAFA_OWNER_TOKEN = previous;
     }
   }
   assert.equal(exitCode, 1);
 });
 
 test("dashboard denies start when kill switch is off", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-dashboard-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-dashboard-"));
   const configPath = writeConfig(rootDir, { killSwitch: { enabled: false } });
-  process.env.JARVIS_OWNER_TOKEN = "token";
+  process.env.SAFA_OWNER_TOKEN = "token";
   let exitCode: number | undefined;
   try {
     await startDashboardServer(["--config", configPath, "--port", "0"], {
@@ -55,9 +55,9 @@ test("dashboard denies start when kill switch is off", async () => {
   assert.equal(exitCode, 1);
 });
 test("dashboard can start with kill switch enabled", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-dashboard-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-dashboard-"));
   const configPath = writeConfig(rootDir, { killSwitch: { enabled: true } });
-  process.env.JARVIS_OWNER_TOKEN = "token";
+  process.env.SAFA_OWNER_TOKEN = "token";
   const server = await startDashboardServer({ configPath, port: 0 });
   const address = server.address();
   if (address && typeof address === "object") {

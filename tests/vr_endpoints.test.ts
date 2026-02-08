@@ -9,7 +9,7 @@ const { loadConfig } = require("../src/core/config");
 const { createDashboardServer } = require("../src/dashboard/server");
 
 function writeConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
-  const configPath = path.join(rootDir, "jarvis.config.json");
+  const configPath = path.join(rootDir, "safa.config.json");
   fs.writeFileSync(configPath, JSON.stringify(overrides, null, 2));
   return loadConfig(configPath);
 }
@@ -65,7 +65,7 @@ async function withServer(
 }
 
 test("vr status returns enabled and disarmed", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-vr-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-vr-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
     const response = await request("GET", "/vr/status", port);
@@ -76,10 +76,10 @@ test("vr status returns enabled and disarmed", async () => {
 });
 
 test("vr arm requires env, approval, and override", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-vr-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-vr-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
-  const previous = process.env.JARVIS_VR_ARMED;
-  delete process.env.JARVIS_VR_ARMED;
+  const previous = process.env.SAFA_VR_ARMED;
+  delete process.env.SAFA_VR_ARMED;
   await withServer(config, async (port) => {
     const denied = await request(
       "POST",
@@ -91,10 +91,10 @@ test("vr arm requires env, approval, and override", async () => {
     assert.equal(denied.body.denied, true);
     assert.match(
       denied.body.reason,
-      /override|vr hardware|disarmed|JARVIS_VR_ARMED/i
+      /override|vr hardware|disarmed|SAFA_VR_ARMED/i
     );
 
-    process.env.JARVIS_VR_ARMED = "1";
+    process.env.SAFA_VR_ARMED = "1";
     const missingOverride = await request(
       "POST",
       "/vr/arm",
@@ -126,8 +126,8 @@ test("vr arm requires env, approval, and override", async () => {
     assert.equal(disarm.body.state.armed, false);
   });
   if (previous !== undefined) {
-    process.env.JARVIS_VR_ARMED = previous;
+    process.env.SAFA_VR_ARMED = previous;
   } else {
-    delete process.env.JARVIS_VR_ARMED;
+    delete process.env.SAFA_VR_ARMED;
   }
 });

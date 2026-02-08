@@ -73,8 +73,8 @@ test("missing approve fails for HIGH skill", async () => {
 });
 
 test("kill switch blocks run_packet even if execution enabled", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-gates-"));
-  const configPath = path.join(rootDir, "jarvis.config.json");
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-gates-"));
+  const configPath = path.join(rootDir, "safa.config.json");
   fs.writeFileSync(
     configPath,
     JSON.stringify(

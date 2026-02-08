@@ -71,7 +71,7 @@ function buildConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json"),
+    configPath: path.join(rootDir, "safa.config.json"),
     ...overrides
   };
 }

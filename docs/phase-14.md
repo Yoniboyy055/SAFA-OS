@@ -12,5 +12,5 @@ Audio capture remains disabled. Phone access is documented in
 `docs/architecture/phone-access.md`.
 
 CLI entry points:
-- `jarvis voice:parse`
-- `jarvis voice:replay`
+- `safa voice:parse`
+- `safa voice:replay`

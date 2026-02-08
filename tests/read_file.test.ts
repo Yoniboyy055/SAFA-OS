@@ -66,7 +66,7 @@ function buildConfig(rootDir: string) {
       callTemplateAllowlist: []
     },
     rootDir,
-    configPath: path.join(rootDir, "jarvis.config.json")
+    configPath: path.join(rootDir, "safa.config.json")
   };
 }
 
@@ -83,7 +83,7 @@ function buildContext(rootDir: string) {
 }
 
 test("read_file rejects absolute paths", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-read-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-read-"));
   const absolutePath = path.join(rootDir, "data.txt");
   fs.writeFileSync(absolutePath, "data");
   const context = buildContext(rootDir);
@@ -93,7 +93,7 @@ test("read_file rejects absolute paths", () => {
 });
 
 test("read_file rejects traversal paths", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-read-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-read-"));
   const context = buildContext(rootDir);
   assert.throws(() => {
     readFileSkill.handler({ path: "../outside.txt" }, context);
@@ -101,8 +101,8 @@ test("read_file rejects traversal paths", () => {
 });
 
 test("read_file rejects symlink escapes", (t: any) => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-read-"));
-  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-outside-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-read-"));
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-outside-"));
   fs.writeFileSync(path.join(outsideDir, "secret.txt"), "secret");
   fs.mkdirSync(path.join(rootDir, "data"), { recursive: true });
   try {
@@ -122,7 +122,7 @@ test("read_file rejects symlink escapes", (t: any) => {
 });
 
 test("read_file blocks .env files", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-read-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-read-"));
   fs.writeFileSync(path.join(rootDir, ".env"), "SECRET=1");
   const context = buildContext(rootDir);
   assert.throws(() => {

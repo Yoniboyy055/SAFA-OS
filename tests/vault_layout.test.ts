@@ -7,7 +7,7 @@ const path = require("path");
 const { ensureVaultLayout } = require("../src/core/vault_layout");
 
 test("vault layout creates expected directories", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-vault-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-vault-"));
   const layout = ensureVaultLayout(rootDir);
   assert.ok(fs.existsSync(layout.dataDir));
   assert.ok(fs.existsSync(layout.memoryDir));

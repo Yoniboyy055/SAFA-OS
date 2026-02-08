@@ -64,7 +64,7 @@ const baseConfig = {
     callTemplateAllowlist: []
   },
   rootDir: "/tmp",
-  configPath: "/tmp/jarvis.config.json"
+  configPath: "/tmp/safa.config.json"
 };
 
 test("governor blocks outbound when kill switch enabled", () => {

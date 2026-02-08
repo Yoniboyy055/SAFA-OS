@@ -9,7 +9,7 @@ const { AuditLogger } = require("../src/core/audit");
 const { createApprovalRequest, approveRequest } = require("../src/core/approvals");
 
 test("approval queue store persists pending and approved records", () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-approval-queue-"));
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-approval-queue-"));
   const audit = new AuditLogger({
     logPath: path.join(rootDir, "logs", "audit.log"),
     redactKeys: []

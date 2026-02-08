@@ -6,7 +6,7 @@ Status:
 
 ## Arming rules
 VR hardware access requires:
-- `JARVIS_VR_ARMED="1"` environment variable
+- `SAFA_VR_ARMED="1"` environment variable
 - Owner token
 - `authority: OWNER`
 - `approve: true`

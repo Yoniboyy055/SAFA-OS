@@ -11,7 +11,7 @@ This is documentation only. No auto‑enable.
    ```
 
 ## Token-based Auth
-- Set `JARVIS_OWNER_TOKEN` on the host.
+- Set `SAFA_OWNER_TOKEN` on the host.
 - Send `X-Owner-Token` for `POST /command`.
 
 ## Phone Capabilities (Local Only)

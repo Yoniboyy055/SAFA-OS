@@ -35,8 +35,8 @@ export function readVrState(rootDir: string): VrState {
 }
 
 export function assertVrEnvArmed(): void {
-  if (process.env.JARVIS_VR_ARMED !== "1") {
-    throw new Error("VR hardware is disarmed. Set JARVIS_VR_ARMED=1 to arm.");
+  if (process.env.SAFA_VR_ARMED !== "1") {
+    throw new Error("VR hardware is disarmed. Set SAFA_VR_ARMED=1 to arm.");
   }
 }
 
