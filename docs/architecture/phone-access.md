@@ -10,9 +10,11 @@ This is documentation only. No auto‑enable.
    tailscale ssh user@host -- -L 3777:127.0.0.1:3777
    ```
 
-## Token-based Auth
+## PIN + Cookie Auth
 - Set `SAFA_OWNER_TOKEN` on the host.
-- Send `X-Owner-Token` for `POST /command`.
+- Set `SAFA_PIN` (defaults to `1234` if unset).
+- Call `POST /auth/unlock` with the PIN to receive an httpOnly session cookie.
+- Use the cookie for `POST /command` and `POST /chat`.
 
 ## Phone Capabilities (Local Only)
 - View status (`GET /status`)

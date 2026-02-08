@@ -49,6 +49,36 @@ function request(
   });
 }
 
+async function unlock(port: number, pin: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        hostname: "127.0.0.1",
+        port,
+        path: "/auth/unlock",
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      },
+      (res: any) => {
+        res.on("data", () => undefined);
+        res.on("end", () => {
+          const cookie = res.headers["set-cookie"];
+          if (Array.isArray(cookie)) {
+            resolve(cookie[0]);
+          } else if (cookie) {
+            resolve(cookie);
+          } else {
+            reject(new Error("Missing Set-Cookie on unlock."));
+          }
+        });
+      }
+    );
+    req.on("error", reject);
+    req.write(JSON.stringify({ pin }));
+    req.end();
+  });
+}
+
 async function withServer(
   config: ReturnType<typeof writeConfig>,
   handler: (port: number) => Promise<void>
@@ -68,7 +98,8 @@ test("vr status returns enabled and disarmed", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-vr-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
-    const response = await request("GET", "/vr/status", port);
+    const cookie = await unlock(port, "1234");
+    const response = await request("GET", "/vr/status", port, { Cookie: cookie });
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.enabled, true);
     assert.equal(response.body.armed, false);
@@ -81,11 +112,12 @@ test("vr arm requires env, approval, and override", async () => {
   const previous = process.env.SAFA_VR_ARMED;
   delete process.env.SAFA_VR_ARMED;
   await withServer(config, async (port) => {
+    const cookie = await unlock(port, "1234");
     const denied = await request(
       "POST",
       "/vr/arm",
       port,
-      { "X-Owner-Token": "token" },
+      { Cookie: cookie },
       { mode: "SCRIPT", authority: "OWNER", approve: true }
     );
     assert.equal(denied.body.denied, true);
@@ -99,7 +131,7 @@ test("vr arm requires env, approval, and override", async () => {
       "POST",
       "/vr/arm",
       port,
-      { "X-Owner-Token": "token" },
+      { Cookie: cookie },
       { mode: "SCRIPT", authority: "OWNER", approve: true }
     );
     assert.equal(missingOverride.body.denied, true);
@@ -109,7 +141,7 @@ test("vr arm requires env, approval, and override", async () => {
       "POST",
       "/vr/arm",
       port,
-      { "X-Owner-Token": "token" },
+      { Cookie: cookie },
       { mode: "SCRIPT", authority: "OWNER", approve: true, overrideKillSwitch: true }
     );
     assert.equal(allowed.body.ok, true);
@@ -119,7 +151,7 @@ test("vr arm requires env, approval, and override", async () => {
       "POST",
       "/vr/disarm",
       port,
-      { "X-Owner-Token": "token" },
+      { Cookie: cookie },
       { mode: "SCRIPT", authority: "OWNER", approve: true }
     );
     assert.equal(disarm.body.ok, true);

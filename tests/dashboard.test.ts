@@ -7,7 +7,7 @@ const path = require("node:path");
 const { createDashboardServer } = require("../src/dashboard/server");
 
 async function startServer(configPath: string) {
-  const server = createDashboardServer({ configPath, actorDefault: "tester" });
+  const server = createDashboardServer({ configPath, actorDefault: "tester", ownerToken: "token" });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   const port = address && typeof address === "object" ? address.port : 0;
@@ -36,14 +36,31 @@ async function api(
   port: number,
   method: string,
   pathName: string,
-  payload?: unknown
+  payload?: unknown,
+  cookie?: string
 ) {
   const res = await fetch(`http://127.0.0.1:${port}${pathName}`, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(cookie ? { Cookie: cookie } : {})
+    },
     body: payload ? JSON.stringify(payload) : undefined
   });
   return readJson(res);
+}
+
+async function unlock(port: number, pin: string): Promise<string> {
+  const res = await fetch(`http://127.0.0.1:${port}/auth/unlock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin })
+  });
+  const cookie = res.headers.get("set-cookie");
+  if (!cookie) {
+    throw new Error("Missing Set-Cookie on unlock.");
+  }
+  return cookie;
 }
 
 test("dashboard api enforces approval and redaction", async () => {
@@ -67,11 +84,12 @@ test("dashboard api enforces approval and redaction", async () => {
   const { server, port } = await startServer(configPath);
 
   try {
-    const state = await api(port, "GET", "/api/state");
+    const cookie = await unlock(port, "1234");
+    const state = await api(port, "GET", "/api/state", undefined, cookie);
     assert.equal(state.networkEnabled, false);
     assert.equal(state.strictApprovalMode, true);
 
-    const skills = await api(port, "GET", "/api/skills");
+    const skills = await api(port, "GET", "/api/skills", undefined, cookie);
     assert.ok(Array.isArray(skills.skills));
     assert.ok(skills.skills.find((skill: { name: string }) => skill.name === "read_file"));
 
@@ -80,7 +98,7 @@ test("dashboard api enforces approval and redaction", async () => {
       input: { path: "sample.txt", token: "SECRET" },
       approve: false,
       actor: "tester"
-    });
+    }, cookie);
     assert.equal(pending.status, "PENDING_APPROVAL");
     assert.ok(pending.approvalId);
 
@@ -88,7 +106,7 @@ test("dashboard api enforces approval and redaction", async () => {
       approvalId: pending.approvalId,
       decision: "APPROVE",
       actor: "tester"
-    });
+    }, cookie);
     assert.equal(approved.status, "APPROVED");
 
     const runResult = await api(port, "POST", "/api/run", {
@@ -97,11 +115,11 @@ test("dashboard api enforces approval and redaction", async () => {
       approve: true,
       approvalId: pending.approvalId,
       actor: "tester"
-    });
+    }, cookie);
     assert.equal(runResult.status, "OK");
     assert.equal(runResult.output.content, "hello");
 
-    const executions = await api(port, "GET", "/api/executions?limit=5");
+    const executions = await api(port, "GET", "/api/executions?limit=5", undefined, cookie);
     assert.ok(Array.isArray(executions.executions));
     assert.ok(executions.executions.length > 0);
 
@@ -109,10 +127,10 @@ test("dashboard api enforces approval and redaction", async () => {
       enabled: true,
       approve: true,
       actor: "tester"
-    });
+    }, cookie);
     assert.ok(network.error);
 
-    const audit = await api(port, "GET", "/api/audit/tail?limit=10");
+    const audit = await api(port, "GET", "/api/audit/tail?limit=10", undefined, cookie);
     assert.ok(Array.isArray(audit.events));
     assert.ok(audit.events.length > 0);
     const auditText = JSON.stringify(audit.events);

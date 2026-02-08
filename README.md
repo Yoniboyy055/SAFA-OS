@@ -199,11 +199,13 @@ mode or skill risk demands it. Network stays OFF by default.
 
 Startup hardening:
 - Requires `SAFA_OWNER_TOKEN` to start.
+- Requires `SAFA_PIN` (defaults to `1234` if unset).
 - Requires kill switch **ON** at start (safe mode).
 
 Extra local endpoints:
-- `POST /chat` (owner token required)
-- `POST /command` (owner token required)
+- `POST /auth/unlock` (PIN unlock, sets httpOnly cookie)
+- `POST /chat` (PIN unlock required)
+- `POST /command` (PIN unlock required)
 - `GET /vr/status`, `POST /vr/arm`, `POST /vr/disarm`
 
 ## Desktop Shell (Electron)

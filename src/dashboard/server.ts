@@ -14,8 +14,9 @@ import { Operator } from "../core/operator";
 import { buildRegistry } from "../skills/registry_factory";
 import type { SkillDefinition } from "../types/skill";
 import { AuthorityLevel } from "../core/authority";
-import type { CostTier, Mode, RiskTier } from "../core/llm/types";
-import { listAllModels } from "../core/llm/registry";
+import type { CostTier, Mode, RiskTier, LlmMessage } from "../core/llm/types";
+import { getModel, listAllModels } from "../core/llm/registry";
+import { getProvider } from "../core/llm/providers";
 import { routeModel } from "../core/llm/router";
 import {
   approveRequest,
@@ -49,6 +50,9 @@ const STATIC_ROOT = path.resolve(__dirname, "..", "..", "dashboard");
 const DEFAULT_ROUTER_MODE: Mode = "auto";
 const DEFAULT_ROUTER_MODEL = "gpt-4o-mini";
 const DEFAULT_ROUTER_PROVIDER = "openai";
+const PIN_DEFAULT = "1234";
+const SESSION_COOKIE = "safa_session";
+const SESSION_TTL_MS = 1000 * 60 * 60 * 8;
 
 interface RuntimeOverrides {
   killSwitchEnabled?: boolean;
@@ -96,6 +100,76 @@ function resolveHeaderValue(value: string | string[] | undefined): string | unde
     return value.trim();
   }
   return undefined;
+}
+
+function resolvePin(): string {
+  const raw = process.env.SAFA_PIN;
+  return raw && raw.trim().length > 0 ? raw.trim() : PIN_DEFAULT;
+}
+
+function isNetworkLiveDisabled(): boolean {
+  return (process.env.SAFA_NETWORK_LIVE ?? "0") === "0";
+}
+
+function isLocalAddress(address?: string | null): boolean {
+  if (!address) {
+    return false;
+  }
+  if (address === "127.0.0.1" || address === "::1") {
+    return true;
+  }
+  return address.startsWith("::ffff:127.0.0.1");
+}
+
+function parseCookies(header?: string): Record<string, string> {
+  if (!header) {
+    return {};
+  }
+  return header.split(";").reduce<Record<string, string>>((acc, part) => {
+    const [rawKey, ...rest] = part.trim().split("=");
+    if (!rawKey) {
+      return acc;
+    }
+    acc[rawKey] = rest.join("=") || "";
+    return acc;
+  }, {});
+}
+
+function signValue(value: string, secret: string): string {
+  return crypto.createHmac("sha256", secret).update(value).digest("base64url");
+}
+
+function createSessionCookie(secret: string): string {
+  const issuedAt = Date.now();
+  const payload = {
+    iat: issuedAt,
+    exp: issuedAt + SESSION_TTL_MS
+  };
+  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const signature = signValue(encoded, secret);
+  return `${encoded}.${signature}`;
+}
+
+function isSessionValid(cookieValue: string | undefined, secret: string): boolean {
+  if (!cookieValue) {
+    return false;
+  }
+  const [encoded, signature] = cookieValue.split(".");
+  if (!encoded || !signature) {
+    return false;
+  }
+  if (signValue(encoded, secret) !== signature) {
+    return false;
+  }
+  try {
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+    if (typeof payload?.exp !== "number") {
+      return false;
+    }
+    return Date.now() <= payload.exp;
+  } catch {
+    return false;
+  }
 }
 
 function resolveAuthority(value?: string): AuthorityLevel | undefined {
@@ -530,7 +604,7 @@ type ChatIntent =
   | { type: "execute"; skill: string; input: Record<string, unknown> }
   | { type: "approve_pending" }
   | { type: "cancel_pending" }
-  | { type: "unknown"; message: string };
+  | { type: "model" };
 
 interface ChatSessionState {
   pending?: {
@@ -650,18 +724,10 @@ function classifyChatIntent(message: string, pending?: ChatSessionState["pending
     };
   }
   if (lowered.includes("calendar")) {
-    return {
-      type: "unknown",
-      message:
-        "I don't have calendar access. I can proceed if you enable a read-only calendar integration."
-    };
+    return { type: "model" };
   }
 
-  return {
-    type: "unknown",
-    message:
-      "I can help plan, list files, search, or read files. What would you like to work on?"
-  };
+  return { type: "model" };
 }
 
 function hashChatText(value: string): string {
@@ -682,13 +748,175 @@ function formatChatOutput(output: unknown): string {
   return "Action completed. Output is available in the operator console.";
 }
 
+async function generateChatModelReply(
+  text: string,
+  defaults: RouterDefaults,
+  audit: AuditLogger,
+  actor: string,
+  sessionId: string,
+  redactKeys: string[]
+): Promise<{ message: string; modelUsed: string }> {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY missing");
+  }
+  const routerInput = normalizeRouterInput({}, defaults, text);
+  const policy = routeModel(routerInput);
+  const provider = getProvider(policy.model.provider);
+  if (!provider) {
+    throw new Error(`Provider ${policy.model.provider} is not configured.`);
+  }
+  const modelSpec = getModel(policy.model.provider as "openai", policy.model.id);
+  if (!modelSpec) {
+    throw new Error("Model not available.");
+  }
+  const messages: LlmMessage[] = [
+    {
+      role: "system",
+      content:
+        "You are SAFA OS. Provide direct, factual, neutral responses. Avoid anthropomorphic language or emotional claims."
+    },
+    { role: "user", content: text }
+  ];
+  const output = await provider.call({
+    model: modelSpec,
+    messages,
+    temperature: 0.7,
+    maxTokens: 500
+  });
+  const redaction = redactSensitiveText(output.text ?? "", {
+    allowPii: false,
+    redactKeys
+  });
+  audit.log({
+    timestamp: new Date().toISOString(),
+    actor,
+    action: "dashboard.chat.model",
+    approved: false,
+    target: `${policy.model.provider}:${policy.model.id}`,
+    result: JSON.stringify({
+      sessionId,
+      preview: redaction.redactedText.slice(0, 160),
+      redacted: redaction.redacted
+    })
+  });
+  return {
+    message: output.text?.trim() || "No output.",
+    modelUsed: `${policy.model.provider}:${policy.model.id}`
+  };
+}
+
+function renderPinLockUi(): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAFA OS Lock</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: "Segoe UI", "Inter", system-ui, sans-serif;
+      background: radial-gradient(circle at top, #111827 0%, #030712 60%);
+      color: #e2e8f0;
+    }
+    .lock-card {
+      width: min(420px, 90vw);
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      display: grid;
+      gap: 16px;
+    }
+    .lock-title {
+      font-size: 20px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .lock-subtitle {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+    .lock-input {
+      display: grid;
+      gap: 8px;
+    }
+    input[type="password"] {
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      background: rgba(2, 6, 23, 0.8);
+      color: #e2e8f0;
+      font-size: 16px;
+    }
+    button {
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: none;
+      background: #2563eb;
+      color: #f8fafc;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .error {
+      color: #fca5a5;
+      font-size: 13px;
+      min-height: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="lock-card" id="pin-screen">
+    <div class="lock-title">PIN Lock</div>
+    <div class="lock-subtitle">Enter PIN to unlock SAFA OS.</div>
+    <div class="lock-input">
+      <label for="pinInput">PIN</label>
+      <input id="pinInput" type="password" placeholder="Enter PIN" autocomplete="off" />
+    </div>
+    <button id="unlockBtn">Unlock</button>
+    <div class="error" id="lockError"></div>
+  </div>
+  <script>
+    const button = document.getElementById("unlockBtn");
+    const input = document.getElementById("pinInput");
+    const error = document.getElementById("lockError");
+    async function unlock() {
+      const pin = input.value.trim();
+      error.textContent = "";
+      const res = await fetch("/auth/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin })
+      });
+      if (res.ok) {
+        window.location.href = "/";
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      error.textContent = data?.reason || "Unauthorized.";
+    }
+    button.addEventListener("click", unlock);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        unlock();
+      }
+    });
+  </script>
+</body>
+</html>`;
+}
+
 function renderDashboardUi(): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JARVAS OS</title>
+  <title>SAFA OS</title>
   <style>
     body {
       font-family: "Segoe UI", "Inter", system-ui, sans-serif;
@@ -1015,7 +1243,7 @@ function renderDashboardUi(): string {
   <header>
     <div class="header-row">
       <div>
-        <h1>JARVAS OS</h1>
+        <h1>SAFA OS</h1>
         <div class="subtitle">Governed Command Center</div>
       </div>
       <div style="display:flex; gap:12px; align-items:center;">
@@ -1038,7 +1266,6 @@ function renderDashboardUi(): string {
         <div class="chat-feed" id="chatFeed"></div>
         <div class="chat-input">
           <input id="chatInput" placeholder="What would you like to work on?" />
-          <input id="chatToken" type="password" placeholder="Owner Token" style="max-width:180px;" />
           <button id="chatSendBtn">Send</button>
         </div>
       </div>
@@ -1207,10 +1434,6 @@ function renderDashboardUi(): string {
                 <input type="checkbox" id="dryRunCheck" checked />
               </div>
               <div>
-                <label class="label">Owner Token</label>
-                <input type="password" id="tokenInput" placeholder="X-Owner-Token" />
-              </div>
-              <div>
                 <label class="label">Evidence Mode</label>
                 <input type="checkbox" id="evidenceCheck" checked />
               </div>
@@ -1252,7 +1475,6 @@ function renderDashboardUi(): string {
   </main>
   <script>
     const chatSessionKey = "safa_chat_session";
-    const tokenStorageKey = "safa_owner_token";
     function getChatSessionId() {
       const stored = localStorage.getItem(chatSessionKey);
       if (stored) {
@@ -1266,15 +1488,6 @@ function renderDashboardUi(): string {
       if (value) {
         localStorage.setItem(chatSessionKey, value);
       }
-    }
-    function cacheOwnerToken(value) {
-      if (value) {
-        localStorage.setItem(tokenStorageKey, value);
-      }
-    }
-    function resolveOwnerToken() {
-      const stored = localStorage.getItem(tokenStorageKey);
-      return stored || "";
     }
     function appendChatMessage(text, role) {
       const feed = document.getElementById("chatFeed");
@@ -1525,11 +1738,6 @@ function renderDashboardUi(): string {
     }
     async function sendChatMessage() {
       const input = document.getElementById("chatInput");
-      const tokenField = document.getElementById("chatToken");
-      const tokenInput = tokenField.value.trim();
-      const fallbackToken = document.getElementById("tokenInput").value.trim();
-      const token = tokenInput || resolveOwnerToken() || fallbackToken;
-      cacheOwnerToken(tokenInput || resolveOwnerToken());
       const text = input.value.trim();
       if (!text) {
         return;
@@ -1541,7 +1749,6 @@ function renderDashboardUi(): string {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Owner-Token": token,
           "X-Session-Id": sessionId
         },
         body: JSON.stringify({ message: text })
@@ -1558,7 +1765,6 @@ function renderDashboardUi(): string {
       }
     }
     async function sendVrAction(path) {
-      const token = document.getElementById("tokenInput").value.trim();
       const mode = document.getElementById("modeSelect").value;
       const authority = document.getElementById("authoritySelect").value;
       const approve = document.getElementById("approveCheck").checked;
@@ -1566,8 +1772,7 @@ function renderDashboardUi(): string {
       const res = await fetch(path, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "X-Owner-Token": token
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           mode,
@@ -1589,7 +1794,6 @@ function renderDashboardUi(): string {
       await loadStatus();
     }
     async function sendCommand(lineOverride) {
-      const token = document.getElementById("tokenInput").value.trim();
       const line = typeof lineOverride === "string"
         ? lineOverride
         : document.getElementById("commandInput").value.trim();
@@ -1602,8 +1806,7 @@ function renderDashboardUi(): string {
       const res = await fetch("/command", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "X-Owner-Token": token
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           line,
@@ -1690,13 +1893,6 @@ function renderDashboardUi(): string {
       chatView.classList.toggle("hidden", !showingOperator);
       toggleBtn.textContent = showingOperator ? "Operator Console" : "Back to Chat";
     });
-    const chatTokenField = document.getElementById("chatToken");
-    const storedToken = resolveOwnerToken();
-    if (storedToken) {
-      chatTokenField.value = storedToken;
-      document.getElementById("tokenInput").value = storedToken;
-      chatTokenField.style.display = "none";
-    }
     const reduceMotionToggle = document.getElementById("reduceMotionToggle");
     const highContrastToggle = document.getElementById("highContrastToggle");
     const largeTextToggle = document.getElementById("largeTextToggle");
@@ -1721,14 +1917,6 @@ function renderDashboardUi(): string {
         localStorage.setItem(textKey, String(largeTextToggle.checked));
         applyAccessibility();
       });
-    });
-    chatTokenField.addEventListener("change", () => {
-      const value = chatTokenField.value.trim();
-      if (value) {
-        cacheOwnerToken(value);
-        document.getElementById("tokenInput").value = value;
-        chatTokenField.style.display = "none";
-      }
     });
     document.getElementById("commandInput").addEventListener("keydown", (event) => {
       if (event.ctrlKey && event.key === "Enter") {
@@ -1836,8 +2024,8 @@ export function createDashboardServer(
   return http.createServer(async (req: http.IncomingMessage, res: http.ServerResponse) => {
     const url = new URL(req.url ?? "/", `http://${HOST}`);
     const pathName = url.pathname;
-    if (req.method === "GET" && serveStatic(res, pathName)) {
-      return;
+    if (!isLocalAddress(req.socket.remoteAddress)) {
+      return sendJson(res, 401, { ok: false, denied: true, reason: "Unauthorized." });
     }
 
     const config = baseConfig
@@ -1850,6 +2038,57 @@ export function createDashboardServer(
     });
     const approvalStore = new ApprovalQueueStore(config.rootDir);
     const executionStore = new ExecutionStore(config.rootDir);
+    const cookies = parseCookies(resolveHeaderValue(req.headers.cookie));
+    const sessionCookie = cookies[SESSION_COOKIE];
+    const hasSession = ownerToken ? isSessionValid(sessionCookie, ownerToken) : false;
+
+    if (req.method === "GET" && pathName === "/") {
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "text/html");
+      res.end(hasSession ? renderDashboardUi() : renderPinLockUi());
+      return;
+    }
+
+    if (req.method === "POST" && pathName === "/auth/unlock") {
+      if (!ownerToken) {
+        return sendJson(res, 500, { ok: false, denied: true, reason: "SAFA_OWNER_TOKEN missing." });
+      }
+      try {
+        const body = parseJsonBody(await readRequestBody(req));
+        const providedPin = typeof body.pin === "string" ? body.pin.trim() : "";
+        if (!providedPin || providedPin !== resolvePin()) {
+          audit.log({
+            timestamp: new Date().toISOString(),
+            actor: actorDefault,
+            action: "dashboard.unlock",
+            approved: false,
+            target: "auth",
+            result: "DENIED: Invalid PIN."
+          });
+          return sendJson(res, 401, { ok: false, denied: true, reason: "Unauthorized." });
+        }
+        const sessionValue = createSessionCookie(ownerToken);
+        res.setHeader(
+          "Set-Cookie",
+          `${SESSION_COOKIE}=${sessionValue}; HttpOnly; Path=/; SameSite=Strict; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`
+        );
+        return sendJson(res, 200, { ok: true, status: "UNLOCKED" });
+      } catch (error) {
+        return sendJson(res, 400, { ok: false, denied: true, reason: String(error) });
+      }
+    }
+
+    if (!isNetworkLiveDisabled()) {
+      return sendJson(res, 401, { ok: false, denied: true, reason: "SAFA_NETWORK_LIVE must be 0." });
+    }
+
+    if (!hasSession) {
+      return sendJson(res, 401, { ok: false, denied: true, reason: "Unauthorized." });
+    }
+
+    if (req.method === "GET" && serveStatic(res, pathName)) {
+      return;
+    }
 
     if (req.method === "GET" && pathName === "/api/state") {
       return sendJson(res, 200, {
@@ -2263,18 +2502,6 @@ export function createDashboardServer(
     }
     if (req.method === "POST" && pathName === "/chat") {
       const actor = actorDefault;
-      const token = resolveHeaderValue(req.headers["x-owner-token"]);
-      if (!token || token !== ownerToken) {
-        audit.log({
-          timestamp: new Date().toISOString(),
-          actor,
-          action: "dashboard.chat",
-          approved: false,
-          target: "chat",
-          result: "DENIED: Unauthorized."
-        });
-        return sendJson(res, 401, { ok: false, denied: true, reason: "Unauthorized." });
-      }
       readRequestBody(req)
         .then(async (body) => {
           let payload: { message?: string };
@@ -2312,6 +2539,10 @@ export function createDashboardServer(
             target: "chat",
             result: JSON.stringify({ inputHash, sessionId: session.id })
           });
+
+          if (!process.env.OPENAI_API_KEY) {
+            return sendJson(res, 500, { ok: false, error: "OPENAI_API_KEY missing" });
+          }
 
           if (intent.type === "status") {
             const status = sanitizedStatus(config, freezeState);
@@ -2446,11 +2677,24 @@ export function createDashboardServer(
           if (intent.type === "execute") {
             const skillDef = registry.get(intent.skill);
             if (!skillDef) {
-              return sendJson(res, 200, {
-                ok: true,
-                message: "I don't recognize that action yet.",
-                sessionId: session.id
-              });
+              try {
+                const reply = await generateChatModelReply(
+                  text,
+                  routerDefaults,
+                  audit,
+                  actor,
+                  session.id,
+                  config.audit.redactKeys
+                );
+                return sendJson(res, 200, {
+                  ok: true,
+                  message: reply.message,
+                  model_used: reply.modelUsed,
+                  sessionId: session.id
+                });
+              } catch (error) {
+                return sendJson(res, 500, { ok: false, error: String(error) });
+              }
             }
             writeChatSession(config.rootDir, session.id, {
               pending: {
@@ -2473,9 +2717,30 @@ export function createDashboardServer(
             });
           }
 
+          if (intent.type === "model") {
+            try {
+              const reply = await generateChatModelReply(
+                text,
+                routerDefaults,
+                audit,
+                actor,
+                session.id,
+                config.audit.redactKeys
+              );
+              return sendJson(res, 200, {
+                ok: true,
+                message: reply.message,
+                model_used: reply.modelUsed,
+                sessionId: session.id
+              });
+            } catch (error) {
+              return sendJson(res, 500, { ok: false, error: String(error) });
+            }
+          }
+
           return sendJson(res, 200, {
             ok: true,
-            message: intent.message,
+            message: "Unhandled chat request.",
             sessionId: session.id
           });
         })
@@ -2499,18 +2764,6 @@ export function createDashboardServer(
       (pathName === "/vr/arm" || pathName === "/vr/disarm")
     ) {
       const actor = actorDefault;
-      const token = resolveHeaderValue(req.headers["x-owner-token"]);
-      if (!token || token !== ownerToken) {
-        audit.log({
-          timestamp: new Date().toISOString(),
-          actor,
-          action: "vr.command",
-          approved: false,
-          target: pathName,
-          result: "DENIED: Unauthorized."
-        });
-        return sendJson(res, 401, { ok: false, denied: true, reason: "Unauthorized." });
-      }
       readRequestBody(req)
         .then((body) => {
           let payload: {
@@ -2647,18 +2900,6 @@ export function createDashboardServer(
     }
     if (req.method === "POST" && pathName === "/command") {
       let actor = actorDefault;
-      const token = resolveHeaderValue(req.headers["x-owner-token"]);
-      if (!token || token !== ownerToken) {
-        audit.log({
-          timestamp: new Date().toISOString(),
-          actor,
-          action: "dashboard.command",
-          approved: false,
-          target: "command",
-          result: "DENIED: Unauthorized."
-        });
-        return sendJson(res, 401, { ok: false, denied: true, reason: "Unauthorized." });
-      }
       readRequestBody(req)
         .then(async (body) => {
           let payload: {

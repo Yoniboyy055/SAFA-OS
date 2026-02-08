@@ -44,6 +44,40 @@ function postChat(
   });
 }
 
+function unlock(
+  port: number,
+  pin: string
+): Promise<{ statusCode: number; cookie?: string; body: any }> {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        hostname: "127.0.0.1",
+        port,
+        path: "/auth/unlock",
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      },
+      (res: any) => {
+        let data = "";
+        res.on("data", (chunk: any) => {
+          data += String(chunk);
+        });
+        res.on("end", () => {
+          const setCookie = res.headers["set-cookie"];
+          resolve({
+            statusCode: res.statusCode ?? 0,
+            cookie: Array.isArray(setCookie) ? setCookie[0] : setCookie,
+            body: data ? JSON.parse(data) : {}
+          });
+        });
+      }
+    );
+    req.on("error", reject);
+    req.write(JSON.stringify({ pin }));
+    req.end();
+  });
+}
+
 async function withServer(
   config: ReturnType<typeof writeConfig>,
   handler: (port: number) => Promise<void>
@@ -59,7 +93,7 @@ async function withServer(
   }
 }
 
-test("chat requires token", async () => {
+test("chat requires unlock", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-chat-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
@@ -68,44 +102,27 @@ test("chat requires token", async () => {
   });
 });
 
-test("chat returns a draft plan", async () => {
+test("chat returns 500 when OPENAI_API_KEY is missing", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-chat-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
+    const previousKey = process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    const unlocked = await unlock(port, "1234");
+    assert.equal(unlocked.statusCode, 200);
+    if (!unlocked.cookie) {
+      throw new Error("Missing unlock cookie.");
+    }
     const response = await postChat(
       port,
-      { "X-Owner-Token": "token" },
-      { message: "Help me plan tomorrow" }
+      { Cookie: unlocked.cookie },
+      { message: "Hello" }
     );
-    assert.equal(response.statusCode, 200);
-    assert.match(response.body.message, /draft plan/i);
-    assert.ok(response.body.evidenceSummary);
+    assert.equal(response.statusCode, 500);
+    assert.match(response.body.error, /OPENAI_API_KEY missing/i);
+    if (previousKey !== undefined) {
+      process.env.OPENAI_API_KEY = previousKey;
+    }
   });
 });
 
-test("chat approval flow executes read_file", async () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-chat-"));
-  const docsDir = path.join(rootDir, "docs");
-  fs.mkdirSync(docsDir, { recursive: true });
-  fs.writeFileSync(path.join(docsDir, "note.txt"), "hello", "utf8");
-  const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
-  await withServer(config, async (port) => {
-    const sessionId = "sess-test";
-    const propose = await postChat(
-      port,
-      { "X-Owner-Token": "token", "X-Session-Id": sessionId },
-      { message: "Read docs/note.txt" }
-    );
-    assert.equal(propose.statusCode, 200);
-    assert.match(propose.body.message, /approve/i);
-
-    const approve = await postChat(
-      port,
-      { "X-Owner-Token": "token", "X-Session-Id": sessionId },
-      { message: "Yes" }
-    );
-    assert.equal(approve.statusCode, 200);
-    assert.match(approve.body.message, /done/i);
-    assert.ok(approve.body.evidenceSummary);
-  });
-});

@@ -360,20 +360,41 @@ async function readJson(res: any) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
-async function api(port: number, pathName: string, body?: Record<string, unknown>) {
+async function api(
+  port: number,
+  pathName: string,
+  body?: Record<string, unknown>,
+  cookie?: string
+) {
   const res = await fetch(`http://127.0.0.1:${port}${pathName}`, {
     method: body ? "POST" : "GET",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(cookie ? { Cookie: cookie } : {})
+    },
     body: body ? JSON.stringify(body) : undefined
   });
   return { statusCode: res.status, body: await readJson(res) };
+}
+
+async function unlock(port: number, pin: string): Promise<string> {
+  const res = await fetch(`http://127.0.0.1:${port}/auth/unlock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin })
+  });
+  const cookie = res.headers.get("set-cookie");
+  if (!cookie) {
+    throw new Error("Missing Set-Cookie on unlock.");
+  }
+  return cookie;
 }
 
 async function withServer(
   config: ReturnType<typeof writeConfig>,
   handler: (port: number) => Promise<void>
 ) {
-  const server = createDashboardServer({ configPath: config.configPath });
+  const server = createDashboardServer({ configPath: config.configPath, ownerToken: "token" });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   const port = typeof address === "object" ? address.port : 0;
@@ -396,12 +417,13 @@ test("dashboard allows local run when strict approval is off", async () => {
     }
   });
   await withServer(config, async (port) => {
+    const cookie = await unlock(port, "1234");
     const response = await api(port, "/api/run", {
       skill: "read_file",
       input: { path: "test.txt" },
       approve: true,
       actor: "tester"
-    });
+    }, cookie);
     assert.equal(response.body.status, "OK");
   });
 });
@@ -410,17 +432,18 @@ test("dashboard denies network run when network is off", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-nw-dash-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: false } });
   await withServer(config, async (port) => {
+    const cookie = await unlock(port, "1234");
     const pending = await api(port, "/api/run", {
       skill: "send_http_request",
       input: { method: "GET", url: "https://example.com" },
       approve: false,
       actor: "tester"
-    });
+    }, cookie);
     const approved = await api(port, "/api/approve", {
       approvalId: pending.body.approvalId,
       decision: "APPROVE",
       actor: "tester"
-    });
+    }, cookie);
     assert.equal(approved.body.status, "APPROVED");
     const response = await api(port, "/api/run", {
       skill: "send_http_request",
@@ -428,7 +451,7 @@ test("dashboard denies network run when network is off", async () => {
       approve: true,
       approvalId: pending.body.approvalId,
       actor: "tester"
-    });
+    }, cookie);
     assert.equal(response.statusCode, 403);
     assert.match(response.body.error, /network is disabled/i);
   });
@@ -441,12 +464,13 @@ test("dashboard returns pending approval in strict mode", async () => {
     governance: { strictApprovalMode: true }
   });
   await withServer(config, async (port) => {
+    const cookie = await unlock(port, "1234");
     const response = await api(port, "/api/run", {
       skill: "read_file",
       input: { path: "README.md" },
       approve: false,
       actor: "tester"
-    });
+    }, cookie);
     assert.equal(response.statusCode, 202);
     assert.equal(response.body.status, "PENDING_APPROVAL");
   });

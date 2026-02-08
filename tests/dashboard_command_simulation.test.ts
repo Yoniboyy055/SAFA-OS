@@ -31,13 +31,34 @@ async function readJson(res: any) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
-async function api(port: number, pathName: string, body?: Record<string, unknown>) {
+async function api(
+  port: number,
+  pathName: string,
+  body?: Record<string, unknown>,
+  cookie?: string
+) {
   const res = await fetch(`http://127.0.0.1:${port}${pathName}`, {
     method: body ? "POST" : "GET",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(cookie ? { Cookie: cookie } : {})
+    },
     body: body ? JSON.stringify(body) : undefined
   });
   return { statusCode: res.status, body: await readJson(res) };
+}
+
+async function unlock(port: number, pin: string): Promise<string> {
+  const res = await fetch(`http://127.0.0.1:${port}/auth/unlock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin })
+  });
+  const cookie = res.headers.get("set-cookie");
+  if (!cookie) {
+    throw new Error("Missing Set-Cookie on unlock.");
+  }
+  return cookie;
 }
 
 function postCommand(
@@ -94,12 +115,13 @@ test("dashboard run read_file succeeds", async () => {
   });
   fs.writeFileSync(path.join(rootDir, "sample.txt"), "hello");
   await withServer(config, async (port) => {
+    const cookie = await unlock(port, "1234");
     const response = await api(port, "/api/run", {
       skill: "read_file",
       input: { path: "sample.txt" },
       approve: true,
       actor: "tester"
-    });
+    }, cookie);
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.status, "OK");
     assert.equal(response.body.output.content, "hello");
@@ -113,17 +135,18 @@ test("dashboard denies network command when network OFF", async () => {
     governance: { strictApprovalMode: false }
   });
   await withServer(config, async (port) => {
+    const cookie = await unlock(port, "1234");
     const pending = await api(port, "/api/run", {
       skill: "send_http_request",
       input: { method: "GET", url: "https://example.com" },
       approve: false,
       actor: "tester"
-    });
+    }, cookie);
     const approved = await api(port, "/api/approve", {
       approvalId: pending.body.approvalId,
       decision: "APPROVE",
       actor: "tester"
-    });
+    }, cookie);
     assert.equal(approved.body.status, "APPROVED");
     const response = await api(port, "/api/run", {
       skill: "send_http_request",
@@ -131,7 +154,7 @@ test("dashboard denies network command when network OFF", async () => {
       approve: true,
       approvalId: pending.body.approvalId,
       actor: "tester"
-    });
+    }, cookie);
     assert.equal(response.statusCode, 403);
     assert.match(response.body.error, /network is disabled/i);
   });
@@ -141,9 +164,10 @@ test("dashboard denies network command when kill switch ON", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-cmd-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
+    const cookie = await unlock(port, "1234");
     const response = await postCommand(
       port,
-      { "X-Owner-Token": "token" },
+      { Cookie: cookie },
       {
         line: 'SAFA: RUN send_http_request {"method":"GET","url":"https://example.com"}',
         mode: "SCRIPT",
@@ -161,9 +185,10 @@ test("dashboard allows high-risk local skills with approval", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-cmd-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
+    const cookie = await unlock(port, "1234");
     const response = await postCommand(
       port,
-      { "X-Owner-Token": "token" },
+      { Cookie: cookie },
       {
         line: 'SAFA: RUN request_web_build {"projectName":"demo","description":"site"}',
         mode: "SCRIPT",
@@ -181,9 +206,10 @@ test("dashboard allows local execution when dryRun is false", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-cmd-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
+    const cookie = await unlock(port, "1234");
     const response = await postCommand(
       port,
-      { "X-Owner-Token": "token" },
+      { Cookie: cookie },
       {
         line: 'SAFA: RUN write_file {"path":"data/local.txt","content":"ok","createDirs":true}',
         mode: "SCRIPT",
@@ -202,9 +228,10 @@ test("dashboard freeze blocks further activity", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-freeze-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
+    const cookie = await unlock(port, "1234");
     const freezeResponse = await postCommand(
       port,
-      { "X-Owner-Token": "token" },
+      { Cookie: cookie },
       {
         line: 'SAFA: RUN freeze_system {"reason":"test"}',
         mode: "SCRIPT",
@@ -218,7 +245,7 @@ test("dashboard freeze blocks further activity", async () => {
 
     const response = await postCommand(
       port,
-      { "X-Owner-Token": "token" },
+      { Cookie: cookie },
       {
         line: 'SAFA: RUN read_file {"path":"README.md"}',
         mode: "SCRIPT",

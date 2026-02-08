@@ -38,7 +38,7 @@ async function withServer(
   config: ReturnType<typeof writeConfig>,
   handler: (port: number) => Promise<void>
 ) {
-  const server = createDashboardServer({ configPath: config.configPath });
+  const server = createDashboardServer({ configPath: config.configPath, ownerToken: "token" });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   const port = typeof address === "object" ? address.port : 0;
@@ -49,14 +49,13 @@ async function withServer(
   }
 }
 
-test("dashboard UI returns HTML", async () => {
+test("dashboard shows PIN lock screen before unlock", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-ui-"));
   const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
     const response = await request("/", port);
     assert.equal(response.statusCode, 200);
-    assert.ok(response.body.includes("SAFA"));
-    assert.ok(response.body.includes("SAFA"));
-    assert.ok(response.body.includes("Conversation"));
+    assert.ok(response.body.includes("PIN Lock"));
+    assert.ok(!response.body.includes("Conversation"));
   });
 });
