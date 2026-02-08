@@ -14,16 +14,9 @@ import { Operator } from "../core/operator";
 import { buildRegistry } from "../skills/registry_factory";
 import type { SkillDefinition } from "../types/skill";
 import { AuthorityLevel } from "../core/authority";
-import { listModels, isModelId, type ModelId } from "../core/llm/model_registry";
-import {
-  selectModel,
-  type RouterPolicyInput,
-  type RouterMode,
-  type TaskType,
-  type Sensitivity,
-  type LatencyPref,
-  type BudgetPref
-} from "../core/llm/router_policy";
+import type { CostTier, Mode, RiskTier } from "../core/llm/types";
+import { listAllModels } from "../core/llm/registry";
+import { routeModel } from "../core/llm/router";
 import {
   approveRequest,
   createApprovalRequest,
@@ -36,8 +29,9 @@ const MAX_BODY_BYTES = 32 * 1024;
 const DEFAULT_PORT = 3777;
 const HOST = "127.0.0.1";
 const STATIC_ROOT = path.resolve(__dirname, "..", "..", "dashboard");
-const DEFAULT_ROUTER_MODE: RouterMode = "auto";
-const DEFAULT_ROUTER_MODEL: ModelId = "openai:gpt-4o-mini";
+const DEFAULT_ROUTER_MODE: Mode = "auto";
+const DEFAULT_ROUTER_MODEL = "gpt-4o-mini";
+const DEFAULT_ROUTER_PROVIDER = "openai";
 
 interface RuntimeOverrides {
   killSwitchEnabled?: boolean;
@@ -52,8 +46,9 @@ interface ApprovalRecord {
 }
 
 interface RouterDefaults {
-  mode: RouterMode;
-  model: ModelId;
+  mode: Mode;
+  provider: string;
+  model: string;
 }
 
 class ApprovalQueue {
@@ -223,46 +218,48 @@ function buildAllowWhenNetworkOff(
 function resolveRouterDefaults(): RouterDefaults {
   const modeRaw = process.env.ROUTER_DEFAULT_MODE;
   const modelRaw = process.env.ROUTER_DEFAULT_MODEL;
-  const mode = modeRaw === "manual" ? "manual" : DEFAULT_ROUTER_MODE;
-  const model = modelRaw && isModelId(modelRaw) ? modelRaw : DEFAULT_ROUTER_MODEL;
-  return { mode, model };
+  const mode: Mode = modeRaw === "manual" ? "manual" : DEFAULT_ROUTER_MODE;
+  const raw = typeof modelRaw === "string" && modelRaw.trim().length > 0 ? modelRaw.trim() : "";
+  if (raw.includes(":")) {
+    const [provider, model] = raw.split(":", 2);
+    return {
+      mode,
+      provider: provider || DEFAULT_ROUTER_PROVIDER,
+      model: model || DEFAULT_ROUTER_MODEL
+    };
+  }
+  return {
+    mode,
+    provider: DEFAULT_ROUTER_PROVIDER,
+    model: raw || DEFAULT_ROUTER_MODEL
+  };
 }
 
 function normalizeRouterInput(
   body: Record<string, unknown>,
-  defaults: RouterDefaults
-): RouterPolicyInput {
-  const mode =
-    body.routerMode === "manual" || body.routerMode === "auto"
-      ? (body.routerMode as RouterMode)
-      : defaults.mode;
-  const explicitModel =
-    typeof body.explicitModel === "string" && isModelId(body.explicitModel)
-      ? body.explicitModel
-      : defaults.model;
-  const taskType =
-    body.taskType === "vision" || body.taskType === "code" || body.taskType === "admin"
-      ? (body.taskType as TaskType)
-      : ("chat" as TaskType);
-  const sensitivity =
-    body.sensitivity === "low" || body.sensitivity === "high"
-      ? (body.sensitivity as Sensitivity)
-      : ("med" as Sensitivity);
-  const latencyPref =
-    body.latencyPref === "fast" || body.latencyPref === "deep"
-      ? (body.latencyPref as LatencyPref)
-      : ("balanced" as LatencyPref);
-  const budgetPref =
-    body.budgetPref === "cheap" || body.budgetPref === "premium"
-      ? (body.budgetPref as BudgetPref)
-      : ("balanced" as BudgetPref);
+  defaults: RouterDefaults,
+  commandText: string,
+  skill?: string,
+  approvalRequired?: boolean
+) {
+  const mode: Mode = body.routerMode === "manual" || body.routerMode === "auto" ? (body.routerMode as Mode) : defaults.mode;
+  const manualProvider = typeof body.manualProvider === "string" ? body.manualProvider : defaults.provider;
+  const manualModel = typeof body.manualModel === "string" ? body.manualModel : defaults.model;
+  const budget: CostTier = body.budget === "normal" || body.budget === "high" ? (body.budget as CostTier) : "low";
+  const risk: RiskTier =
+    body.risk === "guarded" || body.risk === "high"
+      ? (body.risk as RiskTier)
+      : approvalRequired
+        ? "guarded"
+        : "safe";
   return {
     mode,
-    explicit_model: explicitModel,
-    task_type: taskType,
-    sensitivity,
-    latency_pref: latencyPref,
-    budget_pref: budgetPref
+    manualProvider,
+    manualModel,
+    budget,
+    risk,
+    commandText,
+    skill
   };
 }
 
@@ -367,6 +364,7 @@ export function createDashboardServer(options?: {
     {
       plan: ReturnType<Planner["createPlan"]>;
       review: ReturnType<Manager["reviewPlan"]>;
+      commandText: string;
     }
   >();
 
@@ -396,12 +394,13 @@ export function createDashboardServer(options?: {
     }
 
     if (req.method === "GET" && pathName === "/api/models") {
-      const models = listModels().map((model) => ({
-        id: model.id,
+      const models = listAllModels().map((model) => ({
         provider: model.provider,
-        tags: model.tags,
-        est_cost_tier: model.est_cost_tier,
-        max_tokens_hint: model.max_tokens_hint
+        id: model.id,
+        label: model.label,
+        cost: model.cost,
+        reasoning: model.reasoning,
+        maxContextTokens: model.maxContextTokens
       }));
       return sendJson(res, 200, { models });
     }
@@ -486,8 +485,6 @@ export function createDashboardServer(options?: {
         const body = parseJsonBody(await readRequestBody(req));
         const commandText = body.commandText;
         const actor = resolveActor(body, actorDefault);
-        const routerInput = normalizeRouterInput(body, routerDefaults);
-        const policy = selectModel(routerInput);
         if (typeof commandText !== "string" || !commandText.trim()) {
           return sendJson(res, 400, { error: "commandText is required" });
         }
@@ -501,8 +498,16 @@ export function createDashboardServer(options?: {
         });
         const manager = new Manager(registry);
         const review = manager.reviewPlan(plan, config, false);
+        const routerInput = normalizeRouterInput(
+          body,
+          routerDefaults,
+          commandText,
+          undefined,
+          review.approvalRequired
+        );
+        const policy = routeModel(routerInput);
         const planHash = hashPayload(plan);
-        planStore.set(planHash, { plan, review });
+        planStore.set(planHash, { plan, review, commandText });
         audit.log({
           timestamp: new Date().toISOString(),
           actor,
@@ -518,9 +523,15 @@ export function createDashboardServer(options?: {
           planHash,
           valid: review.valid,
           requiresApproval: review.approvalRequired,
-          model_used: policy.selected_model,
-          policy_reason: policy.reason,
-          policy_trace: policy.policy_trace
+          model_used: `${policy.model.provider}:${policy.model.id}`,
+          policy_reason: policy.reason.join(" | "),
+          policy_trace: {
+            mode: policy.mode,
+            model: policy.model,
+            budget: routerInput.budget,
+            risk: routerInput.risk,
+            reasons: policy.reason
+          }
         });
       } catch (error) {
         return sendJson(res, 400, { error: String(error) });
@@ -534,8 +545,6 @@ export function createDashboardServer(options?: {
         const approve = body.approve === true;
         const approvalId = typeof body.approvalId === "string" ? body.approvalId : undefined;
         const actor = resolveActor(body, actorDefault);
-        const routerInput = normalizeRouterInput(body, routerDefaults);
-        const policy = selectModel(routerInput);
         if (typeof planHash !== "string" || !planHash.trim()) {
           return sendJson(res, 400, { error: "planHash is required" });
         }
@@ -543,6 +552,14 @@ export function createDashboardServer(options?: {
         if (!stored) {
           return sendJson(res, 404, { error: "Unknown planHash" });
         }
+        const routerInput = normalizeRouterInput(
+          body,
+          routerDefaults,
+          stored.commandText,
+          undefined,
+          stored.review.approvalRequired
+        );
+        const policy = routeModel(routerInput);
         const approvalKey = `exec:${planHash}`;
         if (stored.review.approvalRequired) {
           if (!approve) {
@@ -559,9 +576,15 @@ export function createDashboardServer(options?: {
               status: "PENDING_APPROVAL",
               approvalId: record.request.id,
               summary: record.summary,
-              model_used: policy.selected_model,
-              policy_reason: policy.reason,
-              policy_trace: policy.policy_trace
+              model_used: `${policy.model.provider}:${policy.model.id}`,
+              policy_reason: policy.reason.join(" | "),
+              policy_trace: {
+                mode: policy.mode,
+                model: policy.model,
+                budget: routerInput.budget,
+                risk: routerInput.risk,
+                reasons: policy.reason
+              }
             });
           }
           const approvedRecord = ensureApproved(approvals, approvalKey, approvalId);
@@ -589,9 +612,15 @@ export function createDashboardServer(options?: {
         return sendJson(res, execution.success ? 200 : 500, {
           status: execution.success ? "OK" : "FAILED",
           results: execution.results,
-          model_used: policy.selected_model,
-          policy_reason: policy.reason,
-          policy_trace: policy.policy_trace
+          model_used: `${policy.model.provider}:${policy.model.id}`,
+          policy_reason: policy.reason.join(" | "),
+          policy_trace: {
+            mode: policy.mode,
+            model: policy.model,
+            budget: routerInput.budget,
+            risk: routerInput.risk,
+            reasons: policy.reason
+          }
         });
       } catch (error) {
         return sendJson(res, 400, { error: String(error) });

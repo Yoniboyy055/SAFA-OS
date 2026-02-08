@@ -1,33 +1,38 @@
-import type { ChatMessage } from "./providers/openai_client";
-import { runChat } from "./providers/openai_client";
-import { getModel } from "./model_registry";
-import type { PolicyTrace, RouterPolicyInput } from "./router_policy";
-import { selectModel } from "./router_policy";
+import type { LlmModelSpec, Mode } from "./types";
+import { decideModel, type RouteContext, type RouteDecision } from "./policy";
+import { getModel } from "./registry";
 
-export interface RouteAndRunInput extends RouterPolicyInput {
-  messages: ChatMessage[];
-  jsonMode?: boolean;
+export interface RouterInput extends RouteContext {
+  mode: Mode;
+  manualProvider?: string;
+  manualModel?: string;
 }
 
-export interface RouteAndRunResult {
-  model_used: string;
-  policy_trace: PolicyTrace;
-  output_text: string;
-  output_json?: unknown;
+export interface RouterOutput extends RouteDecision {
+  mode: Mode;
 }
 
-export async function routeAndRun(input: RouteAndRunInput): Promise<RouteAndRunResult> {
-  const decision = selectModel(input);
-  const spec = getModel(decision.selected_model);
-  const result = await runChat({
-    model: spec.model,
-    messages: input.messages,
-    jsonMode: input.jsonMode
-  });
-  return {
-    model_used: decision.selected_model,
-    policy_trace: decision.policy_trace,
-    output_text: result.text,
-    output_json: result.json
-  };
+export function routeModel(input: RouterInput): RouterOutput {
+  if (input.mode === "manual") {
+    const provider = (input.manualProvider || "openai") as "openai";
+    const modelId = input.manualModel || "gpt-4o-mini";
+    const found = getModel(provider, modelId);
+    const model: LlmModelSpec =
+      found ??
+      ({
+        provider,
+        id: modelId,
+        label: modelId,
+        cost: input.budget,
+        reasoning: false
+      } as LlmModelSpec);
+    return {
+      mode: "manual",
+      model,
+      reason: [`Manual selection -> ${model.provider}:${model.id}`]
+    };
+  }
+
+  const auto = decideModel(input);
+  return { mode: "auto", ...auto };
 }

@@ -9,7 +9,7 @@ The router supports two modes:
 
 ## Model Registry
 
-Registry entries live in `src/core/llm/model_registry.ts` and define:
+Registry entries live in `src/core/llm/registry.ts` and define:
 
 - `provider`
 - `model`
@@ -51,12 +51,10 @@ Each decision returns `selected_model`, a short `reason`, and a `policy_trace` o
 The router entry point is `src/core/llm/router.ts`:
 
 ```ts
-const result = await routeAndRun({
+const result = routeModel({
   mode: "auto",
-  task_type: "chat",
-  sensitivity: "med",
-  latency_pref: "balanced",
-  budget_pref: "balanced",
-  messages: [{ role: "user", content: "Hello" }]
+  commandText: "Hello",
+  budget: "low",
+  risk: "safe"
 });
 ```

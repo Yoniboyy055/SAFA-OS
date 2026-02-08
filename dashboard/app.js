@@ -88,7 +88,8 @@ async function loadState() {
       els.modeSelect.value = data.routerDefaults.mode;
     }
     if (data.routerDefaults.model) {
-      els.modelSelect.value = data.routerDefaults.model;
+      const defaultValue = `${data.routerDefaults.provider || "openai"}:${data.routerDefaults.model}`;
+      els.modelSelect.value = defaultValue;
     }
     state.routerDefaultsApplied = true;
   }
@@ -111,12 +112,13 @@ async function loadModels() {
   els.modelSelect.innerHTML = "";
   data.models.forEach((model) => {
     const option = document.createElement("option");
-    option.value = model.id;
-    option.textContent = `${model.id} (${model.est_cost_tier})`;
+    option.value = `${model.provider}:${model.id}`;
+    option.textContent = `${model.label} (${model.provider})`;
     els.modelSelect.appendChild(option);
   });
   if (state.routerDefaults && state.routerDefaults.model) {
-    els.modelSelect.value = state.routerDefaults.model;
+    const defaultValue = `${state.routerDefaults.provider || "openai"}:${state.routerDefaults.model}`;
+    els.modelSelect.value = defaultValue;
   }
   updateRouterControls();
 }
@@ -124,6 +126,15 @@ async function loadModels() {
 function updateRouterControls() {
   const isManual = els.modeSelect.value === "manual";
   els.modelSelect.disabled = !isManual;
+}
+
+function resolveManualSelection() {
+  const raw = els.modelSelect.value || "openai:gpt-4o-mini";
+  if (!raw.includes(":")) {
+    return { manualProvider: "openai", manualModel: raw };
+  }
+  const [manualProvider, manualModel] = raw.split(":", 2);
+  return { manualProvider, manualModel };
 }
 
 function renderPolicySummary(data) {
@@ -197,11 +208,13 @@ function parseSkillInput() {
 }
 
 els.planBtn.addEventListener("click", async () => {
+  const manualSelection = resolveManualSelection();
   const payload = {
     commandText: els.commandText.value,
     actor: els.actorInput.value,
     routerMode: els.modeSelect.value,
-    explicitModel: els.modelSelect.value
+    manualProvider: manualSelection.manualProvider,
+    manualModel: manualSelection.manualModel
   };
   const data = await api("/api/plan", {
     method: "POST",
@@ -217,6 +230,7 @@ els.execBtn.addEventListener("click", async () => {
   if (!state.planHash) {
     return;
   }
+  const manualSelection = resolveManualSelection();
   const data = await api("/api/exec", {
     method: "POST",
     body: JSON.stringify({
@@ -225,7 +239,8 @@ els.execBtn.addEventListener("click", async () => {
       approvalId: state.approvalId,
       actor: els.actorInput.value,
       routerMode: els.modeSelect.value,
-      explicitModel: els.modelSelect.value
+      manualProvider: manualSelection.manualProvider,
+      manualModel: manualSelection.manualModel
     })
   });
   if (data.status === "PENDING_APPROVAL") {
