@@ -79,7 +79,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
   };
 }
 
-test("deny real call execution in Phase 3", async () => {
+test("deny real call execution when Phase 7B is locked", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-call-"));
   const context = buildContext(rootDir, {
     calls: { enabled: true, provider: "twilio", fromNumberAllowlist: ["+15550001111"], toNumberAllowlist: ["+15550002222"], countryAllowlist: ["+1"], twimlUrl: "https://example.com/twiml", recordCalls: false, dryRunDefault: false },
@@ -98,7 +98,7 @@ test("deny real call execution in Phase 3", async () => {
         { toNumber: "+15550002222", intent: "sales", dryRun: false },
         context
       ),
-    /Phase 3/i
+    /PHASE_7B_LOCKED/i
   );
 });
 

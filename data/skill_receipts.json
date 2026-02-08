@@ -78,5 +78,15 @@
     "createdAt": "2026-02-08T02:49:12.796Z",
     "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
     "error": "Strict approval mode requires explicit approval."
+  },
+  {
+    "id": "rcpt-16b6330690c0b",
+    "skill": "request_web_build",
+    "status": "DENIED",
+    "actor": "local-user",
+    "approved": false,
+    "createdAt": "2026-02-08T04:09:47.977Z",
+    "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
+    "error": "Strict approval mode requires explicit approval."
   }
 ]

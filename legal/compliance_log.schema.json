@@ -1,0 +1,11 @@
+{
+  "schema": "compliance_log_v1",
+  "version": "0.1.0",
+  "fields": [
+    { "key": "event_id", "type": "string", "required": true },
+    { "key": "event_type", "type": "string", "required": true },
+    { "key": "timestamp", "type": "string", "required": true },
+    { "key": "details", "type": "string", "required": false }
+  ],
+  "notes": "Phase 7C schema only. No runtime usage."
+}

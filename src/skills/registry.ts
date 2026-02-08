@@ -24,6 +24,7 @@ export interface SkillRunContext {
   config: ResolvedConfig;
   audit: AuditLogger;
   governor: Governor;
+  freezeEnabled?: boolean;
   approval?: import("../core/approvals").ApprovalRequest;
   planHash?: string;
   payloadHash?: string;
@@ -86,6 +87,7 @@ export class SkillRegistry {
         typeof input === "object" &&
         input !== null &&
         (input as { dryRun?: boolean }).dryRun === true);
+    const allowWhenFrozen = ["freeze_system", "unfreeze_system"].includes(skill.name);
 
     let decision;
     let networkRequest: import("../core/network/types").NetworkRequest | undefined;
@@ -118,7 +120,8 @@ export class SkillRegistry {
           category: skill.category,
           riskLevel: skill.riskLevel,
           requiresApproval: skill.requiresApproval,
-          allowWhenNetworkOff
+          allowWhenNetworkOff,
+          allowWhenFrozen
         },
         context.config,
         {
@@ -127,6 +130,7 @@ export class SkillRegistry {
           authority: context.authority,
           commandMode: context.commandMode,
           audit: context.audit,
+          freezeEnabled: context.freezeEnabled,
           defenseText:
             skill.name === "analyze_input_risk"
               ? ""
@@ -209,7 +213,8 @@ export class SkillRegistry {
       authority: context.authority,
       commandMode: context.commandMode,
       audit: context.audit,
-      governor: context.governor
+      governor: context.governor,
+      freezeEnabled: context.freezeEnabled
     };
 
     try {

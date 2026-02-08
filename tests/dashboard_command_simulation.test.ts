@@ -40,11 +40,41 @@ async function api(port: number, pathName: string, body?: Record<string, unknown
   return { statusCode: res.status, body: await readJson(res) };
 }
 
+function postCommand(
+  port: number,
+  headers: Record<string, string>,
+  body: Record<string, unknown>
+): Promise<{ statusCode: number; body: any }> {
+  return new Promise((resolve, reject) => {
+    const req = require("node:http").request(
+      {
+        hostname: "127.0.0.1",
+        port,
+        path: "/command",
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers }
+      },
+      (res: any) => {
+        let data = "";
+        res.on("data", (chunk: any) => {
+          data += String(chunk);
+        });
+        res.on("end", () => {
+          resolve({ statusCode: res.statusCode ?? 0, body: JSON.parse(data) });
+        });
+      }
+    );
+    req.on("error", reject);
+    req.write(JSON.stringify(body));
+    req.end();
+  });
+}
+
 async function withServer(
   config: ReturnType<typeof writeConfig>,
   handler: (port: number) => Promise<void>
 ) {
-  const server = createDashboardServer({ configPath: config.configPath });
+  const server = createDashboardServer(config, { ownerToken: "token" });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   const port = typeof address === "object" ? address.port : 0;
@@ -107,17 +137,97 @@ test("dashboard denies network command when network OFF", async () => {
   });
 });
 
-test("dashboard requires approval for high-risk skills", async () => {
+test("dashboard denies network command when kill switch ON", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-cmd-"));
-  const config = writeConfig(rootDir, { killSwitch: { enabled: false } });
+  const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
   await withServer(config, async (port) => {
-    const response = await api(port, "/api/run", {
-      skill: "send_http_request",
-      input: { method: "GET", url: "https://example.com" },
-      approve: false,
-      actor: "tester"
-    });
-    assert.equal(response.statusCode, 202);
-    assert.equal(response.body.status, "PENDING_APPROVAL");
+    const response = await postCommand(
+      port,
+      { "X-Owner-Token": "token" },
+      {
+        line: 'JARVIS: RUN send_http_request {"method":"GET","url":"https://example.com"}',
+        mode: "SCRIPT",
+        authority: "OWNER",
+        approve: true,
+        dryRun: true
+      }
+    );
+    assert.equal(response.body.denied, true);
+    assert.match(response.body.reason, /kill switch|network/i);
+  });
+});
+
+test("dashboard allows high-risk local skills with approval", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-cmd-"));
+  const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
+  await withServer(config, async (port) => {
+    const response = await postCommand(
+      port,
+      { "X-Owner-Token": "token" },
+      {
+        line: 'JARVIS: RUN request_web_build {"projectName":"demo","description":"site"}',
+        mode: "SCRIPT",
+        authority: "OWNER",
+        approve: true,
+        dryRun: true
+      }
+    );
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.denied, false);
+  });
+});
+
+test("dashboard allows local execution when dryRun is false", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-cmd-"));
+  const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
+  await withServer(config, async (port) => {
+    const response = await postCommand(
+      port,
+      { "X-Owner-Token": "token" },
+      {
+        line: 'JARVIS: RUN write_file {"path":"data/local.txt","content":"ok","createDirs":true}',
+        mode: "SCRIPT",
+        authority: "OWNER",
+        approve: true,
+        dryRun: false
+      }
+    );
+    assert.equal(response.body.ok, true);
+    const filePath = path.join(rootDir, "data", "local.txt");
+    assert.ok(fs.existsSync(filePath));
+  });
+});
+
+test("dashboard freeze blocks further activity", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-freeze-"));
+  const config = writeConfig(rootDir, { killSwitch: { enabled: true } });
+  await withServer(config, async (port) => {
+    const freezeResponse = await postCommand(
+      port,
+      { "X-Owner-Token": "token" },
+      {
+        line: 'JARVIS: RUN freeze_system {"reason":"test"}',
+        mode: "SCRIPT",
+        authority: "OWNER",
+        approve: true,
+        dryRun: true
+      }
+    );
+    assert.equal(freezeResponse.body.ok, true);
+    assert.equal(freezeResponse.body.freezeUpdated, true);
+
+    const response = await postCommand(
+      port,
+      { "X-Owner-Token": "token" },
+      {
+        line: 'JARVIS: RUN read_file {"path":"README.md"}',
+        mode: "SCRIPT",
+        authority: "OWNER",
+        approve: true,
+        dryRun: true
+      }
+    );
+    assert.equal(response.body.denied, true);
+    assert.match(response.body.reason, /freeze/i);
   });
 });

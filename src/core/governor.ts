@@ -30,6 +30,7 @@ export interface GovernanceContext {
   planHash?: string;
   payloadHash?: string;
   networkWindow?: NetworkWindowState;
+  freezeEnabled?: boolean;
 }
 
 export interface GovernedAction {
@@ -38,6 +39,8 @@ export interface GovernedAction {
   riskLevel: RiskLevel;
   requiresApproval: boolean;
   allowWhenNetworkOff: boolean;
+  allowWhenFrozen?: boolean;
+  allowWhenKillSwitch?: boolean;
 }
 
 export interface GovernanceDecision {
@@ -261,7 +264,6 @@ export class Governor {
       audit: context.audit,
       costCapUsd: context.costCapUsd
     });
-
     if (
       config.releaseLock?.enabled &&
       config.releaseLock.blockedCategories.includes(action.category)
@@ -278,6 +280,19 @@ export class Governor {
         allowed: false,
         reason: "Release lock enabled for this category."
       };
+    }
+
+    if (context.freezeEnabled && !action.allowWhenFrozen) {
+      const reason = "Freeze engaged. Actions halted.";
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "freeze.blocked",
+        approved: context.approved,
+        target: action.type,
+        result: reason
+      });
+      return { allowed: false, reason };
     }
 
     if (action.category === "network") {
@@ -326,7 +341,8 @@ export class Governor {
     if (
       config.killSwitch.enabled &&
       (action.category === "outbound_message" ||
-        action.category === "external_tool")
+        action.category === "external_tool") &&
+      !action.allowWhenKillSwitch
     ) {
       context.audit.log({
         timestamp: new Date().toISOString(),

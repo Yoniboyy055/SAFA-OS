@@ -144,3 +144,15 @@ test("write_file blocks protected directories and root files", () => {
     );
   }, /protected path/i);
 });
+
+test("write_file writes when approved", () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-write-"));
+  const context = buildContext(rootDir);
+  const target = path.join(rootDir, "data", "note.txt");
+  const result = writeFileSkill.handler(
+    { path: "data/note.txt", content: "hello", createDirs: true },
+    context
+  );
+  assert.equal(result.path, target);
+  assert.equal(fs.readFileSync(target, "utf8"), "hello");
+});

@@ -197,6 +197,22 @@ The dashboard server binds only to `127.0.0.1` and serves a local UI at `/`.
 All actions are governed and audit-logged. Approvals are required when strict
 mode or skill risk demands it. Network stays OFF by default.
 
+Startup hardening:
+- Requires `JARVIS_OWNER_TOKEN` to start.
+- Requires kill switch **ON** at start (safe mode).
+
+Extra local endpoints:
+- `POST /chat` (owner token required)
+- `POST /command` (owner token required)
+- `GET /vr/status`, `POST /vr/arm`, `POST /vr/disarm`
+
+## Desktop Shell (Electron)
+Run the local dashboard in a desktop window:
+```
+npm run desktop
+```
+The shell is restricted to `127.0.0.1` only.
+
 Start the server:
 ```
 npm run dashboard

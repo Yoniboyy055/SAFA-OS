@@ -35,6 +35,8 @@ import { requestRecommendationRequestSkill } from "./requests/request_recommenda
 import { runPacketSkill } from "./runner/run_packet";
 import { recommendLlmSkill } from "./llm/recommend_llm";
 import { analyzeInputRiskSkill } from "./security/analyze_input_risk";
+import { freezeSystemSkill } from "./security/freeze_system";
+import { unfreezeSystemSkill } from "./security/unfreeze_system";
 
 export function buildRegistry(): SkillRegistry {
   const registry = new SkillRegistry();
@@ -74,5 +76,7 @@ export function buildRegistry(): SkillRegistry {
   registry.register(runPacketSkill);
   registry.register(recommendLlmSkill);
   registry.register(analyzeInputRiskSkill);
+  registry.register(freezeSystemSkill);
+  registry.register(unfreezeSystemSkill);
   return registry;
 }

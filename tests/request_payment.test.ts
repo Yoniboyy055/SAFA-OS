@@ -79,7 +79,7 @@ function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) 
   };
 }
 
-test("deny real Stripe execution in Phase 3", async () => {
+test("deny real Stripe execution when Phase 7B is locked", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-pay-"));
   const context = buildContext(rootDir, {
     stripe: {
@@ -106,7 +106,7 @@ test("deny real Stripe execution in Phase 3", async () => {
         { priceId: "price_basic", currency: "usd", customerEmail: "user@allow.com", dryRun: false },
         context
       ),
-    /Phase 3/i
+    /PHASE_7B_LOCKED/i
   );
 });
 
