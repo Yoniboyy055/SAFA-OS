@@ -1,5 +1,3 @@
-export {};
-/*
 import * as crypto from "node:crypto";
 
 import type { AuditLogger } from "../core/audit";
@@ -7,7 +5,16 @@ import type { ResolvedConfig } from "../core/config";
 import type { Governor } from "../core/governor";
 import type { AuthorityLevel } from "../core/authority";
 import type { CommandMode } from "../cli/command_mode";
-import type { CostTier, LlmMessage, LlmProviderId, Mode, RiskTier } from "../core/llm/types";
+import type {
+  CostTier,
+  LlmCallInput,
+  LlmCallOutput,
+  LlmMessage,
+  LlmProvider,
+  LlmProviderId,
+  Mode,
+  RiskTier
+} from "../core/llm/types";
 import { loadNetworkWindow } from "../core/network_window";
 import { readFreezeState } from "../core/freeze";
 import { redactSensitiveText } from "../core/sensitive";
@@ -16,7 +23,7 @@ import { assertNetworkGate } from "../core/network/gate";
 import { assertOwnerCommandContext } from "../core/execution_gate";
 import { assertLlmHostAllowed } from "./corridor";
 import { getProvider } from "./providers";
-import { readLlmSession, appendMessage } from "./llm_session";
+import { appendMessage, readLlmSession } from "./llm_session";
 
 export interface LlmExecutorContext {
   config: ResolvedConfig;
@@ -65,12 +72,9 @@ function isRetryableError(error: unknown): boolean {
 }
 
 async function callWithRetry(
-  provider: ReturnType<typeof getProvider>,
-  input: Parameters<NonNullable<ReturnType<typeof getProvider>>["call"]>[0]
-): Promise<Awaited<ReturnType<NonNullable<ReturnType<typeof getProvider>>["call"]>>> {
-  if (!provider) {
-    throw new Error("Provider is not configured.");
-  }
+  provider: LlmProvider,
+  input: LlmCallInput
+): Promise<LlmCallOutput> {
   const delays = [250, 1000, 3000];
   let lastError: unknown;
   for (let attempt = 0; attempt <= delays.length; attempt += 1) {
@@ -116,7 +120,7 @@ export async function executeLlmCall(
     manualModel: input.manualModel
   });
 
-  const providerId = policy.model.provider;
+  const providerId = policy.model.provider as LlmProviderId;
   const provider = getProvider(providerId);
   if (!provider) {
     throw new Error(`Unknown provider: ${providerId}`);
@@ -128,7 +132,10 @@ export async function executeLlmCall(
   assertNetworkGate(context.config, context.audit, context.actor);
   assertLlmHostAllowed(context.config, providerId);
 
-  const summary = input.messages.map((message) => message.content).join("\n").slice(0, 2000);
+  const summary = input.messages
+    .map((message) => message.content)
+    .join("\n")
+    .slice(0, 2000);
   const redacted = redactSensitiveText(summary, {
     allowPii: false,
     redactKeys: context.config.audit.redactKeys
@@ -215,4 +222,3 @@ export async function executeLlmCall(
     reason: policy.reason
   };
 }
-*/

@@ -13,6 +13,7 @@ const {
   runFollowUpFlow,
   runRecommendationRequest
 } = require("../src/core/phase13/locked");
+const { withTestCommandContext } = require("./helpers/command_context");
 
 function buildContext(rootDir: string) {
   const config = {
@@ -96,27 +97,29 @@ function buildContext(rootDir: string) {
 test("phase 13 business ops flows run with approval", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase13-"));
   const context = buildContext(rootDir);
-  const intake = await runClientIntake(
-    { clientName: "Acme", projectType: "roadmap" },
-    context
-  );
-  assert.equal(intake.success, true);
+  await withTestCommandContext(context.actor, async () => {
+    const intake = await runClientIntake(
+      { clientName: "Acme", projectType: "roadmap" },
+      context
+    );
+    assert.equal(intake.success, true);
 
-  const negotiation = await runNegotiationFlow(
-    { clientName: "Acme", targetOutcome: "Retainer" },
-    context
-  );
-  assert.equal(negotiation.success, true);
+    const negotiation = await runNegotiationFlow(
+      { clientName: "Acme", targetOutcome: "Retainer" },
+      context
+    );
+    assert.equal(negotiation.success, true);
 
-  const followUp = await runFollowUpFlow(
-    { clientName: "Acme", context: "Proposal follow-up" },
-    context
-  );
-  assert.equal(followUp.success, true);
+    const followUp = await runFollowUpFlow(
+      { clientName: "Acme", context: "Proposal follow-up" },
+      context
+    );
+    assert.equal(followUp.success, true);
 
-  const recommendation = await runRecommendationRequest(
-    { recipientName: "Jordan", relationship: "project" },
-    context
-  );
-  assert.equal(recommendation.success, true);
+    const recommendation = await runRecommendationRequest(
+      { recipientName: "Jordan", relationship: "project" },
+      context
+    );
+    assert.equal(recommendation.success, true);
+  });
 });

@@ -8,6 +8,7 @@ const { AuditLogger } = require("../src/core/audit");
 const { Governor } = require("../src/core/governor");
 const { AuthorityLevel } = require("../src/core/authority");
 const { connectLiveModel, startAutoRoute } = require("../src/core/phase12/locked");
+const { withTestCommandContext } = require("./helpers/command_context");
 
 function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) {
   const config = {
@@ -95,17 +96,19 @@ test("phase 12 live adapters require network enable", async () => {
   const originalKey = process.env.OPENAI_API_KEY;
   process.env.OPENAI_API_KEY = "test-key";
   try {
-    await assert.rejects(
-      () =>
-        connectLiveModel(
-          {
-            providerId: "openai",
-            modelId: "gpt-4o-mini",
-            messages: [{ role: "user", content: "Hello" }]
-          },
-          context
-        ),
-      /network.*disabled/i
+    await withTestCommandContext(context.actor, () =>
+      assert.rejects(
+        () =>
+          connectLiveModel(
+            {
+              providerId: "openai",
+              modelId: "gpt-4o-mini",
+              messages: [{ role: "user", content: "Hello" }]
+            },
+            context
+          ),
+        /network.*disabled/i
+      )
     );
   } finally {
     if (originalKey === undefined) {
@@ -122,18 +125,20 @@ test("phase 12 auto route respects network gates", async () => {
   const originalKey = process.env.OPENAI_API_KEY;
   process.env.OPENAI_API_KEY = "test-key";
   try {
-    await assert.rejects(
-      () =>
-        startAutoRoute(
-          {
-            commandText: "Summarize the roadmap",
-            messages: [{ role: "user", content: "Summarize the roadmap" }],
-            budget: "low",
-            risk: "safe"
-          },
-          context
-        ),
-      /network.*disabled/i
+    await withTestCommandContext(context.actor, () =>
+      assert.rejects(
+        () =>
+          startAutoRoute(
+            {
+              commandText: "Summarize the roadmap",
+              messages: [{ role: "user", content: "Summarize the roadmap" }],
+              budget: "low",
+              risk: "safe"
+            },
+            context
+          ),
+        /network.*disabled/i
+      )
     );
   } finally {
     if (originalKey === undefined) {

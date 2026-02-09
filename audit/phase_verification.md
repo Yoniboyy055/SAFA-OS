@@ -27,12 +27,12 @@ Required:
 - No background schedulers
 - No self-triggered actions
 Evidence:
-- Files: src/core/execution_gate.ts, src/skills/registry.ts, src/llm/llm_executor.ts, src/conversation/conversation_interpreter.ts, src/dashboard/server.ts, src/cli/index.ts, src/daemon/daemon.ts, src/core/phase7b/locked.ts, src/core/phase16/locked.ts, audit/autonomy_scan.md
+- Files: src/core/execution_gate.ts, src/skills/registry.ts, src/llm/llm_executor.ts, src/llm/llm_session.ts, src/llm/corridor.ts, src/conversation/conversation_interpreter.ts, src/conversation/session_memory.ts, src/conversation/intent_classifier.ts, src/conversation/presence.ts, src/dashboard/server.ts, src/cli/index.ts, src/daemon/daemon.ts, src/core/phase7b/locked.ts, src/core/phase16/locked.ts, audit/autonomy_scan.md
 - Tests: tests/execution_gate.test.ts, tests/daemon_idle.test.ts
 - Logs: (none required)
 Bypass attempts:
 - Attempt: scan for timers/cron/queues/startup jobs in src/**/*.ts
-- Result: no background schedulers; timers limited to request timeouts/retries (see audit/autonomy_scan.md)
+- Result: no background schedulers; timers limited to request timeouts and retry delays during active, user-initiated requests (see audit/autonomy_scan.md).
 
 ---
 

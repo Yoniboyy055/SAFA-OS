@@ -1,5 +1,3 @@
-export {};
-/*
 import type { AuditLogger } from "../core/audit";
 import type { ResolvedConfig } from "../core/config";
 import type { Governor } from "../core/governor";
@@ -170,14 +168,22 @@ export async function handleConversation(
       return {
         ok: false,
         message: execution.error ?? "Action denied.",
-        evidenceSummary: buildEvidence(pending.description, execution.error ?? "Denied", resolveTouched(pending.skill, pending.input)),
+        evidenceSummary: buildEvidence(
+          pending.description,
+          execution.error ?? "Denied",
+          resolveTouched(pending.skill, pending.input)
+        ),
         sessionId
       };
     }
     return {
       ok: true,
       message: "Done. Action completed.",
-      evidenceSummary: buildEvidence(pending.description, "Approved and executed", resolveTouched(pending.skill, pending.input)),
+      evidenceSummary: buildEvidence(
+        pending.description,
+        "Approved and executed",
+        resolveTouched(pending.skill, pending.input)
+      ),
       sessionId
     };
   }
@@ -209,7 +215,11 @@ export async function handleConversation(
     return {
       ok: true,
       message: `I can run ${intent.skill} for you. Do you approve?`,
-      evidenceSummary: buildEvidence(`Proposed ${intent.skill}`, "Approval required", resolveTouched(intent.skill, intent.input)),
+      evidenceSummary: buildEvidence(
+        `Proposed ${intent.skill}`,
+        "Approval required",
+        resolveTouched(intent.skill, intent.input)
+      ),
       sessionId,
       requiresApproval: true
     };
@@ -278,4 +288,3 @@ export async function handleConversation(
     };
   }
 }
-*/

@@ -21,6 +21,10 @@ Done when:
 
 ## Shipment 1 — Gate D (Anti-Autonomy)
 Goal: SAFA can run in the background but does nothing when idle.
+Status: VERIFIED (2026-02-08)
+Evidence:
+- Tests: npm test (all green).
+- Files: src/core/execution_gate.ts, src/skills/registry.ts, src/llm/llm_executor.ts, src/llm/llm_session.ts, src/llm/corridor.ts, src/conversation/conversation_interpreter.ts, src/conversation/session_memory.ts, src/conversation/intent_classifier.ts, src/conversation/presence.ts, src/daemon/daemon.ts, src/core/phase7b/locked.ts, src/core/phase16/locked.ts, audit/autonomy_scan.md, audit/phase_verification.md.
 Do:
 - Autonomy scan evidence.
 - Add audit/autonomy_scan.md.
