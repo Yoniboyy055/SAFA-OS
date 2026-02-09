@@ -28,6 +28,31 @@ SAFA OS is a single-core assistant system with modular capabilities, governed by
 
 Note: The SAFA Relay UI/API lives in [safa-relay/](safa-relay/). Vercel uses [vercel.json](vercel.json) at repo root.
 
+## Week 2 Features (NEW)
+
+**Template Management** - Create reusable skill configurations with variable substitution
+**Automation Scheduling** - Define and preview scheduled tasks (execution locked in Phase 7B)
+
+See [WEEK_2_FEATURES.md](docs/WEEK_2_FEATURES.md) for full documentation.
+
+Quick examples:
+```bash
+# List templates
+node dist/cli/index.js run list_templates --input '{}'
+
+# Create a template
+node dist/cli/index.js run create_template --approve --input '{"id":"daily-email","name":"Daily Email","category":"email","skillName":"send_email","template":{"to":"{{recipient}}","subject":"Daily Update"},"variables":["recipient"],"owner":"admin","enabled":true}'
+
+# Apply template with variables
+node dist/cli/index.js run apply_template --input '{"templateId":"daily-email","variables":{"recipient":"team@company.com"}}'
+
+# Create a daily schedule
+node dist/cli/index.js run create_schedule --approve --input '{"id":"morning-report","name":"Morning Report","description":"Daily report at 9 AM","type":"daily","time":"09:00","skillName":"send_email","input":{},"requiresApproval":false,"owner":"admin","enabled":true}'
+
+# Preview schedule
+node dist/cli/index.js run preview_schedule --input '{"id":"morning-report"}'
+```
+
 ## How to run
 1. Ensure Node.js 20.11.1 is available.
 2. Review or edit `safa.config.json` (network stays OFF by default).

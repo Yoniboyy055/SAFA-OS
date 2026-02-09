@@ -1,8 +1,17 @@
 {
+  "llm": {
+    "enabled": true,
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "fallbackToStatic": true,
+    "maxTokensPerRequest": 2000,
+    "costGuardUsd": 0.10,
+    "temperature": 0.2
+  },
   "network": {
     "enabled": true,
     "allowlist": [],
-    "allowlistDomains": ["api.openai.com"],
+    "allowlistDomains": ["api.openai.com", "smtp.gmail.com", "api.resend.com"],
     "allowlistUrls": [],
     "timeoutMs": 10000,
     "maxBytes": 200000
@@ -16,11 +25,11 @@
   "email": {
     "enabled": false,
     "provider": "smtp",
-    "fromAllowlist": [],
-    "toAllowlist": [],
-    "domainAllowlist": [],
+    "fromAllowlist": ["jarvis@yourdomain.com", "*@gmail.com"],
+    "toAllowlist": ["*@yourdomain.com", "trusted@example.com"],
+    "domainAllowlist": ["yourdomain.com"],
     "dryRunDefault": true,
-    "from": "",
+    "from": "jarvis@yourdomain.com",
     "smtp": {
       "host": "smtp.gmail.com",
       "port": 587,
@@ -92,5 +101,60 @@
     "emailTemplateAllowlist": [],
     "callIntentAllowlist": ["sales", "support", "follow_up", "payment"],
     "callTemplateAllowlist": []
+  },
+  "proactivity": {
+    "enabled": true,
+    "triggers": [
+      {
+        "id": "daily-standup",
+        "type": "time",
+        "schedule": "0 9 * * 1-5",
+        "action": {
+          "task": "Send daily standup reminder to Discord #general",
+          "mode": "SCRIPT",
+          "authority": "OWNER"
+        },
+        "requiredPermissions": ["messaging.discord"],
+        "autoApprove": true
+      }
+    ],
+    "templates": [
+      {
+        "templateId": "safe-local-read",
+        "allowedSkills": ["list_files", "read_file", "search_text"],
+        "maxRisk": "LOW",
+        "autoApprove": true,
+        "cryptoSignature": "owner-signed-safe-local-read-v1"
+      }
+    ]
+  },
+  "messaging": {
+    "discord": {
+      "enabled": false,
+      "botToken": "",
+      "webhookUrl": "",
+      "channelAllowlist": [],
+      "guildAllowlist": [],
+      "dryRunDefault": true
+    },
+    "slack": {
+      "enabled": false,
+      "botToken": "",
+      "webhookUrl": "",
+      "channelAllowlist": [],
+      "workspaceAllowlist": [],
+      "signingSecret": "",
+      "dryRunDefault": true
+    },
+    "whatsapp": {
+      "enabled": false,
+      "provider": "twilio",
+      "accountSid": "",
+      "authToken": "",
+      "fromNumberAllowlist": [],
+      "toNumberAllowlist": [],
+      "webhookUrl": "",
+      "dryRunDefault": true
+    }
   }
 }

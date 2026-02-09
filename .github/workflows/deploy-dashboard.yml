@@ -1,0 +1,63 @@
+name: Deploy Dashboard
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.11.1'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Build Dashboard Bundle
+        run: |
+          mkdir -p deploy/dashboard
+          cp -r dist/dashboard/* deploy/dashboard/
+          cp package.json deploy/
+          cp package-lock.json deploy/
+          echo "Dashboard built successfully"
+      
+      - name: Create deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-bundle
+          path: deploy/
+          retention-days: 30
+      
+      - name: Deployment Summary
+        run: |
+          echo "## Dashboard Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Dashboard bundle created successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Options" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Download Artifact**: Use the artifact from this workflow run" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Manual Deployment**: Extract and run \`npm run dashboard\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. **GitHub Pages**: Enable in repository settings (optional)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Set up production environment variables" >> $GITHUB_STEP_SUMMARY
+          echo "- Configure HTTPS/SSL certificates" >> $GITHUB_STEP_SUMMARY
+          echo "- Set up monitoring and logging" >> $GITHUB_STEP_SUMMARY

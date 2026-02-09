@@ -7,21 +7,43 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.11.1]
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Node
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      
       - name: Install dependencies
+        run: npm ci
+      
+      - name: Set stub environment variables for tests
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+          echo "SAFA_OWNER_TOKEN=test_token_$(openssl rand -hex 32)" >> $GITHUB_ENV
+          echo "OPENAI_API_KEY=sk-test-stub-key-for-ci-builds-only" >> $GITHUB_ENV
+          echo "SAFA_NETWORK_LIVE=0" >> $GITHUB_ENV
+          echo "SMTP_HOST=smtp.example.com" >> $GITHUB_ENV
+          echo "SMTP_PORT=587" >> $GITHUB_ENV
+          echo "SMTP_USER=test@example.com" >> $GITHUB_ENV
+          echo "SMTP_PASS=test_password" >> $GITHUB_ENV
+      
       - name: Build
         run: npm run build
+      
       - name: Test
         run: npm test

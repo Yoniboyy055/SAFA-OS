@@ -13,6 +13,7 @@ import { Manager } from "../core/manager";
 import { Operator } from "../core/operator";
 import { buildRegistry } from "../skills/registry_factory";
 import type { SkillDefinition } from "../types/skill";
+import type { PlanOutput } from "../types/plan";
 import { AuthorityLevel } from "../core/authority";
 import type { CostTier, Mode, RiskTier, LlmMessage } from "../core/llm/types";
 import { getModel, listAllModels } from "../core/llm/registry";
@@ -2153,7 +2154,7 @@ export function createDashboardServer(
   const planStore = new Map<
     string,
     {
-      plan: ReturnType<Planner["createPlan"]>;
+      plan: PlanOutput;
       review: ReturnType<Manager["reviewPlan"]>;
       commandText: string;
     }
@@ -2423,7 +2424,7 @@ export function createDashboardServer(
           return sendJson(res, 400, { error: "commandText is required" });
         }
         const planner = new Planner();
-        const plan = planner.createPlan(commandText, {
+        const plan = await planner.createPlan(commandText, {
           actor,
           audit,
           authority: AuthorityLevel.OWNER,
@@ -2819,7 +2820,7 @@ export function createDashboardServer(
 
           if (intent.type === "plan") {
             const planner = new Planner();
-            const plan = planner.createPlan(intent.task, {
+            const plan = await planner.createPlan(intent.task, {
               actor,
               audit,
               authority: AuthorityLevel.OWNER,

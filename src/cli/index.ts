@@ -571,7 +571,7 @@ export async function runWithArgs(
     }
     assertSafeInput(task, audit, actor);
     const planner = new Planner();
-    const plan = planner.createPlan(task, {
+    const plan = await planner.createPlan(task, {
       actor,
       audit,
       authority: AuthorityLevel.OWNER,
@@ -606,7 +606,7 @@ export async function runWithArgs(
       return;
     }
     const planner = new Planner();
-    const plan = planner.createPlan(task);
+    const plan = await planner.createPlan(task);
     const planHash = hashPayload(plan);
     const manager = new Manager(registry);
     const review = manager.reviewPlan(plan, config, approved);

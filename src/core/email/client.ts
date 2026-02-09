@@ -5,7 +5,6 @@ import * as path from "node:path";
 import type { AuditLogger } from "../audit";
 import type { ResolvedConfig } from "../config";
 import type { Governor } from "../governor";
-import { getPhase7bLockMessage } from "../phase7b/locked";
 import type { EmailMessage, EmailSendResult } from "./types";
 import { readFreezeState } from "../freeze";
 
@@ -346,14 +345,77 @@ export async function sendEmail(
     };
   }
 
-  const reason = getPhase7bLockMessage();
-  context.audit.log({
-    timestamp: new Date().toISOString(),
-    actor: context.actor,
-    action: "request.denied",
-    approved: context.approved,
-    target: "email",
-    result: reason
-  });
-  throw new Error(reason);
+  // Real SMTP sending (requires nodemailer)
+  // Note: Dynamic require used here to make nodemailer optional
+  // This allows dry-run mode to work without installing nodemailer
+  let transporter;
+  
+  if (context.transportOverride) {
+    // Use provided transport (for testing)
+    transporter = context.transportOverride;
+  } else {
+    // Try to use nodemailer if available
+    try {
+      const nodemailer = require("nodemailer");
+      
+      transporter = nodemailer.createTransport({
+        host: smtpConfig.host,
+        port: smtpConfig.port,
+        secure: smtpConfig.secure,
+        auth: smtpConfig.user && smtpConfig.pass
+          ? {
+              user: smtpConfig.user,
+              pass: smtpConfig.pass,
+            }
+          : undefined,
+      });
+    } catch (error) {
+      deny(
+        "nodemailer not installed. Run 'npm install nodemailer' or use dryRun mode."
+      );
+    }
+  }
+
+  try {
+    const mailOptions = {
+      from,
+      to: validation.normalized.join(", "),
+      subject: message.subject,
+      text: message.body,
+      html: message.body.includes("<") ? message.body : undefined,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+
+    context.audit.log({
+      timestamp: new Date().toISOString(),
+      actor: context.actor,
+      action: "email.sent",
+      approved: context.approved,
+      target: "email",
+      result: JSON.stringify({
+        messageId: info.messageId,
+        accepted: info.accepted || [],
+        rejected: info.rejected || [],
+      }),
+    });
+
+    return {
+      mode: "SENT",
+      messageId: info.messageId,
+      accepted: info.accepted || validation.normalized,
+      rejected: info.rejected || [],
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    context.audit.log({
+      timestamp: new Date().toISOString(),
+      actor: context.actor,
+      action: "email.error",
+      approved: context.approved,
+      target: "email",
+      result: errorMsg,
+    });
+    throw new Error(`Failed to send email: ${errorMsg}`);
+  }
 }
