@@ -87,6 +87,10 @@ Done when:
 
 ## Shipment 5 — Gate F (Kill switch / Human override supremacy)
 Goal: Stop everything instantly, even mid-execution.
+Status: VERIFIED (2026-02-09)
+Evidence:
+- Tests: npm test (all green), tests/job_runner.test.ts.
+- Files: src/core/job_runner.ts.
 Do:
 - Kill switch halts: job runner, daemon execution, outbound corridors.
 - Safe shutdown mode: pause all jobs.

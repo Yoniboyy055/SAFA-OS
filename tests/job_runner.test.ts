@@ -11,19 +11,24 @@ const { createDelegatedJobToken } = require("../src/core/execution_gate");
 const { createJob, getJob } = require("../src/core/job_store");
 const { JobRunner } = require("../src/core/job_runner");
 
-function buildContext(rootDir: string) {
+function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) {
   const config = {
     rootDir,
     killSwitch: { enabled: false },
-    governance: { strictApprovalMode: false }
+    governance: { strictApprovalMode: false },
+    ...overrides
   };
   const audit = new AuditLogger({ logPath: path.join(rootDir, "audit.log"), redactKeys: [] });
   const governor = new Governor();
   return { actor: "tester", audit, config, governor };
 }
 
-function buildRunner(rootDir: string, executor?: () => Promise<{ success: boolean }>) {
-  const context = buildContext(rootDir);
+function buildRunner(
+  rootDir: string,
+  executor?: () => Promise<{ success: boolean }>,
+  overrides: Record<string, unknown> = {}
+) {
+  const context = buildContext(rootDir, overrides);
   const exec = executor
     ? async () => executor()
     : async () => ({ success: true });
@@ -261,4 +266,35 @@ test("approval request is audited", async () => {
     (entry: any) => entry.action === "approval.requested"
   );
   assert.ok(hasApprovalRequest);
+});
+
+test("job runner pauses jobs when kill switch is enabled", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-jobs-"));
+  const runner = buildRunner(rootDir, async () => ({ success: true }), {
+    killSwitch: { enabled: true }
+  });
+  const token = createDelegatedJobToken("tester", ["list_files"], 5000);
+  const job = createJob(rootDir, {
+    ownerId: "tester",
+    scope: ["list_files"],
+    allowedTools: ["list_files"],
+    token,
+    steps: [
+      {
+        id: "step-1",
+        skill: "list_files",
+        input: { path: "." },
+        status: "PENDING",
+        riskLevel: "LOW"
+      }
+    ]
+  });
+
+  const paused = await runner.tick();
+  assert.equal(paused?.status, "PAUSED");
+  assert.equal(paused?.error, "Kill switch engaged.");
+
+  const stored = getJob(rootDir, job.id);
+  assert.equal(stored?.status, "PAUSED");
+  assert.equal(stored?.steps[0].status, "PAUSED");
 });

@@ -73,6 +73,12 @@ function buildReasonCode(step: JobStep, config: ResolvedConfig): string {
   return `risk_${level.toLowerCase()}`;
 }
 
+function findInFlightStep(job: JobRecord): JobStep | undefined {
+  return job.steps.find(
+    (step) => step.status === "RUNNING" || step.status === "PENDING" || step.status === "APPROVED"
+  );
+}
+
 export class JobRunner {
   private timer?: NodeJS.Timeout;
   private readonly registry: SkillRegistry;
@@ -117,13 +123,35 @@ export class JobRunner {
     if (freezeState.enabled) {
       return null;
     }
-    if (this.context.config.killSwitch?.enabled) {
-      return null;
-    }
-
     const jobs = listJobs(this.context.config.rootDir);
     if (jobs.length === 0) {
       return null;
+    }
+
+    if (this.context.config.killSwitch?.enabled) {
+      let pausedJob: JobRecord | null = null;
+      jobs.forEach((job) => {
+        if (job.status !== "QUEUED" && job.status !== "RUNNING") {
+          return;
+        }
+        const step = findInFlightStep(job);
+        if (step && step.status !== "PAUSED" && step.status !== "COMPLETED") {
+          step.status = "PAUSED";
+          step.error = "Kill switch engaged.";
+        }
+        job.status = "PAUSED";
+        job.error = "Kill switch engaged.";
+        pausedJob = upsertJob(this.context.config.rootDir, job);
+        this.context.audit.log({
+          timestamp: new Date().toISOString(),
+          actor: this.context.actor,
+          action: "kill_switch.paused",
+          approved: false,
+          target: `job:${job.id}`,
+          result: "Job paused."
+        });
+      });
+      return pausedJob;
     }
 
     const approvalStore = new ApprovalStore(this.context.config.rootDir);
