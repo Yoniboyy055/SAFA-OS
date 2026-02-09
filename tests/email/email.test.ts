@@ -14,6 +14,8 @@ import type { EmailMessage } from "../../src/core/email/types";
 import type { ResolvedConfig } from "../../src/core/config";
 import type { AuditLogger } from "../../src/core/audit";
 import type { Governor } from "../../src/core/governor";
+import { AuthorityLevel } from "../../src/core/authority";
+import type { CommandMode } from "../../src/cli/command_mode";
 
 // Mock audit logger
 function createMockAudit(): AuditLogger {
@@ -146,8 +148,8 @@ export async function test_dryRunMode() {
       governor,
       actor: "test",
       approved: true,
-      authority: "owner",
-      commandMode: "interactive",
+      authority: AuthorityLevel.OWNER,
+      commandMode: "BUILD" as CommandMode,
     });
 
     if (result.mode === "DRY_RUN" && result.outboxPath) {
@@ -186,8 +188,8 @@ export async function test_emailSending() {
       governor,
       actor: "test",
       approved: true,
-      authority: "owner",
-      commandMode: "interactive",
+      authority: AuthorityLevel.OWNER,
+      commandMode: "BUILD" as CommandMode,
       transportOverride: transport,
     });
 
@@ -226,8 +228,8 @@ export async function test_allowlistEnforcement() {
       governor,
       actor: "test",
       approved: true,
-      authority: "owner",
-      commandMode: "interactive",
+      authority: AuthorityLevel.OWNER,
+      commandMode: "BUILD" as CommandMode,
     });
     console.log("✗ Should have thrown allowlist error");
     return false;
@@ -264,8 +266,8 @@ export async function test_htmlBody() {
       governor,
       actor: "test",
       approved: true,
-      authority: "owner",
-      commandMode: "interactive",
+      authority: AuthorityLevel.OWNER,
+      commandMode: "BUILD" as CommandMode,
       transportOverride: transport,
     });
 

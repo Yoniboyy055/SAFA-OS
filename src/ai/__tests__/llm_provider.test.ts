@@ -14,6 +14,8 @@ import { LLMProvider } from "../types";
 import type { ResolvedConfig } from "../../core/config";
 import type { AuditLogger } from "../../core/audit";
 import type { Governor } from "../../core/governor";
+import { AuthorityLevel } from "../../core/authority";
+import type { CommandMode } from "../../cli/command_mode";
 
 // Mock audit logger
 function createMockAudit(): AuditLogger {
@@ -159,8 +161,8 @@ export async function test_networkWindowRequired() {
         governor,
         actor: "test",
         approved: false,
-        authority: "owner",
-        commandMode: "interactive",
+        authority: AuthorityLevel.OWNER,
+        commandMode: "BUILD" as CommandMode,
       }
     );
     console.log("✗ Should have thrown network error");
@@ -211,8 +213,8 @@ export async function test_costGuard() {
         governor,
         actor: "test",
         approved: false,
-        authority: "owner",
-        commandMode: "interactive",
+        authority: AuthorityLevel.OWNER,
+        commandMode: "BUILD" as CommandMode,
       }
     );
     console.log("✗ Should have thrown cost guard error");
@@ -250,8 +252,8 @@ export async function test_promptRedaction() {
         governor,
         actor: "test",
         approved: false,
-        authority: "owner",
-        commandMode: "interactive",
+        authority: AuthorityLevel.OWNER,
+        commandMode: "BUILD" as CommandMode,
       }
     );
   } catch (error) {

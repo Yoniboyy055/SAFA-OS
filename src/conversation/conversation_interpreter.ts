@@ -109,7 +109,7 @@ export async function handleConversation(
 
   if (intent.type === "plan") {
     const planner = new Planner();
-    const plan = planner.createPlan(intent.task, {
+    const plan = await planner.createPlan(intent.task, {
       actor: context.actor,
       audit: context.audit,
       authority: AuthorityLevel.OWNER,
