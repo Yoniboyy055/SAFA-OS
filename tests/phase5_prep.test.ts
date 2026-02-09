@@ -155,6 +155,9 @@ test("memory_add redacts secrets and requires approval", async () => {
   const raw = fs.readFileSync(filePath, "utf8");
   assert.equal(raw.includes("sk-SECRET"), false);
   assert.ok(raw.includes("[REDACTED]"));
+  const parsed = JSON.parse(raw);
+  assert.equal(parsed.approvedBy, "tester");
+  assert.ok(typeof parsed.approvedAt === "string");
 });
 
 test("memory_search requires approval", async () => {

@@ -11,6 +11,9 @@ export interface MemoryEntry {
   content: string;
   tags: string[];
   createdAt: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  approvalId?: string;
 }
 
 export interface MemorySearchResult {
@@ -71,7 +74,15 @@ export function assertAllowlistedPath(
 export function writeMemoryEntry(
   rootDir: string,
   bucket: MemoryBucket,
-  entry: { id?: string; title: string; content: string; tags?: string[] }
+  entry: {
+    id?: string;
+    title: string;
+    content: string;
+    tags?: string[];
+    approvedBy?: string;
+    approvedAt?: string;
+    approvalId?: string;
+  }
 ): { id: string; filePath: string } {
   const dir = resolveBucketDir(rootDir, bucket);
   const createdAt = new Date().toISOString();
@@ -87,7 +98,10 @@ export function writeMemoryEntry(
     title: entry.title,
     content: entry.content,
     tags: entry.tags ?? [],
-    createdAt
+    createdAt,
+    approvedBy: entry.approvedBy,
+    approvedAt: entry.approvedAt,
+    approvalId: entry.approvalId
   };
   fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), "utf8");
   return { id, filePath };

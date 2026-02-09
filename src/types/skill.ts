@@ -3,6 +3,7 @@ import type { AuditLogger } from "../core/audit";
 import type { Governor } from "../core/governor";
 import type { AuthorityLevel } from "../core/authority";
 import type { CommandMode } from "../cli/command_mode";
+import type { ApprovalRequest } from "../core/approvals";
 
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH";
 export type ActionCategory = "local" | "network" | "outbound_message" | "external_tool";
@@ -26,6 +27,7 @@ export interface SkillExecutionContext {
   config: ResolvedConfig;
   audit: AuditLogger;
   governor: Governor;
+  approval?: ApprovalRequest;
   freezeEnabled?: boolean;
 }
 

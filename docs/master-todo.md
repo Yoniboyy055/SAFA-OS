@@ -119,7 +119,7 @@ Goal: Simulate business operations.
 Goal: Intelligence without manipulation.
 
 ### TODO
-- [ ] Approved memory store
+- [x] Approved memory store
 - [ ] Pattern reflection (read-only)
 - [ ] No behavior steering
 - [ ] No hidden state

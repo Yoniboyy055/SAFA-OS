@@ -65,10 +65,14 @@ export const memoryAddSkill: SkillDefinition<MemoryAddInput, MemoryAddOutput> =
         context.config.permissions.writeAllowlist,
         context.config.rootDir
       );
+      const approvedAt = context.approval?.resolvedAt ?? new Date().toISOString();
       const { id, filePath } = writeMemoryEntry(context.config.rootDir, input.bucket, {
         title: input.title,
         content: redaction.redactedText,
-        tags: Array.isArray(input.tags) ? input.tags : []
+        tags: Array.isArray(input.tags) ? input.tags : [],
+        approvedBy: context.approval?.resolvedBy ?? context.actor,
+        approvedAt,
+        approvalId: context.approval?.id
       });
       context.audit.log({
         timestamp: new Date().toISOString(),
