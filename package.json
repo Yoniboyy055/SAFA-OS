@@ -23,12 +23,16 @@
   },
   "dependencies": {
     "ink": "^3.2.0",
-    "react": "^17.0.2"
+    "react": "^17.0.2",
+    "openai": "^4.77.3",
+    "@anthropic-ai/sdk": "^0.32.1",
+    "nodemailer": "^6.9.15"
   },
   "devDependencies": {
     "electron": "^40.2.1",
     "@types/node": "^25.2.1",
     "@types/react": "^17.0.83",
+    "@types/nodemailer": "^6.4.16",
     "typescript": "^5.9.3"
   }
 }

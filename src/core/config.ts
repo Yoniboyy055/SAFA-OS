@@ -99,6 +99,16 @@ export interface PermissionsConfig {
   callTemplateAllowlist: string[];
 }
 
+export interface LLMConfig {
+  enabled: boolean;
+  provider: "openai" | "anthropic" | "ollama" | "llamacpp";
+  model: string;
+  fallbackToStatic: boolean;
+  maxTokensPerRequest: number;
+  costGuardUsd: number;
+  temperature?: number;
+}
+
 export interface SAFAConfig {
   network: NetworkConfig;
   telemetry: TelemetryConfig;
@@ -106,6 +116,7 @@ export interface SAFAConfig {
   governance: GovernanceConfig;
   phase: PhaseConfig;
   releaseLock?: ReleaseLockConfig;
+  llm?: LLMConfig;
   email: EmailConfig;
   stripe: StripeConfig;
   calls: CallsConfig;

@@ -1,8 +1,17 @@
 {
+  "llm": {
+    "enabled": true,
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "fallbackToStatic": true,
+    "maxTokensPerRequest": 2000,
+    "costGuardUsd": 0.10,
+    "temperature": 0.2
+  },
   "network": {
     "enabled": true,
     "allowlist": [],
-    "allowlistDomains": ["api.openai.com"],
+    "allowlistDomains": ["api.openai.com", "smtp.gmail.com", "api.resend.com"],
     "allowlistUrls": [],
     "timeoutMs": 10000,
     "maxBytes": 200000
@@ -14,11 +23,11 @@
     "enabled": true
   },
   "email": {
-    "enabled": false,
+    "enabled": true,
     "provider": "smtp",
-    "fromAllowlist": [],
-    "toAllowlist": [],
-    "domainAllowlist": [],
+    "fromAllowlist": ["jarvis@yourdomain.com", "*@gmail.com"],
+    "toAllowlist": ["*@yourdomain.com", "trusted@example.com"],
+    "domainAllowlist": ["yourdomain.com"],
     "dryRunDefault": true,
     "from": "",
     "smtp": {
