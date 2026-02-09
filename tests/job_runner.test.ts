@@ -129,6 +129,40 @@ test("job runner pauses on medium risk", async () => {
   assert.equal(paused?.status, "PAUSED");
 });
 
+test("job runner sends approval notification", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-jobs-"));
+  const runner = buildRunner(rootDir, async () => ({ success: true }));
+  const token = createDelegatedJobToken("tester", ["list_files"], 5000);
+  const job = createJob(rootDir, {
+    ownerId: "tester",
+    scope: ["list_files"],
+    allowedTools: ["list_files"],
+    token,
+    steps: [
+      {
+        id: "step-1",
+        skill: "list_files",
+        input: { path: "." },
+        status: "PENDING",
+        riskLevel: "HIGH"
+      }
+    ]
+  });
+
+  const paused = await runner.tick();
+  assert.equal(paused?.status, "PAUSED");
+
+  const notifyPath = path.join(rootDir, "data", "notifications.json");
+  const raw = fs.readFileSync(notifyPath, "utf8");
+  const events = JSON.parse(raw);
+  assert.equal(Array.isArray(events), true);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].type, "approval_needed");
+  assert.equal(events[0].payload.message, "Approval needed");
+  assert.equal(events[0].payload.job_id, job.id);
+  assert.deepEqual(Object.keys(events[0].payload).sort(), ["job_id", "message"]);
+});
+
 test("job runner stays paused until approval", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-jobs-"));
   const runner = buildRunner(rootDir, async () => ({ success: true }));

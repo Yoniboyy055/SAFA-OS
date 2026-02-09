@@ -127,27 +127,100 @@ Done when:
 - Phase 4 VERIFIED.
 - Prevents accidental expansion.
 
-## Shipment 8 — "Jarvis Feel" Interface v1 (Desktop first)
+## Shipment 8 (Final, Locked)
+
+Shipment 8 — “Jarvis Feel” Interface v1 (Desktop first)
 Goal: Natural conversation, no command syntax, no dashboard overwhelm.
 Do:
-- Chat-first UI.
-- One suggestion at a time.
-- Approval cards.
-- "What did you do so far?" summary view (no logs dump).
-Done when:
-- You can use SAFA daily without friction.
 
-## Shipment 9 — Phone App v1 (Client only)
-Goal: Talk + approve from phone while laptop is on.
-Do:
-- Phone app connects to laptop over LAN.
-- Auth: PIN/biometric.
-- Approvals view + chat view.
+Chat-first UI.
+
+One suggestion at a time.
+
+Approval cards (portable schema).
+
+“What did you do so far?” summary view (no logs dump).
+
+Explicit session/job identity for approvals (for remote resolution later).
 Done when:
-- You can approve medium/high tasks remotely (same Wi-Fi).
+
+You can use SAFA daily without friction on desktop.
+
+Approval flows work identically on desktop and are ready for phone handoff.
+
+## Modified Shipment 9 — Phone App v1 (Remote Client via VPN)
+
+Goal:
+Talk + approve from phone from anywhere (LTE / different Wi-Fi) while your laptop is ON.
+
+Architecture (LOCKED)
+
+SAFA Core: runs on laptop
+
+Connectivity: Private VPN (WireGuard / Tailscale)
+
+No public ports
+
+No direct internet exposure
+
+Phone App: client-only (no execution logic)
+
+What Shipment 9 Includes
+
+Remote connection over VPN to laptop private IP
+
+Auth: PIN + biometric
+
+Signed approval actions (HMAC)
+
+Views:
+
+Chat view (send/receive)
+
+Approvals view (pending → approve/deny)
+
+Notifications: approval-needed only
+
+Audit events:
+
+remote.connect
+
+remote.auth.ok|fail
+
+approval.approved|denied
+
+Explicitly NOT Included
+
+No public endpoints
+
+No background execution on phone
+
+No UI “world” polish
+
+No mobile-only skills
+
+DONE when
+
+From LTE/different Wi-Fi:
+
+Open phone app → authenticate
+
+See pending approvals
+
+Approve/deny → job resumes on laptop
+
+Chat round-trip works
+
+All actions audited
+
+Tests + evidence recorded
 
 ## Shipment 10 — Push Notifications (Option 2)
 Goal: Notify only when approval is needed.
+Status: VERIFIED (2026-02-09)
+Evidence:
+- Tests: npm test (all green).
+- Files: src/core/notification_bridge.ts, src/core/job_runner.ts, tests/job_runner.test.ts.
 Do:
 - Notification bridge sends minimal push: "Approval needed" + job_id only.
 - No details in push payload.

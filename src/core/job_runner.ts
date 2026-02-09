@@ -3,6 +3,7 @@ import type { ResolvedConfig } from "./config";
 import type { Governor } from "./governor";
 import { ApprovalStore, shouldRequireApproval } from "./approval_store";
 import { createApprovalRequest, expireRequest } from "./approvals";
+import { NotificationBridge } from "./notification_bridge";
 import { readFreezeState } from "./freeze";
 import { withDelegatedJobContext } from "./execution_gate";
 import { buildRegistry } from "../skills/registry_factory";
@@ -246,6 +247,11 @@ export class JobRunner {
         );
         approvalStore.upsert(request);
         step.approvalId = request.id;
+        const notifier = new NotificationBridge(
+          this.context.config.rootDir,
+          this.context.audit
+        );
+        notifier.notifyApprovalNeeded(job.id);
       }
       return upsertJob(this.context.config.rootDir, job);
     }
