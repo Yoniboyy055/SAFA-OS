@@ -28,12 +28,12 @@ export const runPacketSkill: SkillDefinition<RunPacketInput, RunPacketOutput> = 
     action: "run_packet",
     target: (input) => input.path
   },
-  handler: (input, context) => {
+  handler: async (input, context) => {
     if (!input.path || typeof input.path !== "string") {
       throw new Error("path is required.");
     }
-    const result = executePacket(input.path, context.config);
-    if (result.status === "DENIED") {
+    const result = await executePacket(input.path, context);
+    if (result.status !== "SUCCESS") {
       throw new Error(result.message);
     }
     return {

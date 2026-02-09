@@ -207,6 +207,35 @@ function signRemotePayload(payload: string, secret: string): string {
   return signValue(payload, secret);
 }
 
+function verifyRemoteSignature(
+  session: RemoteSessionRecord | undefined,
+  approvalId: string,
+  decision: string,
+  timestamp: string,
+  nonce: string,
+  signature: string
+): boolean {
+  if (!session) {
+    return false;
+  }
+  const parsedTimestamp = Number(timestamp);
+  if (!Number.isFinite(parsedTimestamp)) {
+    return false;
+  }
+  const skew = Math.abs(Date.now() - parsedTimestamp);
+  if (skew > REMOTE_SIGNATURE_WINDOW_MS) {
+    return false;
+  }
+  if (!nonce || typeof nonce !== "string") {
+    return false;
+  }
+  const payload = `${session.id}.${approvalId}.${decision}.${timestamp}.${nonce}`;
+  const expected = signRemotePayload(payload, session.hmacKey);
+  const a = Buffer.from(signature, "base64url");
+  const b = Buffer.from(expected, "base64url");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 function createSessionCookie(secret: string): string {
   const issuedAt = Date.now();
   const payload = {
@@ -216,6 +245,32 @@ function createSessionCookie(secret: string): string {
   const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   const signature = signValue(encoded, secret);
   return `${encoded}.${signature}`;
+}
+
+function verifySessionCookie(cookie: string | undefined, secret: string): boolean {
+  if (!cookie) {
+    return false;
+  }
+  const parts = cookie.split(".");
+  if (parts.length !== 2) {
+    return false;
+  }
+  const [payload, signature] = parts;
+  const expected = signValue(payload, secret);
+  const a = Buffer.from(signature, "base64url");
+  const b = Buffer.from(expected, "base64url");
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    return false;
+  }
+  try {
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    if (!decoded || typeof decoded.exp !== "number") {
+      return false;
+    }
+    return Date.now() < decoded.exp;
+  } catch {
+    return false;
+  }
 }
 
 interface RemoteSessionRecord {
@@ -893,6 +948,18 @@ async function generateChatModelReply(
   const provider = getProvider(policy.model.provider);
   if (!provider) {
     throw new Error(`Provider ${policy.model.provider} is not configured.`);
+  }
+  if (provider.id === "openai") {
+    const key = process.env.OPENAI_API_KEY;
+    if (!key || key.trim().length === 0) {
+      throw new Error("OPENAI_API_KEY missing");
+    }
+  }
+  if (!provider.isConfigured()) {
+    if (provider.id === "openai") {
+      throw new Error("OPENAI_API_KEY missing");
+    }
+    throw new Error(`Provider ${provider.id} is not configured.`);
   }
   const modelSpec = getModel(policy.model.provider as "openai", policy.model.id);
   if (!modelSpec) {
@@ -2176,7 +2243,19 @@ export function createDashboardServer(
     const executionStore = new ExecutionStore(config.rootDir);
     const cookies = parseCookies(resolveHeaderValue(req.headers.cookie));
     const sessionCookie = cookies[SESSION_COOKIE];
-    const hasSession = true;
+    const hasSession = verifySessionCookie(sessionCookie, sessionSecret);
+
+    const isUnlockPath =
+      pathName === "/auth/unlock" || pathName === "/remote/unlock";
+    if (!hasSession && !isUnlockPath) {
+      if (req.method === "GET" && pathName === "/") {
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "text/html");
+        res.end(renderPinLockUi());
+        return;
+      }
+      return sendJson(res, 401, { error: "Unauthorized" });
+    }
 
     if (req.method === "GET" && pathName === "/") {
       res.statusCode = 200;
@@ -2256,6 +2335,9 @@ export function createDashboardServer(
         const remoteSessionId = body.remoteSessionId;
         const approvalId = body.approvalId;
         const decision = body.decision;
+        const timestamp = body.timestamp;
+        const nonce = body.nonce;
+        const signature = body.signature;
         const actor = resolveActor(body, actorDefault);
         if (
           typeof approvalId !== "string" ||
@@ -2265,6 +2347,21 @@ export function createDashboardServer(
         }
         if (decision !== "APPROVE" && decision !== "DENY") {
           return sendJson(res, 400, { ok: false, denied: true, reason: "Invalid decision." });
+        }
+        if (
+          typeof remoteSessionId !== "string" ||
+          typeof timestamp !== "string" ||
+          typeof nonce !== "string" ||
+          typeof signature !== "string"
+        ) {
+          return sendJson(res, 400, { ok: false, denied: true, reason: "Invalid signature payload." });
+        }
+        pruneRemoteSessions(config.rootDir);
+        const session = loadRemoteSessions(config.rootDir).find(
+          (entry) => entry.id === remoteSessionId
+        );
+        if (!verifyRemoteSignature(session, approvalId, decision, timestamp, nonce, signature)) {
+          return sendJson(res, 401, { ok: false, denied: true, reason: "Invalid signature." });
         }
         const record = approvalStore.get(approvalId);
         if (!record) {

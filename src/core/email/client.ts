@@ -7,6 +7,7 @@ import type { ResolvedConfig } from "../config";
 import type { Governor } from "../governor";
 import type { EmailMessage, EmailSendResult } from "./types";
 import { readFreezeState } from "../freeze";
+import { getPhase7bLockMessage } from "../phase7b/locked";
 
 export interface EmailClientContext {
   actor: string;
@@ -288,6 +289,10 @@ export async function sendEmail(
 
   if (!dryRun && !context.config.network.enabled) {
     deny("Network disabled");
+  }
+
+  if (!dryRun && !context.transportOverride) {
+    deny(getPhase7bLockMessage());
   }
 
   if (

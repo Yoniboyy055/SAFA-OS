@@ -728,11 +728,47 @@ export async function runWithArgs(
     }
 
     assertSafeInput(inputRaw ?? "", audit, actor);
+
+    const skill = registry.get(skillName);
+    if (!skill) {
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "run",
+        approved,
+        target: skillName,
+        result: "ERROR: Unknown skill."
+      });
+      console.error(`Unknown skill: ${skillName}`);
+      process.exit(1);
+      return;
+    }
+
     const approvalPayload = { input, skill: skillName };
     const payloadHash = hashPayload(approvalPayload);
+    const approvalRequired =
+      config.governance.strictApprovalMode || skill.requiresApproval;
     let approvalRecord: ApprovalRequest | undefined;
-    if (approved) {
+    if (approvalRequired) {
       const store = new ApprovalStore(config.rootDir);
+      if (!approved) {
+        const request = createApprovalRequest(
+          {
+            action: `run:${skillName}`,
+            target: skillName,
+            payload: approvalPayload,
+            policy: { requirePayloadHash: true }
+          },
+          { actor, audit }
+        );
+        store.upsert(request);
+        const message = config.governance.strictApprovalMode
+          ? "Strict approval required."
+          : "Approval required.";
+        console.error(`${message} Approval request created.`);
+        process.exit(1);
+        return;
+      }
       approvalRecord = findApprovedApproval(store, `run:${skillName}`, payloadHash);
     }
     const result = await registry.execute(skillName, input, {

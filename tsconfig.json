@@ -3,7 +3,7 @@
     "target": "ES2022",
     "module": "CommonJS",
     "moduleResolution": "node",
-    "types": ["node"],
+    "types": ["node", "node-cron"],
     "lib": ["ES2022"],
     "outDir": "dist",
     "rootDir": ".",

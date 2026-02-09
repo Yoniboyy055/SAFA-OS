@@ -49,11 +49,55 @@ export interface GovernanceDecision {
 }
 
 export class Governor {
+  private isApprovalExpired(request?: ApprovalRequest): boolean {
+    if (!request?.expiresAt) {
+      return false;
+    }
+    const expiry = Date.parse(request.expiresAt);
+    return Number.isNaN(expiry) || Date.now() >= expiry;
+  }
+
   private resolveApproval(
     action: GovernedAction,
     config: ResolvedConfig,
     context: GovernanceContext
   ): { approved: boolean; reason?: string } {
+    const approvalRequired =
+      config.governance?.strictApprovalMode === true ||
+      action.requiresApproval ||
+      action.riskLevel !== "LOW" ||
+      action.category === "external_tool" ||
+      action.category === "outbound_message";
+    if (!approvalRequired) {
+      return { approved: true };
+    }
+
+    const approvalRecord = context.approval;
+    if (approvalRecord) {
+      if (approvalRecord.status === "DENIED") {
+        return {
+          approved: false,
+          reason: approvalRecord.reason ?? approvalRecord.resolutionNote ?? "Approval denied."
+        };
+      }
+      if (approvalRecord.status === "EXPIRED" || this.isApprovalExpired(approvalRecord)) {
+        return { approved: false, reason: "Approval expired." };
+      }
+      if (approvalRecord.status === "APPROVED") {
+        return { approved: true };
+      }
+      return { approved: false, reason: "Approval pending." };
+    }
+
+    if (!context.approved) {
+      return {
+        approved: false,
+        reason: config.governance?.strictApprovalMode
+          ? "Strict approval required."
+          : "Approval required."
+      };
+    }
+
     return { approved: true };
   }
 
@@ -259,6 +303,40 @@ export class Governor {
         allowed: false,
         reason: "Kill switch enabled for outbound actions."
       };
+    }
+
+    const approvalDecision = this.resolveApproval(
+      {
+        type: request.id,
+        category: "network",
+        riskLevel: request.riskLevel,
+        requiresApproval: request.requiresApproval,
+        allowWhenNetworkOff: false
+      },
+      config,
+      context
+    );
+    if (!approvalDecision.approved) {
+      return {
+        allowed: false,
+        reason: approvalDecision.reason ?? "Approval required."
+      };
+    }
+
+    if (config.governance?.networkApprovalMode === "plan_hash") {
+      if (!context.planHash) {
+        return {
+          allowed: false,
+          reason: "Plan hash required for network approval."
+        };
+      }
+      const approval = context.approval;
+      if (!approval || approval.status !== "APPROVED" || approval.planHash !== context.planHash) {
+        return {
+          allowed: false,
+          reason: "Approval record required for plan hash."
+        };
+      }
     }
 
     if (!config.network.enabled) {
