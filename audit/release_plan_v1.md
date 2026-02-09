@@ -1,6 +1,6 @@
 # SAFA v1.0 Shipments Roadmap (Release Plan)
 
-Date: 2026-02-08
+Date: 2026-02-09
 Status: LOCKED (owner-approved)
 Scope: SAFA v1.0 shipments and done criteria
 
@@ -58,6 +58,10 @@ Done when:
 
 ## Shipment 3 — Approvals v1 (Low/Medium/High fully enforced)
 Goal: Risk model is real enforcement system.
+Status: VERIFIED (2026-02-09)
+Evidence:
+- Tests: npm test (all green).
+- Files: src/core/approvals.ts, src/core/approval_store.ts, src/core/job_runner.ts, src/cli/index.ts, tests/job_runner.test.ts.
 Do:
 - Risk classifier explicit and consistent.
 - Policy table: Low proceed, Medium require approval, High hard stop.
