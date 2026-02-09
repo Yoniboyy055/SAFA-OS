@@ -43,6 +43,7 @@ import { armVr, disarmVr, readVrState } from "../core/vr";
 import { parseCommandMode } from "../cli/command_mode";
 import { summarizeSAFALine } from "../cli/safa_line";
 import { verifyConstitutionOrExit } from "../core/constitution";
+import { assertNetworkGate } from "../core/network/gate";
 
 const MAX_BODY_BYTES = 32 * 1024;
 const DEFAULT_PORT = 3777;
@@ -110,6 +111,13 @@ function resolvePin(): string {
 
 function isNetworkLiveDisabled(): boolean {
   return (process.env.SAFA_NETWORK_LIVE ?? "0") === "0";
+}
+
+function resolveProviderEndpoint(providerId: string): string {
+  if (providerId === "openai") {
+    return "https://api.openai.com/v1/chat/completions";
+  }
+  throw new Error(`No endpoint registered for provider: ${providerId}`);
 }
 
 function isLocalAddress(address?: string | null): boolean {
@@ -752,6 +760,7 @@ function formatChatOutput(output: unknown): string {
 async function generateChatModelReply(
   text: string,
   defaults: RouterDefaults,
+  config: ResolvedConfig,
   audit: AuditLogger,
   actor: string,
   sessionId: string,
@@ -770,6 +779,12 @@ async function generateChatModelReply(
   if (!modelSpec) {
     throw new Error("Model not available.");
   }
+  assertNetworkGate(
+    config,
+    audit,
+    actor,
+    resolveProviderEndpoint(policy.model.provider)
+  );
   const messages: LlmMessage[] = [
     {
       role: "system",
@@ -2684,6 +2699,7 @@ export function createDashboardServer(
                 const reply = await generateChatModelReply(
                   text,
                   routerDefaults,
+                  config,
                   audit,
                   actor,
                   session.id,
@@ -2725,6 +2741,7 @@ export function createDashboardServer(
               const reply = await generateChatModelReply(
                 text,
                 routerDefaults,
+                config,
                 audit,
                 actor,
                 session.id,

@@ -127,17 +127,17 @@ Bypass attempts:
 ---
 
 ## Phase 9 — Local-First Enforcement
-Status: NOT VERIFIED
+Status: VERIFIED
 Required:
 - Network disabled by default
 - Explicit allowlist required
 Evidence:
-- Files: src/core/network/gate.ts, src/core/network/client.ts, src/core/config_validate.ts
+- Files: src/core/network/gate.ts, src/core/network/client.ts, src/core/config_validate.ts, audit/network_scan.md
 - Tests: tests/network_gate.test.ts, tests/config_validation.test.ts
 - Logs: audit.log event network.blocked (manual verification 2026-02-08)
 Bypass attempts:
-- Attempt:
-- Result:
+- Attempt: scan for fetch/http/https in src/**/*.ts
+- Result: no ungated outbound network paths found (see audit/network_scan.md)
 
 ---
 

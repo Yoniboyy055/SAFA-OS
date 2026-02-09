@@ -19,6 +19,7 @@ import type {
   RiskTier
 } from "../llm/types";
 import { redactSensitiveText } from "../sensitive";
+import { assertNetworkGate } from "../network/gate";
 
 export interface LiveModelContext {
   config: ResolvedConfig;
@@ -134,6 +135,8 @@ export async function connectLiveModel(
   const endpoint = resolveEndpoint(providerId);
   const bodyHash = hashValue(JSON.stringify(request.messages ?? []));
   const requestId = request.requestId ?? `llm-${bodyHash.slice(0, 12)}`;
+
+  assertNetworkGate(context.config, context.audit, context.actor, endpoint);
 
   const decision = context.governor.evaluate(
     {
