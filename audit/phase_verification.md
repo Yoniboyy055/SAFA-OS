@@ -177,9 +177,9 @@ Required:
 - Deterministic workflows only
 - Abort/pause works
 Evidence:
-- Files:
-- Tests:
-- Logs:
+- Files: src/core/job_store.ts, src/core/job_runner.ts, src/core/approval_queue_store.ts, src/core/execution_gate.ts
+- Tests: tests/job_runner.test.ts
+- Logs: (none required)
 Bypass attempts:
 - Attempt:
 - Result:

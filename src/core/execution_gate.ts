@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { AuditLogger } from "./audit";
 
-type CommandSource = "cli" | "dashboard" | "conversation" | "test";
+type CommandSource = "cli" | "dashboard" | "conversation" | "test" | "job";
 type CommandKind = "interactive" | "delegated";
 
 export interface CommandContext {

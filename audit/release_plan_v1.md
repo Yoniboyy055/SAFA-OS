@@ -42,6 +42,10 @@ Done when:
 
 ## Shipment 2 — Job System v1 (Background work "after you leave")
 Goal: You can start work, close the app, SAFA continues the job.
+Status: VERIFIED (2026-02-08)
+Evidence:
+- Tests: npm test (all green), tests/job_runner.test.ts.
+- Files: src/core/job_store.ts, src/core/job_runner.ts, src/core/approval_queue_store.ts, src/core/execution_gate.ts, audit/phase_verification.md.
 Do:
 - Job objects: job_id, owner_id, scope, risk_level, allowed_tools, TTL.
 - Job queue persistence (local file/db; JSON or sqlite).
