@@ -44,7 +44,13 @@ function resolveRiskLevel(step: JobStep): RiskLevel {
 }
 
 function needsApproval(step: JobStep, config: ResolvedConfig): boolean {
-  return false;
+  if (config.governance?.strictApprovalMode) {
+    return true;
+  }
+  if (step.requiresApproval === true) {
+    return true;
+  }
+  return shouldRequireApproval(resolveRiskLevel(step));
 }
 
 function findNextStep(job: JobRecord): JobStep | undefined {
