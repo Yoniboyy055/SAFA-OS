@@ -14,3 +14,4 @@
   - package.json
 - Behavior: startup halts if the constitution is missing, hash is missing, or hash mismatches.
 - Regenerate hash: npm run constitution:hash
+b00a55e062a1c8287eadcfc8ebb0d6dcfddc6f2a
