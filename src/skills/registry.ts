@@ -17,6 +17,7 @@ import {
   type SkillReceiptStatus
 } from "../core/skill_receipt_store";
 import { assertOwnerCommandContext } from "../core/execution_gate";
+import { evaluatePhaseGuard } from "../core/phase_guard";
 
 export interface SkillRunContext {
   actor: string;
@@ -99,6 +100,33 @@ export class SkillRegistry {
       return {
         success: false,
         error: `Unknown skill: ${name}`
+      };
+    }
+
+    const phaseDecision = evaluatePhaseGuard(skill.name, context.config);
+    if (!phaseDecision.allowed) {
+      const reason = phaseDecision.reason ?? "Phase guard blocked execution.";
+      context.audit.log({
+        timestamp: new Date().toISOString(),
+        actor: context.actor,
+        action: "phase_guard.blocked",
+        approved: false,
+        target: skill.name,
+        result: reason
+      });
+      recordSkillReceipt(context.config.rootDir, {
+        id: createReceiptId(skill.name, createdAt),
+        skill: skill.name,
+        status: "DENIED",
+        actor: context.actor,
+        approved: false,
+        createdAt,
+        inputHash,
+        error: reason
+      });
+      return {
+        success: false,
+        error: reason
       };
     }
 
@@ -237,6 +265,7 @@ export class SkillRegistry {
       commandMode: context.commandMode,
       audit: context.audit,
       governor: context.governor,
+      approval: context.approval,
       freezeEnabled: context.freezeEnabled
     };
 

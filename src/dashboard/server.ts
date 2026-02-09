@@ -1967,7 +1967,7 @@ function sanitizedStatus(
     killSwitchEnabled: config.killSwitch.enabled,
     strictApprovalMode: config.governance.strictApprovalMode,
     telemetryEnabled: config.telemetry.enabled,
-    phase: "7A",
+    phase: String(config.phase.current),
     phase7b: "LOCKED",
     phase7c: "PLANNED",
     safeMode: config.killSwitch.enabled,

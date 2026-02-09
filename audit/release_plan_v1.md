@@ -115,6 +115,10 @@ Done when:
 
 ## Shipment 7 — Phase Guard (Phase 4: Phase awareness enforcement)
 Goal: SAFA cannot act beyond current verified phase.
+Status: VERIFIED (2026-02-09)
+Evidence:
+- Tests: npm test (all green), tests/phase_guard.test.ts.
+- Files: src/core/phase_guard.ts, src/core/config.ts, src/core/config_validate.ts, src/skills/registry.ts.
 Do:
 - Single "current phase" source of truth.
 - Enforce: features beyond phase refuse.

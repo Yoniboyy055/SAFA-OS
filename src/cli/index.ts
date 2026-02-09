@@ -330,7 +330,7 @@ export async function runWithArgs(
       freezeEnabled: freezeState.enabled,
       vrEnabled: vrState.enabled,
       vrArmed: vrState.armed,
-      phase: "7A",
+      phase: String(config.phase.current),
       phase7b: "LOCKED",
       phase7c: "PLANNED",
       layers: getLayerDefinitions(),

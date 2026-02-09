@@ -75,6 +75,10 @@ export interface GovernanceConfig {
   maxNetworkPayloadBytes: number;
 }
 
+export interface PhaseConfig {
+  current: number;
+}
+
 export interface ReleaseLockConfig {
   enabled: boolean;
   blockedCategories: Array<
@@ -100,6 +104,7 @@ export interface SAFAConfig {
   telemetry: TelemetryConfig;
   killSwitch: KillSwitchConfig;
   governance: GovernanceConfig;
+  phase: PhaseConfig;
   releaseLock?: ReleaseLockConfig;
   email: EmailConfig;
   stripe: StripeConfig;
@@ -172,6 +177,9 @@ const DEFAULT_CONFIG: SAFAConfig = {
     strictApprovalMode: true,
     networkApprovalMode: "per_request",
     maxNetworkPayloadBytes: 16384
+  },
+  phase: {
+    current: 17
   },
   releaseLock: {
     enabled: false,
@@ -308,6 +316,14 @@ function mergeConfig(
     governance: {
       ...base.governance,
       ...overrides.governance
+    },
+    phase: {
+      ...base.phase,
+      ...overrides.phase,
+      current:
+        typeof overrides.phase?.current === "number"
+          ? overrides.phase.current
+          : base.phase.current
     },
     releaseLock: {
       ...baseReleaseLock,

@@ -134,4 +134,11 @@ export function validateConfig(config: ResolvedConfig): void {
       );
     });
   }
+
+  assert(
+    typeof config.phase?.current === "number" &&
+      config.phase.current >= 1 &&
+      config.phase.current <= 17,
+    "Phase current must be between 1 and 17."
+  );
 }
