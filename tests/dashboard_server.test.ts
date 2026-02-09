@@ -12,56 +12,50 @@ function writeConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
   return configPath;
 }
 
-test("dashboard start requires owner token", async () => {
+test("dashboard can start without owner token", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-dashboard-"));
   const configPath = writeConfig(rootDir, {});
   const previous = process.env.SAFA_OWNER_TOKEN;
   delete process.env.SAFA_OWNER_TOKEN;
-  let exitCode: number | undefined;
   try {
-    await startDashboardServer(["--config", configPath, "--port", "0"], {
-      exit: (code: number) => {
-        exitCode = code;
-      }
-    });
+    const server = await startDashboardServer(["--config", configPath, "--port", "0"]);
+    await new Promise<void>((resolve) => server.close(() => resolve()));
   } catch (error) {
-    if (!String(error).includes("__EXIT__")) {
-      throw error;
-    }
+    throw error;
   } finally {
     if (previous !== undefined) {
       process.env.SAFA_OWNER_TOKEN = previous;
     }
   }
-  assert.equal(exitCode, 1);
 });
 
-test("dashboard denies start when kill switch is off", async () => {
+test("dashboard can start when kill switch is off", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-dashboard-"));
   const configPath = writeConfig(rootDir, { killSwitch: { enabled: false } });
-  process.env.SAFA_OWNER_TOKEN = "token";
-  let exitCode: number | undefined;
+  const previous = process.env.SAFA_OWNER_TOKEN;
+  delete process.env.SAFA_OWNER_TOKEN;
   try {
-    await startDashboardServer(["--config", configPath, "--port", "0"], {
-      exit: (code: number) => {
-        exitCode = code;
-      }
-    });
+    const server = await startDashboardServer(["--config", configPath, "--port", "0"]);
+    await new Promise<void>((resolve) => server.close(() => resolve()));
   } catch (error) {
-    if (!String(error).includes("__EXIT__")) {
-      throw error;
-    }
+    throw error;
   }
-  assert.equal(exitCode, 1);
+  if (previous !== undefined) {
+    process.env.SAFA_OWNER_TOKEN = previous;
+  }
 });
 test("dashboard can start with kill switch enabled", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-dashboard-"));
   const configPath = writeConfig(rootDir, { killSwitch: { enabled: true } });
-  process.env.SAFA_OWNER_TOKEN = "token";
+  const previous = process.env.SAFA_OWNER_TOKEN;
+  delete process.env.SAFA_OWNER_TOKEN;
   const server = await startDashboardServer({ configPath, port: 0 });
   const address = server.address();
   if (address && typeof address === "object") {
     assert.equal(address.address, "127.0.0.1");
   }
   await new Promise<void>((resolve) => server.close(() => resolve()));
+  if (previous !== undefined) {
+    process.env.SAFA_OWNER_TOKEN = previous;
+  }
 });

@@ -1,0 +1,23 @@
+{
+  "approved": true,
+  "messages": [
+    {
+      "role": "user",
+      "content": "what we did today"
+    },
+    {
+      "role": "user",
+      "content": "what is the plan for today"
+    },
+    {
+      "role": "user",
+      "content": "list all of them then i will shose"
+    },
+    {
+      "role": "user",
+      "content": "run local actions with approval"
+    }
+  ],
+  "updatedAt": "2026-02-09T06:07:43.429Z",
+  "approvedAt": "2026-02-09T06:06:00.439Z"
+}

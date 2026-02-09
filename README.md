@@ -26,6 +26,8 @@ SAFA OS is a single-core assistant system with modular capabilities, governed by
 - Protected main branch (PR-based)
 - Governance files are treated as source-of-truth
 
+Note: The SAFA Relay UI/API lives in [safa-relay/](safa-relay/). Vercel uses [vercel.json](vercel.json) at repo root.
+
 ## How to run
 1. Ensure Node.js 20.11.1 is available.
 2. Review or edit `safa.config.json` (network stays OFF by default).

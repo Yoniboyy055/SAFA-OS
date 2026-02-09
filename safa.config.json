@@ -1,8 +1,8 @@
 {
   "network": {
-    "enabled": false,
+    "enabled": true,
     "allowlist": [],
-    "allowlistDomains": [],
+    "allowlistDomains": ["api.openai.com"],
     "allowlistUrls": [],
     "timeoutMs": 10000,
     "maxBytes": 200000

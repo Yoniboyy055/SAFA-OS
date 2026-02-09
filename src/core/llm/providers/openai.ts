@@ -1,7 +1,47 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+
 import type { LlmCallInput, LlmCallOutput, LlmModelSpec, LlmProvider } from "../types";
 import { listAllModels } from "../registry";
 
+let envLoaded = false;
+
+function loadEnvFromFile(): void {
+  if (envLoaded) {
+    return;
+  }
+  envLoaded = true;
+  const envPath = path.resolve(process.cwd(), ".env");
+  if (!fs.existsSync(envPath)) {
+    return;
+  }
+  const raw = fs.readFileSync(envPath, "utf8");
+  raw.split(/\r?\n/).forEach((line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      return;
+    }
+    const equalsIndex = trimmed.indexOf("=");
+    if (equalsIndex < 0) {
+      return;
+    }
+    const key = trimmed.slice(0, equalsIndex).trim();
+    if (!key || process.env[key] !== undefined) {
+      return;
+    }
+    let value = trimmed.slice(equalsIndex + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  });
+}
+
 function requireEnv(name: string): string | null {
+  loadEnvFromFile();
   const value = process.env[name];
   return value && value.trim().length ? value : null;
 }

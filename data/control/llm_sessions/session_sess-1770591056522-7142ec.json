@@ -1,0 +1,15 @@
+{
+  "approved": true,
+  "messages": [
+    {
+      "role": "user",
+      "content": "lets plan for tommorow"
+    },
+    {
+      "role": "user",
+      "content": "lets plan for tommorow"
+    }
+  ],
+  "updatedAt": "2026-02-09T06:08:44.673Z",
+  "approvedAt": "2026-02-09T06:08:32.671Z"
+}

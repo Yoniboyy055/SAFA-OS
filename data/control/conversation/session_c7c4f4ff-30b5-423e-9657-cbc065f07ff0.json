@@ -1,0 +1,28 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "hello"
+    },
+    {
+      "role": "user",
+      "content": "what is the plan for today"
+    },
+    {
+      "role": "user",
+      "content": "plan"
+    },
+    {
+      "role": "user",
+      "content": "list all of them then i will shose"
+    },
+    {
+      "role": "user",
+      "content": "run local actions with approval"
+    },
+    {
+      "role": "user",
+      "content": "hello"
+    }
+  ]
+}

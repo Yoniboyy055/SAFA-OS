@@ -1,0 +1,147 @@
+:root {
+  color-scheme: light;
+  --bg: #0f1a1c;
+  --panel: #142428;
+  --panel-2: #1e3238;
+  --text: #e7f1f3;
+  --muted: #8fb0b8;
+  --accent: #f6c76f;
+  --accent-2: #5ee6b9;
+  --danger: #f66f6f;
+  --border: rgba(231, 241, 243, 0.08);
+  --shadow: rgba(0, 0, 0, 0.35);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #15323a, #0b1416 55%);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, rgba(21, 50, 58, 0.9), rgba(10, 18, 20, 0.9));
+  box-shadow: 0 12px 30px var(--shadow);
+}
+
+.app-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.app-subtitle {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.app-main {
+  flex: 1;
+  padding: 32px;
+  display: grid;
+  gap: 24px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+}
+
+.card h2 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.button {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #1a1a1a;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.button.secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.button.danger {
+  background: var(--danger);
+  color: #1a1a1a;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.grid-two {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.list {
+  display: grid;
+  gap: 12px;
+}
+
+.list-item {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(20, 36, 40, 0.8);
+  border: 1px solid var(--border);
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .app-main {
+    padding: 20px;
+  }
+}

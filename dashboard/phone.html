@@ -187,6 +187,10 @@
         <input id="pinInput" type="password" inputmode="numeric" placeholder="PIN" />
         <div class="unlock-actions">
           <button id="pinUnlock">Unlock</button>
+          <button id="checkSession" type="button">Check Session</button>
+          <div class="note" id="hostStatus"></div>
+          <div class="note" id="cookieStatus"></div>
+          <div class="note" id="sessionStatus"></div>
           <div class="note" id="unlockNote"></div>
         </div>
       </div>
@@ -241,7 +245,11 @@
       };
       const unlockScreen = document.getElementById("unlockScreen");
       const pinUnlock = document.getElementById("pinUnlock");
+      const checkSessionBtn = document.getElementById("checkSession");
       const pinInput = document.getElementById("pinInput");
+      const hostStatus = document.getElementById("hostStatus");
+      const cookieStatus = document.getElementById("cookieStatus");
+      const sessionStatus = document.getElementById("sessionStatus");
       const unlockNote = document.getElementById("unlockNote");
       const statusEl = document.getElementById("phoneStatus");
       const chatStream = document.getElementById("chatStream");
@@ -337,25 +345,71 @@
         setStatus(["REMOTE READY", `EXPIRES ${remoteState.expiresAt}`]);
       }
 
+      function setUnlockStatus(message) {
+        if (unlockNote) {
+          unlockNote.textContent = message;
+        }
+      }
+
+      function setCookieStatus(message) {
+        if (cookieStatus) {
+          cookieStatus.textContent = message;
+        }
+      }
+
+      function setSessionStatus(message) {
+        if (sessionStatus) {
+          sessionStatus.textContent = message;
+        }
+      }
+
+      function setHostStatus() {
+        if (hostStatus) {
+          hostStatus.textContent = `Host ${window.location.origin}`;
+        }
+      }
+
+      async function checkSession() {
+        try {
+          await ensureRemoteSession();
+          setCookieStatus("Session cookie: OK (httpOnly)");
+          setSessionStatus("Remote session: OK");
+          return true;
+        } catch (error) {
+          setCookieStatus("Session cookie: missing or blocked");
+          setSessionStatus(`Remote session: ${String(error)}`);
+          return false;
+        }
+      }
+
       async function unlock() {
-        unlockNote.textContent = "";
+        setUnlockStatus("");
         try {
           const pin = pinInput.value.trim();
           if (!pin) {
-            unlockNote.textContent = "PIN required.";
+            setUnlockStatus("PIN required.");
             return;
           }
           await api("/remote/unlock", { method: "POST", body: JSON.stringify({ pin }) });
-          await ensureRemoteSession();
+          const ok = await checkSession();
+          if (!ok) {
+            setUnlockStatus("Unlock succeeded but session failed. Check cookies/host.");
+            return;
+          }
           unlockScreen.style.display = "none";
           await loadApprovals();
           await loadSummary();
         } catch (error) {
-          unlockNote.textContent = String(error);
+          setUnlockStatus(String(error));
         }
       }
 
       pinUnlock.addEventListener("click", unlock);
+      if (checkSessionBtn) {
+        checkSessionBtn.addEventListener("click", () => {
+          checkSession();
+        });
+      }
       pinInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
           unlock();
@@ -490,6 +544,9 @@
       }
 
       setStatus(["REMOTE LOCKED"]);
+      setHostStatus();
+      setCookieStatus("Session cookie: unknown (httpOnly)");
+      setSessionStatus("Remote session: unknown");
       appendChat("assistant", "Remote channel standing by.");
     </script>
   </body>

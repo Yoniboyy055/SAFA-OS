@@ -17,6 +17,8 @@ data/approval_queue.json
 node_modules/
 dist/
 .build/
+.next/
+safa-relay/.next/
 
 # python
 .venv/
