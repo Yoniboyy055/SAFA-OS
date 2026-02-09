@@ -111,9 +111,12 @@ Usage:
     triggerService = new TriggerService(config, audit, governor, actorDefault);
     triggerService.start();
     
-    console.log("Trigger service initialized");
+    console.log("Trigger service initialized and started");
   } catch (error) {
-    console.warn("Failed to initialize trigger service:", error instanceof Error ? error.message : String(error));
+    console.warn(
+      "Failed to initialize trigger service. Daemon will continue without proactive automation.",
+      error instanceof Error ? error.message : String(error)
+    );
   }
 
   console.log(

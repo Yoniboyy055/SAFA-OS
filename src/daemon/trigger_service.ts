@@ -295,16 +295,6 @@ export class TriggerService {
       return true; // No signature to verify
     }
 
-    // Simple hash verification - in production this would use proper PKI
-    const templateData = JSON.stringify({
-      templateId: template.templateId,
-      allowedSkills: template.allowedSkills,
-      maxRisk: template.maxRisk,
-      autoApprove: template.autoApprove
-    });
-
-    const hash = crypto.createHash("sha256").update(templateData).digest("hex");
-    
     // In a real implementation, this would verify a signed hash with the owner's public key
     // For now, we just check if the signature starts with a specific prefix to indicate it's "valid"
     const isValid = template.cryptoSignature.startsWith("owner-signed-");
@@ -325,11 +315,19 @@ export class TriggerService {
    * Check governance for trigger execution
    */
   private checkGovernance(trigger: Trigger, autoApprove: boolean): { allowed: boolean; reason: string } {
+    // Map string authority to AuthorityLevel enum
+    let authorityLevel: any = "OWNER"; // Default to OWNER
+    if (trigger.action.authority === "SYSTEM") {
+      authorityLevel = "SYSTEM";
+    } else if (trigger.action.authority === "TOOL") {
+      authorityLevel = "TOOL";
+    }
+
     // Create governance context
     const context: GovernanceContext = {
       actor: this.actor,
       approved: autoApprove,
-      authority: "OWNER" as any, // In production, map from trigger.action.authority
+      authority: authorityLevel,
       commandMode: trigger.action.mode as any,
       audit: this.audit
     };
