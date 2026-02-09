@@ -7,6 +7,7 @@ import { buildNetworkPolicy, validateMethod } from "./policy";
 import { readFreezeState } from "../freeze";
 import { loadNetworkWindow } from "../network_window";
 import { estimatePayloadBytes } from "./types";
+import { assertNetworkGate } from "./gate";
 import * as crypto from "node:crypto";
 
 export interface NetworkClientContext {
@@ -83,6 +84,8 @@ export async function requestNetwork(
     context.actor
   );
 
+  assertNetworkGate(context.config, context.audit, context.actor, request.url);
+
   if (!methodDecision.allowed) {
     throw new Error(methodDecision.reason);
   }
@@ -115,10 +118,6 @@ export async function requestNetwork(
 
   if (!decision.allowed) {
     throw new Error(decision.reason);
-  }
-
-  if (!context.config.network.enabled) {
-    throw new Error("Network disabled");
   }
 
   let response: NetworkResponseMeta;

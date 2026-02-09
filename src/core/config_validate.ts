@@ -9,6 +9,14 @@ function hasEntries(values: string[] | undefined): boolean {
   return Array.isArray(values) && values.length > 0;
 }
 
+function hasWildcard(values: string[] | undefined): boolean {
+  return Array.isArray(values) && values.some((entry) => entry.trim() === "*");
+}
+
+function hasEmptyEntry(values: string[] | undefined): boolean {
+  return Array.isArray(values) && values.some((entry) => entry.trim().length === 0);
+}
+
 const RELEASE_LOCK_CATEGORIES = new Set([
   "local",
   "network",
@@ -45,6 +53,19 @@ export function validateConfig(config: ResolvedConfig): void {
       "Network enabled requires a non-empty allowlist."
     );
   }
+
+  assert(
+    !hasWildcard(config.network.allowlist) &&
+      !hasWildcard(config.network.allowlistDomains) &&
+      !hasWildcard(config.network.allowlistUrls),
+    "Network allowlist cannot contain wildcard entries."
+  );
+  assert(
+    !hasEmptyEntry(config.network.allowlist) &&
+      !hasEmptyEntry(config.network.allowlistDomains) &&
+      !hasEmptyEntry(config.network.allowlistUrls),
+    "Network allowlist cannot contain empty entries."
+  );
 
   if (config.email.enabled) {
     assert(isNonEmpty(config.email.from), "Email enabled requires email.from.");
