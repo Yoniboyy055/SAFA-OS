@@ -47,8 +47,14 @@ export const list_templates: SkillDefinition<
       result: 'success'
     });
 
+    // Validate category if provided
+    const validCategories = ['email', 'call', 'payment', 'http', 'custom'];
+    const category = input.category && validCategories.includes(input.category)
+      ? (input.category as 'email' | 'call' | 'payment' | 'http' | 'custom')
+      : undefined;
+
     const templates = templateStore.listTemplates({
-      category: input.category as any,
+      category,
       skillName: input.skillName,
       enabled: input.enabled
     });
