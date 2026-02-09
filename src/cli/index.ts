@@ -33,6 +33,7 @@ import {
 } from "../core/network_window";
 import { VoiceLogStore } from "../core/voice/voice_store";
 import { parseVoiceTranscript } from "../core/voice/voice_parser";
+import { verifyConstitutionOrExit } from "../core/constitution";
 
 function getFlagValue(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
@@ -139,6 +140,8 @@ export async function runWithArgs(
     authorityFlag && authorityFlag.toUpperCase() === AuthorityLevel.OWNER
       ? AuthorityLevel.OWNER
       : undefined;
+
+  verifyConstitutionOrExit(actor);
 
   const config = loadConfig(configPath);
   const freezeState = readFreezeState(config.rootDir);

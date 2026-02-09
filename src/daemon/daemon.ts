@@ -1,6 +1,7 @@
 import * as http from "node:http";
 
 import { createDashboardServer } from "../dashboard/server";
+import { verifyConstitutionOrExit } from "../core/constitution";
 
 const DEFAULT_DASHBOARD_PORT = 3777;
 const DEFAULT_HEALTH_PORT = 3778;
@@ -79,6 +80,8 @@ Usage:
   );
   const configPath = getArgValue(args, "--config");
   const actorDefault = getArgValue(args, "--actor");
+
+  verifyConstitutionOrExit(actorDefault ?? "daemon");
 
   const startedAt = new Date().toISOString();
   const dashboardServer = createDashboardServer({

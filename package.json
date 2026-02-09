@@ -16,6 +16,7 @@
     "dashboard:dev": "node dist/src/dashboard/server.js",
     "dashboard:prod": "node dist/dashboard/server.js",
     "scan:secrets": "pwsh scripts/scan-secrets.ps1",
+    "constitution:hash": "npx tsc scripts/hashConstitution.ts --outDir dist --module commonjs --target ES2022 --lib ES2022 --types node --esModuleInterop --skipLibCheck && node dist/hashConstitution.js",
     "desktop": "electron desktop/main.js",
     "test": "npm run build && node scripts/run-node-tests.js",
     "tui": "node dist/ui/tui/app.js"

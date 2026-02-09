@@ -42,6 +42,7 @@ import { redactSensitiveText } from "../core/sensitive";
 import { armVr, disarmVr, readVrState } from "../core/vr";
 import { parseCommandMode } from "../cli/command_mode";
 import { summarizeSAFALine } from "../cli/safa_line";
+import { verifyConstitutionOrExit } from "../core/constitution";
 
 const MAX_BODY_BYTES = 32 * 1024;
 const DEFAULT_PORT = 3777;
@@ -2009,6 +2010,8 @@ export function createDashboardServer(
   const options = (isConfig ? extraOptions : configOrOptions) ?? {};
   const overrides: RuntimeOverrides = options?.overrides ?? {};
   const actorDefault = options?.actorDefault ?? "dashboard";
+
+  verifyConstitutionOrExit(actorDefault);
   const ownerToken = options?.ownerToken;
   const version = loadVersion();
   const baseConfig = isConfig ? (configOrOptions as ResolvedConfig) : undefined;
