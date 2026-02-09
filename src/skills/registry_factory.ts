@@ -42,6 +42,8 @@ import { parseVoiceCommandSkill } from "./voice/parse_voice_command";
 import { logVoiceTranscriptSkill } from "./voice/log_voice_transcript";
 import { listVoiceLogsSkill } from "./voice/list_voice_logs";
 import { getVoiceLogSkill } from "./voice/get_voice_log";
+import { list_templates, get_template, create_template, apply_template } from "./templates/template_skills";
+import { list_schedules, get_schedule, create_schedule, preview_schedule, update_schedule, delete_schedule } from "./automation/schedule_skills";
 
 export function buildRegistry(): SkillRegistry {
   const registry = new SkillRegistry();
@@ -88,5 +90,20 @@ export function buildRegistry(): SkillRegistry {
   registry.register(logVoiceTranscriptSkill);
   registry.register(listVoiceLogsSkill);
   registry.register(getVoiceLogSkill);
+  
+  // Week 2: Template management skills
+  registry.register(list_templates);
+  registry.register(get_template);
+  registry.register(create_template);
+  registry.register(apply_template);
+  
+  // Week 2: Automation schedule skills
+  registry.register(list_schedules);
+  registry.register(get_schedule);
+  registry.register(create_schedule);
+  registry.register(preview_schedule);
+  registry.register(update_schedule);
+  registry.register(delete_schedule);
+  
   return registry;
 }
