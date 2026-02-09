@@ -1,0 +1,10 @@
+{
+  "id": "7b0eb413586d",
+  "bucket": "artifacts",
+  "title": "web_build_AuditTest",
+  "content": "{\n  \"type\": \"web_build\",\n  \"plan\": {\n    \"projectName\": \"AuditTest\",\n    \"description\": \"Test\",\n    \"stack\": [\n      \"node\",\n      \"ts\"\n    ],\n    \"steps\": [\n      \"Scaffold project structure\",\n      \"Add config files\",\n      \"Generate initial components\",\n      \"Review and approve before execution\"\n    ],\n    \"fileTree\": [\n      \"README.md\",\n      \"package.json\",\n      \"src/\",\n      \"src/index.ts\",\n      \"tests/\"\n    ],\n    \"commands\": [\n      \"npm install\",\n      \"npm run build\"\n    ]\n  },\n  \"risks\": [\n    \"Requires human review before running commands.\"\n  ],\n  \"estimated_cost\": 0\n}",
+  "tags": [
+    "web_build"
+  ],
+  "createdAt": "2026-02-09T21:10:15.917Z"
+}
