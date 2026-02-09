@@ -134,7 +134,7 @@ Required:
 Evidence:
 - Files: src/core/network/gate.ts, src/core/network/client.ts, src/core/config_validate.ts
 - Tests: tests/network_gate.test.ts, tests/config_validation.test.ts
-- Logs: audit.log event network.blocked (manual verification pending)
+- Logs: audit.log event network.blocked (manual verification 2026-02-08)
 Bypass attempts:
 - Attempt:
 - Result:
