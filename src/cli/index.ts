@@ -84,7 +84,7 @@ Usage:
   safa skills [--config <path>] [--actor <name>]
   safa status [--config <path>] [--actor <name>]
   safa line [--text "<SAFA: ...>"] [--config <path>] [--actor <name>]
-  safa approvals <list|show|approve|deny> [args...]
+  safa approvals <list|pending|show|approve|deny> [args...]
   safa audit tail --n 50
   safa packet <create|apply> [args...]
   safa plan "<task>" [--config <path>] [--actor <name>]
@@ -390,6 +390,19 @@ export async function runWithArgs(
         timestamp: new Date().toISOString(),
         actor,
         action: "approvals.list",
+        approved,
+        target: "approvals",
+        result: "SUCCESS"
+      });
+      console.log(JSON.stringify(approvals, null, 2));
+      return;
+    }
+    if (sub === "pending") {
+      const approvals = store.listPending();
+      audit.log({
+        timestamp: new Date().toISOString(),
+        actor,
+        action: "approvals.pending",
         approved,
         target: "approvals",
         result: "SUCCESS"

@@ -1,6 +1,7 @@
 import * as crypto from "node:crypto";
 
 import type { AuditLogger } from "./audit";
+import type { RiskLevel } from "../types/skill";
 
 export type ApprovalStatus = "PENDING" | "APPROVED" | "DENIED" | "EXPIRED";
 
@@ -9,11 +10,17 @@ export interface ApprovalRequest {
   action: string;
   target: string;
   actor: string;
+  jobId?: string;
+  riskLevel?: RiskLevel;
+  reasonCode?: string;
   status: ApprovalStatus;
   createdAt: string;
   expiresAt?: string;
   planHash?: string;
   payloadHash?: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  resolutionNote?: string;
   decidedAt?: string;
   decidedBy?: string;
   reason?: string;
@@ -64,6 +71,9 @@ export function createApprovalRequest(
   input: {
     action: string;
     target: string;
+    jobId?: string;
+    riskLevel?: RiskLevel;
+    reasonCode?: string;
     plan?: unknown;
     payload?: unknown;
     policy?: ApprovalPolicy;
@@ -96,6 +106,9 @@ export function createApprovalRequest(
     action: input.action,
     target: input.target,
     actor: context.actor,
+    jobId: input.jobId,
+    riskLevel: input.riskLevel,
+    reasonCode: input.reasonCode,
     status: "PENDING",
     createdAt,
     expiresAt,
@@ -139,6 +152,8 @@ export function approveRequest(
   const approved: ApprovalRequest = {
     ...request,
     status: "APPROVED",
+    resolvedAt: decidedAt,
+    resolvedBy: context.actor,
     decidedAt,
     decidedBy: context.actor
   };
@@ -162,6 +177,9 @@ export function denyRequest(
   const denied: ApprovalRequest = {
     ...request,
     status: "DENIED",
+    resolvedAt: decidedAt,
+    resolvedBy: context.actor,
+    resolutionNote: reason,
     decidedAt,
     decidedBy: context.actor,
     reason
@@ -194,6 +212,9 @@ export function expireRequest(
   const expired: ApprovalRequest = {
     ...request,
     status: "EXPIRED",
+    resolvedAt: decidedAt,
+    resolvedBy: context.actor,
+    resolutionNote: reason,
     decidedAt,
     decidedBy: context.actor,
     reason

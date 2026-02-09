@@ -1,8 +1,8 @@
 import type { AuditLogger } from "./audit";
 import type { ResolvedConfig } from "./config";
 import type { Governor } from "./governor";
-import { ApprovalQueueStore } from "./approval_queue_store";
-import { createApprovalRequest } from "./approvals";
+import { ApprovalStore, shouldRequireApproval } from "./approval_store";
+import { createApprovalRequest, expireRequest } from "./approvals";
 import { readFreezeState } from "./freeze";
 import { withDelegatedJobContext } from "./execution_gate";
 import { buildRegistry } from "../skills/registry_factory";
@@ -49,7 +49,7 @@ function needsApproval(step: JobStep, config: ResolvedConfig): boolean {
   if (step.requiresApproval === true) {
     return true;
   }
-  return resolveRiskLevel(step) !== "LOW";
+  return shouldRequireApproval(resolveRiskLevel(step));
 }
 
 function findNextStep(job: JobRecord): JobStep | undefined {
@@ -62,8 +62,15 @@ function findPausedStep(job: JobRecord): JobStep | undefined {
   return job.steps.find((step) => step.status === "PAUSED");
 }
 
-function getApprovalKey(job: JobRecord, step: JobStep): string {
-  return `job:${job.id}:${step.id}`;
+function buildReasonCode(step: JobStep, config: ResolvedConfig): string {
+  if (config.governance?.strictApprovalMode) {
+    return "strict_mode";
+  }
+  if (step.requiresApproval === true) {
+    return "step_requires_approval";
+  }
+  const level = resolveRiskLevel(step);
+  return `risk_${level.toLowerCase()}`;
 }
 
 export class JobRunner {
@@ -119,7 +126,7 @@ export class JobRunner {
       return null;
     }
 
-    const approvalQueue = new ApprovalQueueStore(this.context.config.rootDir);
+    const approvalStore = new ApprovalStore(this.context.config.rootDir);
 
     let job = jobs.find((entry) => entry.status === "PAUSED");
     if (job) {
@@ -127,13 +134,42 @@ export class JobRunner {
       if (!pausedStep) {
         return job;
       }
-      const key = getApprovalKey(job, pausedStep);
-      const approved = approvalQueue.findApprovedByKey(key);
-      if (!approved) {
+      const approval = approvalStore.getByJob(job.id, pausedStep.id);
+      if (!approval) {
         return job;
       }
+      if (approval.status === "PENDING" && isExpired(approval.expiresAt)) {
+        const expired = expireRequest(approval, {
+          actor: this.context.actor,
+          audit: this.context.audit
+        }, "Approval expired.");
+        approvalStore.upsert(expired);
+        pausedStep.status = "FAILED";
+        pausedStep.error = "Approval expired.";
+        job.status = "EXPIRED";
+        job.error = "Approval expired.";
+        return upsertJob(this.context.config.rootDir, job);
+      }
+      if (approval.status === "PENDING") {
+        return job;
+      }
+      if (approval.status === "DENIED") {
+        pausedStep.status = "FAILED";
+        pausedStep.error = "Approval denied.";
+        job.status = "FAILED";
+        job.error = "Approval denied.";
+        return upsertJob(this.context.config.rootDir, job);
+      }
+      if (approval.status === "EXPIRED") {
+        pausedStep.status = "FAILED";
+        pausedStep.error = "Approval expired.";
+        job.status = "EXPIRED";
+        job.error = "Approval expired.";
+        return upsertJob(this.context.config.rootDir, job);
+      }
+
       pausedStep.status = "APPROVED";
-      pausedStep.approvalId = approved.request.id;
+      pausedStep.approvalId = approval.id;
       job.status = "QUEUED";
       job = upsertJob(this.context.config.rootDir, job);
     }
@@ -167,23 +203,20 @@ export class JobRunner {
     if (approvalRequired && step.status !== "APPROVED") {
       step.status = "PAUSED";
       job.status = "PAUSED";
-      const key = getApprovalKey(job, step);
-      const existing = approvalQueue.list().find((record) => record.key === key);
+      const existing = approvalStore.getByJob(job.id, step.id);
       if (!existing) {
         const request = createApprovalRequest(
           {
             action: "job.step",
-            target: key,
+            target: step.id,
+            jobId: job.id,
+            riskLevel: resolveRiskLevel(step),
+            reasonCode: buildReasonCode(step, this.context.config),
             policy: { expiresInMs: job.ttlMs }
           },
           { actor: job.ownerId, audit: this.context.audit }
         );
-        approvalQueue.upsert({
-          request,
-          status: request.status,
-          key,
-          summary: `Approve job ${job.id} step ${step.id} (${step.skill})`
-        });
+        approvalStore.upsert(request);
         step.approvalId = request.id;
       }
       return upsertJob(this.context.config.rootDir, job);

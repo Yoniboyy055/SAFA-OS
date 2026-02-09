@@ -88,5 +88,75 @@
     "createdAt": "2026-02-08T04:09:47.977Z",
     "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
     "error": "Strict approval mode requires explicit approval."
+  },
+  {
+    "id": "rcpt-1fd870bf154cc",
+    "skill": "request_web_build",
+    "status": "DENIED",
+    "actor": "local-user",
+    "approved": false,
+    "createdAt": "2026-02-09T04:34:03.939Z",
+    "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
+    "error": "Strict approval mode requires explicit approval."
+  },
+  {
+    "id": "rcpt-01b73c3abf0ae",
+    "skill": "request_web_build",
+    "status": "DENIED",
+    "actor": "local-user",
+    "approved": false,
+    "createdAt": "2026-02-09T04:36:26.914Z",
+    "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
+    "error": "Strict approval mode requires explicit approval."
+  },
+  {
+    "id": "rcpt-a5b78fdd92656",
+    "skill": "request_web_build",
+    "status": "DENIED",
+    "actor": "local-user",
+    "approved": false,
+    "createdAt": "2026-02-09T04:37:33.510Z",
+    "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
+    "error": "Strict approval mode requires explicit approval."
+  },
+  {
+    "id": "rcpt-a48b4b4ab2fd3",
+    "skill": "request_web_build",
+    "status": "DENIED",
+    "actor": "local-user",
+    "approved": false,
+    "createdAt": "2026-02-09T04:39:21.619Z",
+    "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
+    "error": "Strict approval mode requires explicit approval."
+  },
+  {
+    "id": "rcpt-5baabfcc11791",
+    "skill": "request_web_build",
+    "status": "DENIED",
+    "actor": "local-user",
+    "approved": false,
+    "createdAt": "2026-02-09T04:46:04.303Z",
+    "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
+    "error": "Strict approval mode requires explicit approval."
+  },
+  {
+    "id": "rcpt-fa30fd62459b5",
+    "skill": "request_web_build",
+    "status": "DENIED",
+    "actor": "local-user",
+    "approved": false,
+    "createdAt": "2026-02-09T04:46:51.283Z",
+    "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
+    "error": "Strict approval mode requires explicit approval."
+  },
+  {
+    "id": "rcpt-eb4c4d4ca54ef",
+    "skill": "request_web_build",
+    "status": "DENIED",
+    "actor": "local-user",
+    "approved": false,
+    "createdAt": "2026-02-09T05:07:25.313Z",
+    "inputHash": "de4d7f3aaa5344321688987f0fa81f321221cffc8ff74641b7f56b0ede48a246",
+    "error": "Strict approval mode requires explicit approval."
   }
 ]
