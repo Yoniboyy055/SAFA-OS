@@ -101,6 +101,10 @@ Done when:
 
 ## Shipment 6 — Gate G (Anti-Dependency / Psychological safety)
 Goal: SAFA never becomes a companion; stays a governed tool.
+Status: VERIFIED (2026-02-09)
+Evidence:
+- Tests: npm test (all green), tests/defense_bonding.test.ts.
+- Files: src/core/defense.ts.
 Do:
 - Add policy rules in defense.ts: no bonding/relationship language.
 - Add tests: forbidden phrases refused/rewritten.
