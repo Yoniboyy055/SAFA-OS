@@ -210,7 +210,19 @@ async function loadApprovals() {
     row.dataset.depth = "2";
     row.dataset.media = "abstract";
     row.dataset.blur = "10";
-    row.innerHTML = `<div><strong>${approval.action}</strong> -> ${approval.target}</div><div class='note'>${approval.summary}</div>`;
+    const riskLabel = approval.riskLevel || "UNKNOWN";
+    const jobLabel = approval.jobId ? `Job ${approval.jobId}` : "Job --";
+    const sessionLabel = approval.sessionId ? `Session ${approval.sessionId}` : "Session --";
+    row.innerHTML = `
+      <div class="approval-row">
+        <div>
+          <div class="approval-title"><strong>${approval.action}</strong> -> ${approval.target}</div>
+          <div class="note">${approval.summary}</div>
+        </div>
+        <div class="approval-risk" data-risk="${riskLabel}">${riskLabel}</div>
+      </div>
+      <div class="approval-meta">${jobLabel} | ${sessionLabel}</div>
+    `;
     const approveBtn = document.createElement("button");
     approveBtn.textContent = "APPROVE";
     approveBtn.addEventListener("click", async () => {

@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAFA OS Home</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      body {
+        min-height: 100vh;
+      }
+      .home-shell {
+        display: grid;
+        min-height: 100vh;
+        padding: 32px;
+        background: radial-gradient(circle at 15% 20%, rgba(15, 23, 42, 0.85), rgba(5, 7, 12, 0.95));
+      }
+      .home-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.9fr);
+        gap: 24px;
+        align-items: start;
+        max-width: 1200px;
+        margin: auto;
+        width: 100%;
+      }
+      .home-panel {
+        display: grid;
+        gap: 16px;
+      }
+      .home-rail {
+        display: grid;
+        gap: 16px;
+      }
+      .home-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+      }
+      .home-badge {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+      .home-greeting {
+        font-size: 28px;
+        margin: 0;
+      }
+      .home-subtitle {
+        color: var(--color-muted);
+        margin-top: 6px;
+      }
+      .home-chat {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 420px;
+        max-height: 520px;
+        overflow-y: auto;
+        padding-right: 4px;
+        transform: none;
+        writing-mode: horizontal-tb;
+      }
+      .home-message {
+        padding: 12px 16px;
+        border-radius: 16px;
+        max-width: 640px;
+        line-height: 1.6;
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        transform: none;
+        writing-mode: horizontal-tb;
+      }
+      .home-message.user {
+        margin-left: auto;
+        background: rgba(37, 99, 235, 0.25);
+        border-color: rgba(59, 130, 246, 0.45);
+      }
+      .home-controls {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .home-controls a.button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #e2e8f0;
+        background: #0b1220;
+        border: 1px solid #334155;
+      }
+      .home-input {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .home-input input {
+        flex: 1;
+      }
+      .home-suggestion-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .home-suggestion {
+        flex: 1;
+        text-align: left;
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(6, 10, 18, 0.6);
+        color: var(--color-text);
+        letter-spacing: 0.02em;
+      }
+      .home-suggestion-refresh {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(15, 23, 42, 0.6);
+        color: var(--color-muted);
+      }
+      .home-rail h2,
+      .home-rail h3 {
+        margin: 0;
+      }
+      .home-summary-list {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding-left: 16px;
+        color: var(--color-muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .home-approvals {
+        display: grid;
+        gap: 12px;
+      }
+      .home-approval-card {
+        border-radius: 12px;
+        padding: 12px 14px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(8, 12, 20, 0.65);
+        display: grid;
+        gap: 8px;
+      }
+      .home-approval-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .home-approval-actions button {
+        flex: 1;
+      }
+      .home-debug {
+        display: none;
+        font-size: 12px;
+        color: var(--color-muted);
+        border: 1px dashed rgba(148, 163, 184, 0.3);
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: rgba(8, 12, 20, 0.6);
+      }
+      .home-debug.active {
+        display: block;
+      }
+      .governed-indicator {
+        display: none;
+        font-size: 12px;
+        color: var(--color-risk-med);
+      }
+      .governed-indicator.active {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+      @media (max-width: 960px) {
+        .home-shell {
+          padding: 20px;
+        }
+        .home-grid {
+          grid-template-columns: 1fr;
+        }
+        .home-chat {
+          min-height: 320px;
+          max-height: 420px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="home-shell">
+      <div class="home-grid">
+        <section class="home-panel card" data-variant="assistant" data-depth="3" data-media="image" data-blur="16">
+          <div class="home-header">
+            <div>
+              <div class="pill home-badge">LOCAL ONLY</div>
+              <h1 class="home-greeting" id="homeGreeting">Good day, YG.</h1>
+              <div class="home-subtitle">Human-first presence layer.</div>
+            </div>
+            <div class="governed-indicator" id="governedIndicator">Governed approval required</div>
+          </div>
+
+          <div class="home-chat" id="homeChat"></div>
+
+          <div class="home-debug" id="homeDebug"></div>
+
+          <div class="home-input">
+            <input id="homeInput" type="text" placeholder="Ask me anything..." />
+            <button id="homeSend">Send</button>
+          </div>
+
+          <div class="home-suggestion-row">
+            <button class="home-suggestion" id="homeSuggestion">Show approvals</button>
+            <button class="home-suggestion-refresh" id="homeSuggestionRefresh" aria-label="Next suggestion">Next</button>
+          </div>
+
+          <div class="home-controls">
+            <a class="button" href="/control#approvals">Approvals</a>
+            <a class="button" href="/control#audit">Audit Trail</a>
+            <a class="button" href="/control#command">Run Tests</a>
+          </div>
+        </section>
+
+        <aside class="home-rail">
+          <section class="home-panel card" data-variant="system" data-depth="2" data-media="abstract" data-blur="12">
+            <h2>What did you do so far?</h2>
+            <ul class="home-summary-list" id="homeSummary"></ul>
+          </section>
+
+          <section class="home-panel card" data-variant="system" data-depth="2" data-media="abstract" data-blur="12">
+            <h2>Approvals</h2>
+            <div class="home-approvals" id="homeApprovals"></div>
+          </section>
+        </aside>
+      </div>
+    </div>
+
+    <script>
+      const chat = document.getElementById("homeChat");
+      const input = document.getElementById("homeInput");
+      const sendBtn = document.getElementById("homeSend");
+      const greeting = document.getElementById("homeGreeting");
+      const governed = document.getElementById("governedIndicator");
+      const debug = document.getElementById("homeDebug");
+      const approvals = document.getElementById("homeApprovals");
+      const summary = document.getElementById("homeSummary");
+      const suggestionBtn = document.getElementById("homeSuggestion");
+      const suggestionRefresh = document.getElementById("homeSuggestionRefresh");
+      const debugEnabled =
+        window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
+      if (debugEnabled && debug) {
+        debug.classList.add("active");
+      }
+
+      let messageSeq = 0;
+      let lastMessageId = "";
+      let isSending = false;
+      let lastSendAt = 0;
+      let lastSendText = "";
+      const suggestions = [
+        "Show approvals",
+        "Summarize recent actions",
+        "Run tests",
+        "Show audit tail"
+      ];
+      let suggestionIndex = 0;
+
+      function ensureSessionId() {
+        let sessionId = window.localStorage.getItem("safa.sessionId");
+        if (!sessionId) {
+          sessionId = window.crypto?.randomUUID?.() || `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+          window.localStorage.setItem("safa.sessionId", sessionId);
+        }
+        return sessionId;
+      }
+
+      async function ensureOwnerSession() {
+        try {
+          const check = await fetch("/auth/check", { method: "POST" });
+          if (check.ok) {
+            return true;
+          }
+        } catch {
+          return false;
+        }
+
+        const token = window.prompt("Owner token required for local chat.") || "";
+        if (!token) {
+          return false;
+        }
+        const login = await fetch("/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-owner-token": token
+          },
+          body: JSON.stringify({})
+        });
+        return login.ok;
+      }
+
+      function addMessage(role, text) {
+        const node = document.createElement("div");
+        const messageId = `msg-${Date.now()}-${messageSeq++}`;
+        node.className = `home-message ${role}`;
+        node.textContent = text;
+        node.dataset.messageId = messageId;
+        chat.appendChild(node);
+        chat.scrollTop = chat.scrollHeight;
+        lastMessageId = messageId;
+        if (debugEnabled && debug) {
+          debug.textContent = `messages=${chat.children.length} last=${lastMessageId}`;
+        }
+        console.log("[home-chat] append", { id: messageId, role, length: text.length });
+      }
+
+      function updateGreeting() {
+        const hour = new Date().getHours();
+        const timeOfDay = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+        greeting.textContent = `Good ${timeOfDay}, YG.`;
+      }
+
+      function setSuggestion(index) {
+        if (!suggestionBtn) {
+          return;
+        }
+        const safeIndex = ((index % suggestions.length) + suggestions.length) % suggestions.length;
+        suggestionIndex = safeIndex;
+        const value = suggestions[safeIndex];
+        suggestionBtn.textContent = value;
+        suggestionBtn.dataset.value = value;
+      }
+
+      function useSuggestion() {
+        if (!suggestionBtn) {
+          return;
+        }
+        const value = suggestionBtn.dataset.value || suggestionBtn.textContent || "";
+        input.value = value;
+        input.focus();
+      }
+
+      async function api(path, options) {
+        const res = await fetch(path, {
+          headers: { "Content-Type": "application/json" },
+          ...options
+        });
+        return res.json();
+      }
+
+      function normalizeApproval(record) {
+        return {
+          id: record.id,
+          action: record.action,
+          target: record.target,
+          summary: record.summary || "Approval required.",
+          riskLevel: record.riskLevel || "UNKNOWN",
+          jobId: record.jobId || "--",
+          sessionId: record.sessionId || "--",
+          createdAt: record.createdAt
+        };
+      }
+
+      function buildApprovalCard(approval) {
+        const card = document.createElement("div");
+        card.className = "home-approval-card";
+        const header = document.createElement("div");
+        header.className = "approval-row";
+        const title = document.createElement("div");
+        title.className = "approval-title";
+        title.textContent = `${approval.action} -> ${approval.target}`;
+        const risk = document.createElement("div");
+        risk.className = "approval-risk";
+        risk.dataset.risk = approval.riskLevel;
+        risk.textContent = approval.riskLevel;
+        header.appendChild(title);
+        header.appendChild(risk);
+
+        const summaryText = document.createElement("div");
+        summaryText.className = "note";
+        summaryText.textContent = approval.summary;
+
+        const meta = document.createElement("div");
+        meta.className = "approval-meta";
+        meta.textContent = `Job ${approval.jobId} | Session ${approval.sessionId}`;
+
+        const actions = document.createElement("div");
+        actions.className = "home-approval-actions";
+        const approveBtn = document.createElement("button");
+        approveBtn.textContent = "APPROVE";
+        const denyBtn = document.createElement("button");
+        denyBtn.textContent = "DENY";
+        actions.appendChild(approveBtn);
+        actions.appendChild(denyBtn);
+
+        approveBtn.addEventListener("click", async () => {
+          const authed = await ensureOwnerSession();
+          if (!authed) {
+            addMessage("assistant", "Owner token is required to approve.");
+            return;
+          }
+          await api("/api/approve", {
+            method: "POST",
+            body: JSON.stringify({
+              approvalId: approval.id,
+              decision: "APPROVE",
+              actor: "owner"
+            })
+          });
+          await loadApprovals();
+        });
+
+        denyBtn.addEventListener("click", async () => {
+          const authed = await ensureOwnerSession();
+          if (!authed) {
+            addMessage("assistant", "Owner token is required to deny.");
+            return;
+          }
+          await api("/api/approve", {
+            method: "POST",
+            body: JSON.stringify({
+              approvalId: approval.id,
+              decision: "DENY",
+              actor: "owner"
+            })
+          });
+          await loadApprovals();
+        });
+
+        card.appendChild(header);
+        card.appendChild(summaryText);
+        card.appendChild(meta);
+        card.appendChild(actions);
+        return card;
+      }
+
+      async function loadApprovals() {
+        if (!approvals) {
+          return;
+        }
+        try {
+          const data = await api("/api/approvals");
+          approvals.innerHTML = "";
+          const entries = Array.isArray(data?.approvals) ? data.approvals : [];
+          if (entries.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "note";
+            empty.textContent = "No pending approvals.";
+            approvals.appendChild(empty);
+            return;
+          }
+          entries.map(normalizeApproval).forEach((approval) => {
+            approvals.appendChild(buildApprovalCard(approval));
+          });
+        } catch {
+          approvals.innerHTML = "<div class='note'>Unable to load approvals.</div>";
+        }
+      }
+
+      async function loadSummary() {
+        if (!summary) {
+          return;
+        }
+        try {
+          const data = await api("/api/executions?limit=6");
+          const executions = Array.isArray(data?.executions) ? data.executions : [];
+          summary.innerHTML = "";
+          if (executions.length === 0) {
+            const empty = document.createElement("li");
+            empty.textContent = "No executions recorded yet.";
+            summary.appendChild(empty);
+            return;
+          }
+          const last = executions[executions.length - 1];
+          const successCount = executions.filter((entry) => entry.success).length;
+          const lastTarget = last.skill || last.planHash || "unknown";
+          const lastKind = String(last.kind || "action").toUpperCase();
+          const lines = [
+            `Last action: ${lastKind} ${lastTarget}`,
+            `Recent success: ${successCount} of ${executions.length}`,
+            `Last update: ${last.createdAt}`
+          ];
+          lines.forEach((line) => {
+            const item = document.createElement("li");
+            item.textContent = line;
+            summary.appendChild(item);
+          });
+        } catch {
+          summary.innerHTML = "<li>Unable to load summary.</li>";
+        }
+      }
+
+      async function sendMessage() {
+        const text = input.value.trim();
+        if (!text) {
+          return;
+        }
+        const now = Date.now();
+        if (isSending) {
+          return;
+        }
+        if (text === lastSendText && now - lastSendAt < 400) {
+          return;
+        }
+        isSending = true;
+        lastSendAt = now;
+        lastSendText = text;
+        input.value = "";
+        governed.classList.remove("active");
+        addMessage("user", text);
+
+        const authed = await ensureOwnerSession();
+        if (!authed) {
+          addMessage("assistant", "Owner token is required to continue.");
+          isSending = false;
+          return;
+        }
+
+        const sessionId = ensureSessionId();
+        try {
+          const res = await fetch("/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-session-id": sessionId
+            },
+            body: JSON.stringify({ message: text })
+          });
+          const data = await res.json();
+          if (data?.requiresApproval) {
+            governed.classList.add("active");
+          }
+          addMessage("assistant", data?.message || data?.reason || "No response.");
+        } catch (error) {
+          addMessage("assistant", "Request failed. Check the server logs.");
+        } finally {
+          isSending = false;
+        }
+      }
+
+      sendBtn.addEventListener("click", sendMessage);
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey && !event.repeat) {
+          event.preventDefault();
+          sendMessage();
+        }
+      });
+
+      if (suggestionBtn) {
+        suggestionBtn.addEventListener("click", useSuggestion);
+      }
+      if (suggestionRefresh) {
+        suggestionRefresh.addEventListener("click", () => setSuggestion(suggestionIndex + 1));
+      }
+
+      updateGreeting();
+      setSuggestion(Math.floor(Math.random() * suggestions.length));
+      loadSummary();
+      loadApprovals();
+      addMessage("assistant", "Hello. Tell me what you want to do.");
+      setInterval(loadSummary, 15000);
+      setInterval(loadApprovals, 15000);
+    </script>
+  </body>
+</html>

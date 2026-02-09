@@ -10,6 +10,7 @@ export interface ApprovalRequest {
   action: string;
   target: string;
   actor: string;
+  sessionId?: string;
   jobId?: string;
   riskLevel?: RiskLevel;
   reasonCode?: string;
@@ -71,6 +72,7 @@ export function createApprovalRequest(
   input: {
     action: string;
     target: string;
+    sessionId?: string;
     jobId?: string;
     riskLevel?: RiskLevel;
     reasonCode?: string;
@@ -106,6 +108,7 @@ export function createApprovalRequest(
     action: input.action,
     target: input.target,
     actor: context.actor,
+    sessionId: input.sessionId,
     jobId: input.jobId,
     riskLevel: input.riskLevel,
     reasonCode: input.reasonCode,

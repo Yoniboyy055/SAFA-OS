@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAFA Remote</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --phone-bg: radial-gradient(circle at 20% 20%, rgba(12, 20, 35, 0.9), rgba(4, 6, 12, 0.98));
+        --phone-accent: #6ddcff;
+        --phone-muted: #8aa0b9;
+        --phone-card: rgba(8, 12, 20, 0.7);
+      }
+
+      body {
+        min-height: 100vh;
+        background: var(--phone-bg);
+      }
+
+      .phone-shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 16px;
+        padding: 18px;
+      }
+
+      .phone-header {
+        display: grid;
+        gap: 6px;
+      }
+
+      .phone-title {
+        font-size: 18px;
+        text-transform: uppercase;
+        letter-spacing: 0.22em;
+        color: var(--phone-accent);
+      }
+
+      .phone-subtitle {
+        font-size: 12px;
+        color: var(--phone-muted);
+      }
+
+      .phone-status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .phone-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      .phone-tabs button {
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(9, 14, 24, 0.7);
+        color: var(--color-text);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-size: 11px;
+      }
+
+      .phone-tabs button.active {
+        border-color: var(--phone-accent);
+        color: var(--phone-accent);
+      }
+
+      .phone-panel {
+        display: none;
+        gap: 12px;
+      }
+
+      .phone-panel.active {
+        display: grid;
+      }
+
+      .phone-card {
+        border-radius: 16px;
+        padding: 14px;
+        background: var(--phone-card);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        display: grid;
+        gap: 10px;
+      }
+
+      .chat-stream {
+        max-height: 340px;
+        overflow-y: auto;
+        display: grid;
+        gap: 8px;
+      }
+
+      .chat-message {
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(8, 12, 20, 0.6);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .chat-message.user {
+        border-color: rgba(96, 165, 250, 0.4);
+        background: rgba(10, 18, 34, 0.7);
+      }
+
+      .chat-input {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+      }
+
+      .approval-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .approval-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .approval-actions button {
+        flex: 1;
+      }
+
+      .summary-list {
+        display: grid;
+        gap: 8px;
+        color: var(--phone-muted);
+        font-size: 12px;
+      }
+
+      .unlock-screen {
+        position: fixed;
+        inset: 0;
+        background: rgba(4, 6, 12, 0.95);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        z-index: 10;
+      }
+
+      .unlock-card {
+        width: min(360px, 100%);
+        border-radius: 18px;
+        padding: 18px;
+        background: rgba(9, 14, 24, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        display: grid;
+        gap: 12px;
+      }
+
+      .unlock-card label {
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--phone-muted);
+      }
+
+      .unlock-actions {
+        display: grid;
+        gap: 8px;
+      }
+
+      .note {
+        font-size: 12px;
+        color: var(--phone-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="unlock-screen" id="unlockScreen">
+      <div class="unlock-card">
+        <div class="phone-title">Remote Unlock</div>
+        <div class="note">VPN only. Enter your PIN to connect.</div>
+        <label for="pinInput">PIN</label>
+        <input id="pinInput" type="password" inputmode="numeric" placeholder="PIN" />
+        <div class="unlock-actions">
+          <button id="pinUnlock">Unlock</button>
+          <div class="note" id="unlockNote"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone-shell">
+      <header class="phone-header">
+        <div class="phone-title">SAFA REMOTE</div>
+        <div class="phone-subtitle">VPN-only companion. Approvals are signed.</div>
+        <div class="phone-status" id="phoneStatus"></div>
+      </header>
+
+      <nav class="phone-tabs">
+        <button class="tab active" data-tab="chat">Chat</button>
+        <button class="tab" data-tab="approvals">Approvals</button>
+        <button class="tab" data-tab="summary">Summary</button>
+      </nav>
+
+      <main>
+        <section class="phone-panel active" id="panel-chat">
+          <div class="phone-card">
+            <div class="chat-stream" id="chatStream"></div>
+            <div class="chat-input">
+              <input id="chatInput" type="text" placeholder="Message" />
+              <button id="chatSend">Send</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="phone-panel" id="panel-approvals">
+          <div class="phone-card">
+            <div class="approval-list" id="approvalList"></div>
+          </div>
+        </section>
+
+        <section class="phone-panel" id="panel-summary">
+          <div class="phone-card">
+            <div class="summary-list" id="summaryList"></div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="note">Remote approvals require an active session.</footer>
+    </div>
+
+    <script>
+      const tabs = Array.from(document.querySelectorAll(".tab"));
+      const panels = {
+        chat: document.getElementById("panel-chat"),
+        approvals: document.getElementById("panel-approvals"),
+        summary: document.getElementById("panel-summary")
+      };
+      const unlockScreen = document.getElementById("unlockScreen");
+      const pinUnlock = document.getElementById("pinUnlock");
+      const pinInput = document.getElementById("pinInput");
+      const unlockNote = document.getElementById("unlockNote");
+      const statusEl = document.getElementById("phoneStatus");
+      const chatStream = document.getElementById("chatStream");
+      const chatInput = document.getElementById("chatInput");
+      const chatSend = document.getElementById("chatSend");
+      const approvalList = document.getElementById("approvalList");
+      const summaryList = document.getElementById("summaryList");
+
+      const remoteState = {
+        remoteSessionId: null,
+        hmacKey: null,
+        expiresAt: null
+      };
+
+      function setStatus(lines) {
+        statusEl.innerHTML = "";
+        lines.forEach((line) => {
+          const tag = document.createElement("div");
+          tag.className = "pill";
+          tag.textContent = line;
+          statusEl.appendChild(tag);
+        });
+      }
+
+      function showTab(name) {
+        tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === name));
+        Object.entries(panels).forEach(([key, panel]) => {
+          panel.classList.toggle("active", key === name);
+        });
+      }
+
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => showTab(tab.dataset.tab));
+      });
+
+      function base64UrlToBytes(input) {
+        const padded = input.replace(/-/g, "+").replace(/_/g, "/");
+        const decoded = atob(padded);
+        const bytes = new Uint8Array(decoded.length);
+        for (let i = 0; i < decoded.length; i += 1) {
+          bytes[i] = decoded.charCodeAt(i);
+        }
+        return bytes;
+      }
+
+      async function signPayload(payload) {
+        if (!remoteState.hmacKey) {
+          throw new Error("Missing remote session key.");
+        }
+        const keyData = base64UrlToBytes(remoteState.hmacKey);
+        const cryptoKey = await crypto.subtle.importKey(
+          "raw",
+          keyData,
+          { name: "HMAC", hash: "SHA-256" },
+          false,
+          ["sign"]
+        );
+        const signature = await crypto.subtle.sign(
+          "HMAC",
+          cryptoKey,
+          new TextEncoder().encode(payload)
+        );
+        const bytes = new Uint8Array(signature);
+        let binary = "";
+        bytes.forEach((value) => {
+          binary += String.fromCharCode(value);
+        });
+        return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+      }
+
+      async function api(path, options) {
+        const res = await fetch(path, {
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          ...options
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const reason = data?.reason || data?.error || "Request failed.";
+          throw new Error(reason);
+        }
+        return data;
+      }
+
+      async function ensureRemoteSession() {
+        if (remoteState.remoteSessionId && remoteState.hmacKey) {
+          return;
+        }
+        const data = await api("/remote/session", { method: "POST", body: "{}" });
+        remoteState.remoteSessionId = data.remoteSessionId;
+        remoteState.hmacKey = data.hmacKey;
+        remoteState.expiresAt = data.expiresAt;
+        setStatus(["REMOTE READY", `EXPIRES ${remoteState.expiresAt}`]);
+      }
+
+      async function unlock() {
+        unlockNote.textContent = "";
+        try {
+          const pin = pinInput.value.trim();
+          if (!pin) {
+            unlockNote.textContent = "PIN required.";
+            return;
+          }
+          await api("/remote/unlock", { method: "POST", body: JSON.stringify({ pin }) });
+          await ensureRemoteSession();
+          unlockScreen.style.display = "none";
+          await loadApprovals();
+          await loadSummary();
+        } catch (error) {
+          unlockNote.textContent = String(error);
+        }
+      }
+
+      pinUnlock.addEventListener("click", unlock);
+      pinInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          unlock();
+        }
+      });
+
+      function appendChat(role, text) {
+        const node = document.createElement("div");
+        node.className = `chat-message ${role}`;
+        node.textContent = text;
+        chatStream.appendChild(node);
+        chatStream.scrollTop = chatStream.scrollHeight;
+      }
+
+      async function sendChat() {
+        const text = chatInput.value.trim();
+        if (!text) {
+          return;
+        }
+        chatInput.value = "";
+        appendChat("user", text);
+        try {
+          const data = await api("/chat", { method: "POST", body: JSON.stringify({ message: text }) });
+          appendChat("assistant", data?.message || "No response.");
+        } catch (error) {
+          appendChat("assistant", String(error));
+        }
+      }
+
+      chatSend.addEventListener("click", sendChat);
+      chatInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          sendChat();
+        }
+      });
+
+      function renderApprovalCard(approval) {
+        const card = document.createElement("div");
+        card.className = "phone-card";
+        const title = document.createElement("div");
+        title.className = "approval-title";
+        title.textContent = `${approval.action} -> ${approval.target}`;
+        const summary = document.createElement("div");
+        summary.className = "note";
+        summary.textContent = approval.summary || "Approval required.";
+        const meta = document.createElement("div");
+        meta.className = "approval-meta";
+        meta.textContent = `Risk ${approval.riskLevel || "UNKNOWN"} | Job ${approval.jobId || "--"}`;
+        const actions = document.createElement("div");
+        actions.className = "approval-actions";
+        const approveBtn = document.createElement("button");
+        approveBtn.textContent = "APPROVE";
+        const denyBtn = document.createElement("button");
+        denyBtn.textContent = "DENY";
+        actions.appendChild(approveBtn);
+        actions.appendChild(denyBtn);
+        card.appendChild(title);
+        card.appendChild(summary);
+        card.appendChild(meta);
+        card.appendChild(actions);
+
+        async function submitDecision(decision) {
+          try {
+            await ensureRemoteSession();
+            const timestamp = Date.now().toString();
+            const nonce = Math.random().toString(16).slice(2);
+            const payload = `${remoteState.remoteSessionId}.${approval.id}.${decision}.${timestamp}.${nonce}`;
+            const signature = await signPayload(payload);
+            await api("/remote/approve", {
+              method: "POST",
+              body: JSON.stringify({
+                remoteSessionId: remoteState.remoteSessionId,
+                approvalId: approval.id,
+                decision,
+                actor: "owner",
+                timestamp,
+                nonce,
+                signature
+              })
+            });
+            await loadApprovals();
+          } catch (error) {
+            appendChat("assistant", String(error));
+          }
+        }
+
+        approveBtn.addEventListener("click", () => submitDecision("APPROVE"));
+        denyBtn.addEventListener("click", () => submitDecision("DENY"));
+        return card;
+      }
+
+      async function loadApprovals() {
+        try {
+          const data = await api("/api/approvals", { method: "GET" });
+          const approvals = Array.isArray(data?.approvals) ? data.approvals : [];
+          approvalList.innerHTML = "";
+          if (approvals.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "note";
+            empty.textContent = "No pending approvals.";
+            approvalList.appendChild(empty);
+            return;
+          }
+          approvals.forEach((approval) => {
+            approvalList.appendChild(renderApprovalCard(approval));
+          });
+        } catch (error) {
+          approvalList.innerHTML = `<div class="note">${error}</div>`;
+        }
+      }
+
+      async function loadSummary() {
+        try {
+          const data = await api("/api/executions?limit=5", { method: "GET" });
+          const executions = Array.isArray(data?.executions) ? data.executions : [];
+          summaryList.innerHTML = "";
+          if (executions.length === 0) {
+            summaryList.textContent = "No executions recorded.";
+            return;
+          }
+          executions.forEach((entry) => {
+            const line = document.createElement("div");
+            const kind = String(entry.kind || "action").toUpperCase();
+            const target = entry.skill || entry.planHash || "unknown";
+            line.textContent = `${entry.createdAt} | ${kind} ${target}`;
+            summaryList.appendChild(line);
+          });
+        } catch (error) {
+          summaryList.textContent = String(error);
+        }
+      }
+
+      setStatus(["REMOTE LOCKED"]);
+      appendChat("assistant", "Remote channel standing by.");
+    </script>
+  </body>
+</html>

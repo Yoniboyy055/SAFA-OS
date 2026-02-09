@@ -11,6 +11,7 @@ logs/
 
 # runtime state
 data/network_window.json
+data/approval_queue.json
 
 # node
 node_modules/

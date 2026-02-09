@@ -21,13 +21,15 @@ import { routeModel } from "../core/llm/router";
 import {
   approveRequest,
   createApprovalRequest,
-  denyRequest
+  denyRequest,
+  type ApprovalRequest
 } from "../core/approvals";
 import {
   ApprovalQueueStore,
   type ApprovalQueueRecord
 } from "../core/approval_queue_store";
-import { ExecutionStore } from "../core/execution_store";
+import { ApprovalStore } from "../core/approval_store";
+import { ExecutionStore, type ExecutionRecord } from "../core/execution_store";
 import { readFreezeState } from "../core/freeze";
 import type { FreezeState } from "../core/freeze";
 import { getLayerDefinitions } from "../core/layers";
@@ -59,6 +61,8 @@ const DEFAULT_ROUTER_PROVIDER = "openai";
 const PIN_DEFAULT = "1234";
 const SESSION_COOKIE = "safa_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 8;
+const REMOTE_SESSION_TTL_MS = 1000 * 60 * 10;
+const REMOTE_SIGNATURE_WINDOW_MS = 1000 * 60 * 2;
 
 interface RuntimeOverrides {
   killSwitchEnabled?: boolean;
@@ -134,6 +138,52 @@ function isLocalAddress(address?: string | null): boolean {
   return address.startsWith("::ffff:127.0.0.1");
 }
 
+function extractIpv4(address?: string | null): string | undefined {
+  if (!address) {
+    return undefined;
+  }
+  if (address.includes("::ffff:")) {
+    return address.replace("::ffff:", "");
+  }
+  return address;
+}
+
+function isPrivateIpv4(address?: string): boolean {
+  if (!address) {
+    return false;
+  }
+  const parts = address.split(".").map((value) => Number(value));
+  if (parts.length !== 4 || parts.some((value) => Number.isNaN(value))) {
+    return false;
+  }
+  const [a, b] = parts;
+  if (a === 10) {
+    return true;
+  }
+  if (a === 172 && b >= 16 && b <= 31) {
+    return true;
+  }
+  if (a === 192 && b === 168) {
+    return true;
+  }
+  if (a === 100 && b >= 64 && b <= 127) {
+    return true;
+  }
+  return false;
+}
+
+function isTrustedRemoteAddress(address?: string | null): boolean {
+  if (!isRemoteEnabled()) {
+    return false;
+  }
+  const ipv4 = extractIpv4(address);
+  return isPrivateIpv4(ipv4);
+}
+
+function isRemoteEnabled(): boolean {
+  return (process.env.SAFA_REMOTE_ENABLED ?? "0") === "1";
+}
+
 function parseCookies(header?: string): Record<string, string> {
   if (!header) {
     return {};
@@ -152,6 +202,10 @@ function signValue(value: string, secret: string): string {
   return crypto.createHmac("sha256", secret).update(value).digest("base64url");
 }
 
+function signRemotePayload(payload: string, secret: string): string {
+  return signValue(payload, secret);
+}
+
 function createSessionCookie(secret: string): string {
   const issuedAt = Date.now();
   const payload = {
@@ -161,6 +215,66 @@ function createSessionCookie(secret: string): string {
   const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   const signature = signValue(encoded, secret);
   return `${encoded}.${signature}`;
+}
+
+interface RemoteSessionRecord {
+  id: string;
+  sessionId: string;
+  hmacKey: string;
+  createdAt: string;
+  expiresAt: string;
+  lastSeenAt?: string;
+}
+
+function resolveRemoteSessionPath(rootDir: string): string {
+  return path.resolve(rootDir, "data", "remote_sessions.json");
+}
+
+function loadRemoteSessions(rootDir: string): RemoteSessionRecord[] {
+  const filePath = resolveRemoteSessionPath(rootDir);
+  if (!fs.existsSync(filePath)) {
+    return [];
+  }
+  const raw = fs.readFileSync(filePath, "utf8");
+  if (!raw.trim()) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as RemoteSessionRecord[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRemoteSessions(rootDir: string, sessions: RemoteSessionRecord[]): void {
+  const filePath = resolveRemoteSessionPath(rootDir);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(sessions, null, 2), "utf8");
+}
+
+function upsertRemoteSession(rootDir: string, record: RemoteSessionRecord): void {
+  const sessions = loadRemoteSessions(rootDir);
+  const index = sessions.findIndex((entry) => entry.id === record.id);
+  if (index >= 0) {
+    sessions[index] = record;
+  } else {
+    sessions.push(record);
+  }
+  saveRemoteSessions(rootDir, sessions);
+}
+
+function findRemoteSession(rootDir: string, id: string): RemoteSessionRecord | undefined {
+  const sessions = loadRemoteSessions(rootDir);
+  return sessions.find((entry) => entry.id === id);
+}
+
+function pruneRemoteSessions(rootDir: string): void {
+  const now = Date.now();
+  const sessions = loadRemoteSessions(rootDir).filter((entry) => {
+    return Date.parse(entry.expiresAt) > now;
+  });
+  saveRemoteSessions(rootDir, sessions);
 }
 
 function isSessionValid(cookieValue: string | undefined, secret: string): boolean {
@@ -613,6 +727,7 @@ function redactOutput(
 type ChatIntent =
   | { type: "status" }
   | { type: "skills" }
+  | { type: "summary" }
   | { type: "plan"; task: string }
   | { type: "execute"; skill: string; input: Record<string, unknown> }
   | { type: "approve_pending" }
@@ -621,6 +736,8 @@ type ChatIntent =
 
 interface ChatSessionState {
   pending?: {
+    id: string;
+    sessionId: string;
     skill: string;
     input: Record<string, unknown>;
     createdAt: string;
@@ -2047,7 +2164,7 @@ export function createDashboardServer(
   return http.createServer(async (req: http.IncomingMessage, res: http.ServerResponse) => {
     const url = new URL(req.url ?? "/", `http://${HOST}`);
     const pathName = url.pathname;
-    if (!isLocalAddress(req.socket.remoteAddress)) {
+    if (!isLocalAddress(req.socket.remoteAddress) && !isTrustedRemoteAddress(req.socket.remoteAddress)) {
       return sendJson(res, 401, { ok: false, denied: true, reason: "Unauthorized." });
     }
 
@@ -2101,12 +2218,158 @@ export function createDashboardServer(
       }
     }
 
+    if (req.method === "POST" && pathName === "/remote/unlock") {
+      if (!isRemoteEnabled()) {
+        return sendJson(res, 401, { ok: false, denied: true, reason: "Remote access disabled." });
+      }
+      if (!ownerToken) {
+        return sendJson(res, 500, { ok: false, denied: true, reason: "SAFA_OWNER_TOKEN missing." });
+      }
+      try {
+        const body = parseJsonBody(await readRequestBody(req));
+        const providedPin = typeof body.pin === "string" ? body.pin.trim() : "";
+        if (!providedPin || providedPin !== resolvePin()) {
+          audit.log({
+            timestamp: new Date().toISOString(),
+            actor: actorDefault,
+            action: "remote.auth.fail",
+            approved: false,
+            target: "auth",
+            result: "DENIED: Invalid PIN."
+          });
+          return sendJson(res, 401, { ok: false, denied: true, reason: "Unauthorized." });
+        }
+        const sessionValue = createSessionCookie(ownerToken);
+        res.setHeader(
+          "Set-Cookie",
+          `${SESSION_COOKIE}=${sessionValue}; HttpOnly; Path=/; SameSite=Strict; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`
+        );
+        audit.log({
+          timestamp: new Date().toISOString(),
+          actor: actorDefault,
+          action: "remote.auth.ok",
+          approved: true,
+          target: "auth",
+          result: "Remote PIN accepted."
+        });
+        return sendJson(res, 200, { ok: true, status: "UNLOCKED" });
+      } catch (error) {
+        return sendJson(res, 400, { ok: false, denied: true, reason: String(error) });
+      }
+    }
+
     if (!isNetworkLiveDisabled()) {
       return sendJson(res, 401, { ok: false, denied: true, reason: "SAFA_NETWORK_LIVE must be 0." });
     }
 
     if (!hasSession) {
       return sendJson(res, 401, { ok: false, denied: true, reason: "Unauthorized." });
+    }
+
+    if (req.method === "POST" && pathName === "/remote/session") {
+      if (!isRemoteEnabled()) {
+        return sendJson(res, 401, { ok: false, denied: true, reason: "Remote access disabled." });
+      }
+      pruneRemoteSessions(config.rootDir);
+      const now = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + REMOTE_SESSION_TTL_MS).toISOString();
+      const sessionKey = crypto.randomBytes(32).toString("base64url");
+      const remoteSession: RemoteSessionRecord = {
+        id: `rmt-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+        sessionId: sessionCookie ? hashValue(sessionCookie) : "",
+        hmacKey: sessionKey,
+        createdAt: now,
+        expiresAt
+      };
+      upsertRemoteSession(config.rootDir, remoteSession);
+      audit.log({
+        timestamp: now,
+        actor: actorDefault,
+        action: "remote.connect",
+        approved: true,
+        target: remoteSession.id,
+        result: "Remote session issued."
+      });
+      return sendJson(res, 200, {
+        ok: true,
+        remoteSessionId: remoteSession.id,
+        hmacKey: remoteSession.hmacKey,
+        expiresAt: remoteSession.expiresAt
+      });
+    }
+
+    if (req.method === "POST" && pathName === "/remote/approve") {
+      if (!isRemoteEnabled()) {
+        return sendJson(res, 401, { ok: false, denied: true, reason: "Remote access disabled." });
+      }
+      try {
+        const body = parseJsonBody(await readRequestBody(req));
+        const remoteSessionId = body.remoteSessionId;
+        const approvalId = body.approvalId;
+        const decision = body.decision;
+        const actor = resolveActor(body, actorDefault);
+        const timestamp = body.timestamp;
+        const nonce = body.nonce;
+        const signature = body.signature;
+        if (
+          typeof remoteSessionId !== "string" ||
+          typeof approvalId !== "string" ||
+          typeof decision !== "string" ||
+          typeof timestamp !== "string" ||
+          typeof nonce !== "string" ||
+          typeof signature !== "string"
+        ) {
+          return sendJson(res, 400, { ok: false, denied: true, reason: "Invalid payload." });
+        }
+        if (decision !== "APPROVE" && decision !== "DENY") {
+          return sendJson(res, 400, { ok: false, denied: true, reason: "Invalid decision." });
+        }
+        const remoteSession = findRemoteSession(config.rootDir, remoteSessionId);
+        if (!remoteSession) {
+          return sendJson(res, 401, { ok: false, denied: true, reason: "Remote session missing." });
+        }
+        if (sessionCookie && remoteSession.sessionId && remoteSession.sessionId !== hashValue(sessionCookie)) {
+          return sendJson(res, 401, { ok: false, denied: true, reason: "Remote session mismatch." });
+        }
+        const nowMs = Date.now();
+        if (Date.parse(remoteSession.expiresAt) <= nowMs) {
+          return sendJson(res, 401, { ok: false, denied: true, reason: "Remote session expired." });
+        }
+        const tsMs = Number(timestamp);
+        if (Number.isNaN(tsMs) || Math.abs(nowMs - tsMs) > REMOTE_SIGNATURE_WINDOW_MS) {
+          return sendJson(res, 401, { ok: false, denied: true, reason: "Signature expired." });
+        }
+        const payload = `${remoteSessionId}.${approvalId}.${decision}.${timestamp}.${nonce}`;
+        const expected = signRemotePayload(payload, remoteSession.hmacKey);
+        if (expected !== signature) {
+          return sendJson(res, 401, { ok: false, denied: true, reason: "Invalid signature." });
+        }
+        const record = approvalStore.get(approvalId);
+        if (!record) {
+          return sendJson(res, 404, { ok: false, denied: true, reason: "Approval not found." });
+        }
+        if (decision === "APPROVE") {
+          record.request = approveRequest(record.request, { actor, audit });
+          record.status = record.request.status;
+        } else {
+          record.request = denyRequest(record.request, { actor, audit }, "Denied by owner.");
+          record.status = record.request.status;
+        }
+        approvalStore.upsert(record);
+        remoteSession.lastSeenAt = new Date().toISOString();
+        upsertRemoteSession(config.rootDir, remoteSession);
+        audit.log({
+          timestamp: new Date().toISOString(),
+          actor,
+          action: "remote.approval",
+          approved: decision === "APPROVE",
+          target: record.request.id,
+          result: JSON.stringify({ decision, approvalId: record.request.id })
+        });
+        return sendJson(res, 200, { ok: true, id: record.request.id, status: record.status });
+      } catch (error) {
+        return sendJson(res, 400, { ok: false, denied: true, reason: String(error) });
+      }
     }
 
     if (req.method === "GET" && serveStatic(res, pathName)) {
@@ -2162,6 +2425,10 @@ export function createDashboardServer(
         id: record.request.id,
         action: record.request.action,
         target: record.request.target,
+        jobId: record.request.jobId,
+        sessionId: record.request.sessionId,
+        riskLevel: record.request.riskLevel,
+        reasonCode: record.request.reasonCode,
         status: record.status,
         createdAt: record.request.createdAt,
         summary: record.summary
@@ -2752,6 +3019,8 @@ export function createDashboardServer(
             }
             writeChatSession(config.rootDir, session.id, {
               pending: {
+                id: `pend-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+                sessionId: session.id,
                 skill: intent.skill,
                 input: intent.input,
                 createdAt: new Date().toISOString(),
