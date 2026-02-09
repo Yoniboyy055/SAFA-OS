@@ -2423,7 +2423,7 @@ export function createDashboardServer(
           return sendJson(res, 400, { error: "commandText is required" });
         }
         const planner = new Planner();
-        const plan = planner.createPlan(commandText, {
+        const plan = await planner.createPlan(commandText, {
           actor,
           audit,
           authority: AuthorityLevel.OWNER,
@@ -2819,7 +2819,7 @@ export function createDashboardServer(
 
           if (intent.type === "plan") {
             const planner = new Planner();
-            const plan = planner.createPlan(intent.task, {
+            const plan = await planner.createPlan(intent.task, {
               actor,
               audit,
               authority: AuthorityLevel.OWNER,
