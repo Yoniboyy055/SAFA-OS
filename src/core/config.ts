@@ -99,6 +99,71 @@ export interface PermissionsConfig {
   callTemplateAllowlist: string[];
 }
 
+export interface TriggerAction {
+  task: string;
+  mode: string;
+  authority: string;
+}
+
+export interface Trigger {
+  id: string;
+  type: "time" | "event" | "webhook";
+  schedule?: string;
+  action: TriggerAction;
+  requiredPermissions?: string[];
+  autoApprove?: boolean;
+}
+
+export interface ProactivityTemplate {
+  templateId: string;
+  allowedSkills: string[];
+  maxRisk: "LOW" | "MEDIUM" | "HIGH";
+  autoApprove: boolean;
+  cryptoSignature?: string;
+}
+
+export interface ProactivityConfig {
+  enabled: boolean;
+  triggers?: Trigger[];
+  templates?: ProactivityTemplate[];
+}
+
+export interface DiscordConfig {
+  enabled: boolean;
+  botToken: string;
+  webhookUrl?: string;
+  channelAllowlist: string[];
+  guildAllowlist: string[];
+  dryRunDefault: boolean;
+}
+
+export interface SlackConfig {
+  enabled: boolean;
+  botToken: string;
+  webhookUrl?: string;
+  channelAllowlist: string[];
+  workspaceAllowlist: string[];
+  signingSecret?: string;
+  dryRunDefault: boolean;
+}
+
+export interface WhatsAppConfig {
+  enabled: boolean;
+  provider: "twilio";
+  accountSid: string;
+  authToken: string;
+  fromNumberAllowlist: string[];
+  toNumberAllowlist: string[];
+  webhookUrl?: string;
+  dryRunDefault: boolean;
+}
+
+export interface MessagingConfig {
+  discord?: DiscordConfig;
+  slack?: SlackConfig;
+  whatsapp?: WhatsAppConfig;
+}
+
 export interface LLMConfig {
   enabled: boolean;
   provider: "openai" | "anthropic" | "ollama" | "llamacpp";
@@ -123,6 +188,8 @@ export interface SAFAConfig {
   execution: ExecutionConfig;
   audit: AuditConfig;
   permissions: PermissionsConfig;
+  proactivity?: ProactivityConfig;
+  messaging?: MessagingConfig;
 }
 
 export interface ResolvedConfig extends SAFAConfig {
@@ -396,7 +463,10 @@ function mergeConfig(
         overrides.permissions?.callTemplateAllowlist ??
           base.permissions.callTemplateAllowlist
       )
-    }
+    },
+    llm: overrides.llm ?? base.llm,
+    proactivity: overrides.proactivity,
+    messaging: overrides.messaging
   };
 }
 
