@@ -8,6 +8,7 @@ import { readFreezeState } from "../freeze";
 import { loadNetworkWindow } from "../network_window";
 import { estimatePayloadBytes } from "./types";
 import { assertNetworkGate } from "./gate";
+import { isPhase7bLockedSkill, getPhase7bLockMessage } from "../phase7b/locked";
 import * as crypto from "node:crypto";
 
 export interface NetworkClientContext {
@@ -83,6 +84,10 @@ export async function requestNetwork(
     },
     context.actor
   );
+
+  if (process.env.SAFA_NETWORK_LIVE === "1" && isPhase7bLockedSkill(request.purpose)) {
+    throw new Error(getPhase7bLockMessage());
+  }
 
   assertNetworkGate(context.config, context.audit, context.actor, request.url);
 

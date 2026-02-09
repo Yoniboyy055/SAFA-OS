@@ -107,7 +107,7 @@ export async function createSession(email: string): Promise<string> {
 }
 
 export async function getSessionEmail(): Promise<string | null> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const value = cookieStore.get(SESSION_COOKIE)?.value;
   if (!value) {
     return null;
