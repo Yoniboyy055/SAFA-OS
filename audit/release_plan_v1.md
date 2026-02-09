@@ -73,6 +73,10 @@ Done when:
 
 ## Shipment 4 — Gate E (Audit completeness)
 Goal: Every action/refusal/approval is logged reliably.
+Status: VERIFIED (2026-02-09)
+Evidence:
+- Tests: npm test (all green).
+- Files: src/core/audit.ts, src/skills/registry.ts, tests/audit_completeness.test.ts.
 Do:
 - Define event schema (json lines): timestamp, actor, action, target, result, reason.
 - Prove coverage: all execution paths log; all blocks log.
