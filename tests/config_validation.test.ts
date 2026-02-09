@@ -84,6 +84,22 @@ test("validation blocks network without allowlists", () => {
   assert.throws(() => validateConfig(config), /allowlist/i);
 });
 
+test("validation blocks wildcard network allowlist", () => {
+  const rootDir = os.tmpdir();
+  const config = buildConfig(rootDir, {
+    network: { enabled: true, allowlistDomains: ["*"], allowlistUrls: [] }
+  });
+  assert.throws(() => validateConfig(config), /wildcard/i);
+});
+
+test("validation blocks empty network allowlist entry", () => {
+  const rootDir = os.tmpdir();
+  const config = buildConfig(rootDir, {
+    network: { enabled: true, allowlistDomains: [""], allowlistUrls: [] }
+  });
+  assert.throws(() => validateConfig(config), /empty/i);
+});
+
 test("validation blocks audit log outside logs", () => {
   const rootDir = os.tmpdir();
   const config = buildConfig(rootDir, {
