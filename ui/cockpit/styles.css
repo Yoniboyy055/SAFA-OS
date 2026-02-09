@@ -249,6 +249,35 @@ body {
   font-size: 12px;
 }
 
+input[type="text"],
+input[type="checkbox"] {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  background: #fff;
+  color: var(--text);
+  width: 100%;
+}
+
+input[type="checkbox"] {
+  width: auto;
+  margin-right: 8px;
+}
+
+.btn:not([disabled]) {
+  cursor: pointer;
+  opacity: 1;
+}
+
+.btn:not([disabled]):hover {
+  background: var(--pill);
+}
+
+.btn-primary:not([disabled]):hover {
+  background: #374151;
+}
+
 @media (max-width: 720px) {
   .topbar,
   .grid,

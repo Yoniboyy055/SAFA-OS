@@ -1,7 +1,12 @@
 import * as http from "node:http";
+import * as path from "node:path";
 
 import { createDashboardServer } from "../dashboard/server";
 import { verifyConstitutionOrExit } from "../core/constitution";
+import { TriggerService } from "./trigger_service";
+import { loadConfig } from "../core/config";
+import { AuditLogger } from "../core/audit";
+import { Governor } from "../core/governor";
 
 const DEFAULT_DASHBOARD_PORT = 3777;
 const DEFAULT_HEALTH_PORT = 3778;
@@ -79,9 +84,9 @@ Usage:
     DEFAULT_HEALTH_PORT
   );
   const configPath = getArgValue(args, "--config");
-  const actorDefault = getArgValue(args, "--actor");
+  const actorDefault = getArgValue(args, "--actor") ?? "daemon";
 
-  verifyConstitutionOrExit(actorDefault ?? "daemon");
+  verifyConstitutionOrExit(actorDefault);
 
   const startedAt = new Date().toISOString();
   const dashboardServer = createDashboardServer({
@@ -95,11 +100,30 @@ Usage:
     startedAt
   );
 
+  // Initialize trigger service
+  let triggerService: TriggerService | undefined;
+  try {
+    const resolvedConfigPath = configPath ?? path.join(process.cwd(), "safa.config.json");
+    const config = loadConfig(resolvedConfigPath);
+    const audit = new AuditLogger(config.audit);
+    const governor = new Governor();
+    
+    triggerService = new TriggerService(config, audit, governor, actorDefault);
+    triggerService.start();
+    
+    console.log("Trigger service initialized");
+  } catch (error) {
+    console.warn("Failed to initialize trigger service:", error instanceof Error ? error.message : String(error));
+  }
+
   console.log(
     `Daemon started. Dashboard http://${HOST}:${dashboardPort} | Health http://${HOST}:${healthPort}/health`
   );
 
   const shutdown = () => {
+    if (triggerService) {
+      triggerService.stop();
+    }
     dashboardServer.close();
     healthServer.close();
   };

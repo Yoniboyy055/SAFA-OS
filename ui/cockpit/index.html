@@ -114,6 +114,71 @@
         </div>
       </section>
 
+      <section class="card" id="scheduled-tasks">
+        <div class="card-header">
+          <h2>Scheduled Tasks</h2>
+          <span class="badge">Proactive</span>
+        </div>
+        <div class="card-body">
+          <ul class="list" id="scheduled-tasks-list">
+            <li class="muted">No scheduled tasks configured</li>
+          </ul>
+          <button class="btn btn-outline" style="margin-top: 16px; width: 100%;" onclick="showAddTriggerForm()">+ Add Trigger</button>
+        </div>
+      </section>
+
+      <section class="card" id="trigger-form" style="display: none;">
+        <div class="card-header">
+          <h2>Add New Trigger</h2>
+          <span class="badge">Config</span>
+        </div>
+        <div class="card-body">
+          <label class="label" for="trigger-id">Trigger ID</label>
+          <input type="text" id="trigger-id" class="select" placeholder="my-trigger" />
+          
+          <label class="label" for="trigger-type">Type</label>
+          <select id="trigger-type" class="select">
+            <option value="time">Time (Cron)</option>
+            <option value="event">Event</option>
+            <option value="webhook">Webhook</option>
+          </select>
+          
+          <label class="label" for="trigger-schedule">Schedule (Cron Expression)</label>
+          <input type="text" id="trigger-schedule" class="select" placeholder="0 9 * * 1-5" />
+          
+          <label class="label" for="trigger-task">Task Description</label>
+          <textarea id="trigger-task" class="textarea" placeholder="Send daily reminder"></textarea>
+          
+          <label class="label" for="trigger-mode">Mode</label>
+          <select id="trigger-mode" class="select">
+            <option value="SCRIPT">SCRIPT</option>
+            <option value="CREATE">CREATE</option>
+            <option value="BUILD">BUILD</option>
+          </select>
+          
+          <label class="label">
+            <input type="checkbox" id="trigger-auto-approve" /> Auto-approve
+          </label>
+          
+          <div class="switch-row">
+            <button class="btn btn-outline" style="flex: 1;" onclick="hideAddTriggerForm()">Cancel</button>
+            <button class="btn btn-primary" style="flex: 1; margin-top: 0;" disabled>Save to Config</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="trigger-execution-log">
+        <div class="card-header">
+          <h2>Trigger Execution Log</h2>
+          <span class="badge">History</span>
+        </div>
+        <div class="card-body">
+          <ul class="list timeline" id="trigger-log-list">
+            <li class="muted">No trigger executions yet</li>
+          </ul>
+        </div>
+      </section>
+
       <section class="card" id="kill-switch">
         <div class="card-header">
           <h2>Kill Switch</h2>

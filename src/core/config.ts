@@ -99,6 +99,35 @@ export interface PermissionsConfig {
   callTemplateAllowlist: string[];
 }
 
+export interface TriggerAction {
+  task: string;
+  mode: string;
+  authority: string;
+}
+
+export interface Trigger {
+  id: string;
+  type: "time" | "event" | "webhook";
+  schedule?: string;
+  action: TriggerAction;
+  requiredPermissions?: string[];
+  autoApprove?: boolean;
+}
+
+export interface ProactivityTemplate {
+  templateId: string;
+  allowedSkills: string[];
+  maxRisk: "LOW" | "MEDIUM" | "HIGH";
+  autoApprove: boolean;
+  cryptoSignature?: string;
+}
+
+export interface ProactivityConfig {
+  enabled: boolean;
+  triggers?: Trigger[];
+  templates?: ProactivityTemplate[];
+}
+
 export interface LLMConfig {
   enabled: boolean;
   provider: "openai" | "anthropic" | "ollama" | "llamacpp";
@@ -123,6 +152,7 @@ export interface SAFAConfig {
   execution: ExecutionConfig;
   audit: AuditConfig;
   permissions: PermissionsConfig;
+  proactivity?: ProactivityConfig;
 }
 
 export interface ResolvedConfig extends SAFAConfig {

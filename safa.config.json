@@ -101,5 +101,31 @@
     "emailTemplateAllowlist": [],
     "callIntentAllowlist": ["sales", "support", "follow_up", "payment"],
     "callTemplateAllowlist": []
+  },
+  "proactivity": {
+    "enabled": true,
+    "triggers": [
+      {
+        "id": "daily-standup",
+        "type": "time",
+        "schedule": "0 9 * * 1-5",
+        "action": {
+          "task": "Send daily standup reminder to Discord #general",
+          "mode": "SCRIPT",
+          "authority": "OWNER"
+        },
+        "requiredPermissions": ["messaging.discord"],
+        "autoApprove": true
+      }
+    ],
+    "templates": [
+      {
+        "templateId": "safe-local-read",
+        "allowedSkills": ["list_files", "read_file", "search_text"],
+        "maxRisk": "LOW",
+        "autoApprove": true,
+        "cryptoSignature": "owner-signed-safe-local-read-v1"
+      }
+    ]
   }
 }
