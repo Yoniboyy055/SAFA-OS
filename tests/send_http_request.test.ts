@@ -10,6 +10,7 @@ const { AuditLogger } = require("../src/core/audit");
 const { Governor } = require("../src/core/governor");
 const { openNetworkWindow } = require("../src/core/network_window");
 const { AuthorityLevel } = require("../src/core/authority");
+const { withTestCommandContext } = require("./helpers/command_context");
 
 function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) {
   const config = {
@@ -96,10 +97,12 @@ test("send_http_request denied when network OFF", async () => {
       maxBytes: 200000
     }
   });
-  const result = await registry.execute(
-    "send_http_request",
-    { method: "GET", url: "https://example.com" },
-    context
+  const result = await withTestCommandContext(context.actor, () =>
+    registry.execute(
+      "send_http_request",
+      { method: "GET", url: "https://example.com" },
+      context
+    )
   );
   assert.equal(result.success, false);
 });
@@ -109,10 +112,12 @@ test("send_http_request allows allowlisted domain with approval", async () => {
   const registry = new SkillRegistry();
   registry.register(sendHttpRequestSkill);
   const context = buildContext(rootDir);
-  const result = await registry.execute(
-    "send_http_request",
-    { method: "GET", url: "https://example.com" },
-    context
+  const result = await withTestCommandContext(context.actor, () =>
+    registry.execute(
+      "send_http_request",
+      { method: "GET", url: "https://example.com" },
+      context
+    )
   );
   assert.equal(result.success, true);
   const log = fs.readFileSync(context.config.audit.logPath, "utf8");
@@ -124,10 +129,12 @@ test("send_http_request denied without approval", async () => {
   const registry = new SkillRegistry();
   registry.register(sendHttpRequestSkill);
   const context = buildContext(rootDir);
-  const result = await registry.execute(
-    "send_http_request",
-    { method: "GET", url: "https://example.com" },
-    { ...context, approved: false }
+  const result = await withTestCommandContext(context.actor, () =>
+    registry.execute(
+      "send_http_request",
+      { method: "GET", url: "https://example.com" },
+      { ...context, approved: false }
+    )
   );
   assert.equal(result.success, false);
 });
@@ -139,10 +146,12 @@ test("send_http_request blocked by kill switch", async () => {
   const context = buildContext(rootDir, {
     killSwitch: { enabled: true }
   });
-  const result = await registry.execute(
-    "send_http_request",
-    { method: "GET", url: "https://example.com" },
-    context
+  const result = await withTestCommandContext(context.actor, () =>
+    registry.execute(
+      "send_http_request",
+      { method: "GET", url: "https://example.com" },
+      context
+    )
   );
   assert.equal(result.success, false);
 });

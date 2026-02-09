@@ -44,6 +44,10 @@ import { parseCommandMode } from "../cli/command_mode";
 import { summarizeSAFALine } from "../cli/safa_line";
 import { verifyConstitutionOrExit } from "../core/constitution";
 import { assertNetworkGate } from "../core/network/gate";
+import {
+  assertOwnerCommandContext,
+  enterCommandContext
+} from "../core/execution_gate";
 
 const MAX_BODY_BYTES = 32 * 1024;
 const DEFAULT_PORT = 3777;
@@ -779,6 +783,7 @@ async function generateChatModelReply(
   if (!modelSpec) {
     throw new Error("Model not available.");
   }
+  assertOwnerCommandContext(audit, actor, "dashboard.chat.model");
   assertNetworkGate(
     config,
     audit,
@@ -2170,6 +2175,12 @@ export function createDashboardServer(
         const approvalId = body.approvalId;
         const decision = body.decision;
         const actor = resolveActor(body, actorDefault);
+        enterCommandContext({
+          id: `dash-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+          actor,
+          source: "dashboard",
+          command: "api.approve"
+        });
         if (typeof approvalId !== "string" || approvalId.length === 0) {
           return sendJson(res, 400, { error: "approvalId is required" });
         }
@@ -2216,6 +2227,12 @@ export function createDashboardServer(
         const body = parseJsonBody(await readRequestBody(req));
         const commandText = body.commandText;
         const actor = resolveActor(body, actorDefault);
+        enterCommandContext({
+          id: `dash-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+          actor,
+          source: "dashboard",
+          command: "api.plan"
+        });
         if (typeof commandText !== "string" || !commandText.trim()) {
           return sendJson(res, 400, { error: "commandText is required" });
         }
@@ -2276,6 +2293,12 @@ export function createDashboardServer(
         const approve = body.approve === true;
         const approvalId = typeof body.approvalId === "string" ? body.approvalId : undefined;
         const actor = resolveActor(body, actorDefault);
+        enterCommandContext({
+          id: `dash-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+          actor,
+          source: "dashboard",
+          command: "api.exec"
+        });
         if (typeof planHash !== "string" || !planHash.trim()) {
           return sendJson(res, 400, { error: "planHash is required" });
         }
@@ -2379,6 +2402,12 @@ export function createDashboardServer(
         const approvalId = typeof body.approvalId === "string" ? body.approvalId : undefined;
         const actor = resolveActor(body, actorDefault);
         const input = typeof body.input === "object" && body.input ? (body.input as Record<string, unknown>) : {};
+        enterCommandContext({
+          id: `dash-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+          actor,
+          source: "dashboard",
+          command: "api.run"
+        });
         if (typeof skillName !== "string" || !skillName.trim()) {
           return sendJson(res, 400, { error: "skill is required" });
         }
@@ -2541,6 +2570,12 @@ export function createDashboardServer(
           if (!text) {
             return sendJson(res, 400, { ok: false, denied: true, reason: "Message is required." });
           }
+          enterCommandContext({
+            id: `dash-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+            actor,
+            source: "dashboard",
+            command: "chat"
+          });
 
           const sessionHeader = resolveHeaderValue(req.headers["x-session-id"]);
           const session = resolveSessionId(sessionHeader);
@@ -2806,6 +2841,13 @@ export function createDashboardServer(
             return sendJson(res, 400, { ok: false, denied: true, reason: "Invalid JSON payload." });
           }
 
+          enterCommandContext({
+            id: `dash-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+            actor,
+            source: "dashboard",
+            command: pathName === "/vr/arm" ? "vr.arm" : "vr.disarm"
+          });
+
           const commandMode = parseCommandMode(payload.mode);
           const authority = resolveAuthority(payload.authority);
           const approvedFlag = payload.approve === true;
@@ -2947,6 +2989,12 @@ export function createDashboardServer(
           }
 
           actor = resolveActor(payload as Record<string, unknown>, actorDefault);
+          enterCommandContext({
+            id: `dash-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+            actor,
+            source: "dashboard",
+            command: "command"
+          });
 
           const line = (payload.line ?? payload.text ?? "").trim();
           const dryRun = payload.dryRun !== false;
@@ -3339,6 +3387,12 @@ export function createDashboardServer(
         const approve = body.approve === true;
         const approvalId = typeof body.approvalId === "string" ? body.approvalId : undefined;
         const actor = resolveActor(body, actorDefault);
+        enterCommandContext({
+          id: `dash-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+          actor,
+          source: "dashboard",
+          command: "api.kill"
+        });
         if (typeof enabled !== "boolean") {
           return sendJson(res, 400, { error: "enabled must be boolean" });
         }
@@ -3385,6 +3439,12 @@ export function createDashboardServer(
         const approve = body.approve === true;
         const approvalId = typeof body.approvalId === "string" ? body.approvalId : undefined;
         const actor = resolveActor(body, actorDefault);
+        enterCommandContext({
+          id: `dash-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+          actor,
+          source: "dashboard",
+          command: "api.network"
+        });
         if (typeof enabled !== "boolean") {
           return sendJson(res, 400, { error: "enabled must be boolean" });
         }

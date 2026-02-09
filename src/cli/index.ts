@@ -34,6 +34,7 @@ import {
 import { VoiceLogStore } from "../core/voice/voice_store";
 import { parseVoiceTranscript } from "../core/voice/voice_parser";
 import { verifyConstitutionOrExit } from "../core/constitution";
+import { enterCommandContext } from "../core/execution_gate";
 
 function getFlagValue(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
@@ -140,6 +141,13 @@ export async function runWithArgs(
     authorityFlag && authorityFlag.toUpperCase() === AuthorityLevel.OWNER
       ? AuthorityLevel.OWNER
       : undefined;
+
+  enterCommandContext({
+    id: `cli-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    actor,
+    source: "cli",
+    command
+  });
 
   verifyConstitutionOrExit(actor);
 

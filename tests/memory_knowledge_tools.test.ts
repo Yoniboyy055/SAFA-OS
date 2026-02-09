@@ -16,6 +16,7 @@ const { searchRawLogsSkill } = require("../src/skills/memory/search_raw_logs");
 const { addKnowledgeDocSkill } = require("../src/skills/knowledge/add_knowledge_doc");
 const { listToolsSkill } = require("../src/skills/tools/list_tools");
 const { recommendToolSkill } = require("../src/skills/tools/recommend_tool");
+const { withTestCommandContext } = require("./helpers/command_context");
 
 function buildConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -108,11 +109,22 @@ function buildRegistry() {
   return registry;
 }
 
+function executeWithContext(
+  registry: typeof SkillRegistry.prototype,
+  name: string,
+  input: Record<string, unknown>,
+  context: Record<string, unknown>
+) {
+  const actor = typeof context.actor === "string" ? context.actor : "tester";
+  return withTestCommandContext(actor, () => registry.execute(name, input, context));
+}
+
 test("tier0 logs redact secrets and PII", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-memory-"));
   const registry = buildRegistry();
   const context = buildContext(rootDir);
-  const result = await registry.execute(
+  const result = await executeWithContext(
+    registry,
     "log_interaction",
     { text: "Key sk-ABCDEF1234567890 email test@example.com" },
     context
@@ -134,7 +146,8 @@ test("tier1 summary requires approval", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-memory-"));
   const registry = buildRegistry();
   const context = buildContext(rootDir);
-  const result = await registry.execute(
+  const result = await executeWithContext(
+    registry,
     "write_session_summary",
     { summary: "Summary text" },
     context
@@ -147,7 +160,8 @@ test("tier2 canon requires approval and blocks secrets", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-memory-"));
   const registry = buildRegistry();
   const context = buildContext(rootDir);
-  const denied = await registry.execute(
+  const denied = await executeWithContext(
+    registry,
     "promote_to_canon_memory",
     { facts: "Canon facts" },
     context
@@ -156,7 +170,8 @@ test("tier2 canon requires approval and blocks secrets", async () => {
   assert.match(denied.error, /approval required/i);
 
   const approvedContext = { ...context, approved: true };
-  const blocked = await registry.execute(
+  const blocked = await executeWithContext(
+    registry,
     "promote_to_canon_memory",
     { facts: "Secret sk-ABCDEF1234567890" },
     approvedContext
@@ -177,7 +192,8 @@ test("query_canon_memory does not touch raw logs", async () => {
     "canon-only\n"
   );
 
-  const result = await registry.execute(
+  const result = await executeWithContext(
+    registry,
     "query_canon_memory",
     { query: "raw-only" },
     { ...context, approved: true }
@@ -190,7 +206,8 @@ test("search_raw_logs requires approval", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-memory-"));
   const registry = buildRegistry();
   const context = buildContext(rootDir);
-  const result = await registry.execute(
+  const result = await executeWithContext(
+    registry,
     "search_raw_logs",
     { query: "anything" },
     context
@@ -203,7 +220,8 @@ test("add_knowledge_doc requires approval", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-knowledge-"));
   const registry = buildRegistry();
   const context = buildContext(rootDir);
-  const result = await registry.execute(
+  const result = await executeWithContext(
+    registry,
     "add_knowledge_doc",
     { path: "policies/example.txt", content: "Secret sk-ABCDEF1234567890" },
     context
@@ -238,7 +256,8 @@ test("tool recommendations require approval and return tradeoffs", async () => {
   );
   const registry = buildRegistry();
   const context = buildContext(rootDir);
-  const denied = await registry.execute(
+  const denied = await executeWithContext(
+    registry,
     "recommend_tool",
     { task: "Search local files" },
     context
@@ -246,7 +265,8 @@ test("tool recommendations require approval and return tradeoffs", async () => {
   assert.equal(denied.success, false);
   assert.match(denied.error, /approval required/i);
 
-  const approved = await registry.execute(
+  const approved = await executeWithContext(
+    registry,
     "recommend_tool",
     { task: "Search local files", budgetCapUsd: 0 },
     { ...context, approved: true }

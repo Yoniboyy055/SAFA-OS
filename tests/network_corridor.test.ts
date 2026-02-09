@@ -11,6 +11,7 @@ const { requestNetwork } = require("../src/core/network/client");
 const { validateUrl } = require("../src/core/network/types");
 const { SkillRegistry } = require("../src/skills/registry");
 const { sendHttpRequestSkill } = require("../src/skills/network/send_http_request");
+const { withTestCommandContext } = require("./helpers/command_context");
 
 function buildConfig(rootDir: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -119,10 +120,12 @@ test("network disabled denies send_http_request", async () => {
       maxBytes: 200000
     }
   });
-  const result = await registry.execute(
-    "send_http_request",
-    { method: "GET", url: "https://example.com" },
-    context
+  const result = await withTestCommandContext(context.actor, () =>
+    registry.execute(
+      "send_http_request",
+      { method: "GET", url: "https://example.com" },
+      context
+    )
   );
   assert.equal(result.success, false);
 });
@@ -141,10 +144,12 @@ test("allowlist empty denies send_http_request", async () => {
       maxBytes: 200000
     }
   });
-  const result = await registry.execute(
-    "send_http_request",
-    { method: "GET", url: "https://example.com" },
-    context
+  const result = await withTestCommandContext(context.actor, () =>
+    registry.execute(
+      "send_http_request",
+      { method: "GET", url: "https://example.com" },
+      context
+    )
   );
   assert.equal(result.success, false);
 });
@@ -163,10 +168,12 @@ test("allowlisted domain + approval returns stub response", async () => {
       maxBytes: 200000
     }
   });
-  const result = await registry.execute(
-    "send_http_request",
-    { method: "GET", url: "https://example.com" },
-    context
+  const result = await withTestCommandContext(context.actor, () =>
+    registry.execute(
+      "send_http_request",
+      { method: "GET", url: "https://example.com" },
+      context
+    )
   );
   assert.equal(result.success, true);
   assert.equal(result.output.status, 0);

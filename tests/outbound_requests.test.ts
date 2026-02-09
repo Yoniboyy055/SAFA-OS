@@ -10,6 +10,7 @@ const { requestPhoneCallSkill } = require("../src/skills/outbound/request_phone_
 const { AuditLogger } = require("../src/core/audit");
 const { Governor } = require("../src/core/governor");
 const { AuthorityLevel } = require("../src/core/authority");
+const { withTestCommandContext } = require("./helpers/command_context");
 
 function buildContext(rootDir: string, overrides: Record<string, unknown> = {}) {
   const config = {
@@ -86,17 +87,21 @@ test("send_email_request returns draft payload and requires approval", async () 
   const registry = new SkillRegistry();
   registry.register(sendEmailRequestSkill);
   const context = buildContext(rootDir);
-  const denied = await registry.execute(
-    "send_email_request",
-    { to: "user@example.com", subject: "Hello", body: "Draft body" },
-    { ...context, approved: false }
+  const denied = await withTestCommandContext(context.actor, () =>
+    registry.execute(
+      "send_email_request",
+      { to: "user@example.com", subject: "Hello", body: "Draft body" },
+      { ...context, approved: false }
+    )
   );
   assert.equal(denied.success, false);
 
-  const result = await registry.execute(
-    "send_email_request",
-    { to: "user@example.com", subject: "Hello", body: "Draft body" },
-    context
+  const result = await withTestCommandContext(context.actor, () =>
+    registry.execute(
+      "send_email_request",
+      { to: "user@example.com", subject: "Hello", body: "Draft body" },
+      context
+    )
   );
   assert.equal(result.success, true);
   assert.ok(result.output.draftId);
@@ -109,17 +114,21 @@ test("request_phone_call returns script payload and requires approval", async ()
   const registry = new SkillRegistry();
   registry.register(requestPhoneCallSkill);
   const context = buildContext(rootDir);
-  const denied = await registry.execute(
-    "request_phone_call",
-    { toNumber: "+15550002222", intent: "sales" },
-    { ...context, approved: false }
+  const denied = await withTestCommandContext(context.actor, () =>
+    registry.execute(
+      "request_phone_call",
+      { toNumber: "+15550002222", intent: "sales" },
+      { ...context, approved: false }
+    )
   );
   assert.equal(denied.success, false);
 
-  const result = await registry.execute(
-    "request_phone_call",
-    { toNumber: "+15550002222", intent: "sales" },
-    context
+  const result = await withTestCommandContext(context.actor, () =>
+    registry.execute(
+      "request_phone_call",
+      { toNumber: "+15550002222", intent: "sales" },
+      context
+    )
   );
   assert.equal(result.success, true);
   assert.ok(result.output.script);

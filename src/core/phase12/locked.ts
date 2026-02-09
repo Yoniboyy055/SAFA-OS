@@ -20,6 +20,7 @@ import type {
 } from "../llm/types";
 import { redactSensitiveText } from "../sensitive";
 import { assertNetworkGate } from "../network/gate";
+import { assertOwnerCommandContext } from "../execution_gate";
 
 export interface LiveModelContext {
   config: ResolvedConfig;
@@ -110,6 +111,7 @@ export async function connectLiveModel(
   request: LiveModelRequest,
   context: LiveModelContext
 ): Promise<LiveModelResponse> {
+  assertOwnerCommandContext(context.audit, context.actor, "llm.call");
   const providerId = request.providerId ?? "openai";
   const provider = getProvider(providerId);
   if (!provider) {

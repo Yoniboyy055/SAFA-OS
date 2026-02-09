@@ -16,6 +16,7 @@ import {
   recordSkillReceipt,
   type SkillReceiptStatus
 } from "../core/skill_receipt_store";
+import { assertOwnerCommandContext } from "../core/execution_gate";
 
 export interface SkillRunContext {
   actor: string;
@@ -57,6 +58,25 @@ export class SkillRegistry {
     const skill = this.skills.get(name);
     const createdAt = new Date().toISOString();
     const inputHash = hashInput(input);
+    try {
+      assertOwnerCommandContext(context.audit, context.actor, name);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      recordSkillReceipt(context.config.rootDir, {
+        id: createReceiptId(name, createdAt),
+        skill: name,
+        status: "DENIED",
+        actor: context.actor,
+        approved: false,
+        createdAt,
+        inputHash,
+        error: message
+      });
+      return {
+        success: false,
+        error: message
+      };
+    }
     if (!skill) {
       context.audit.log({
         timestamp: new Date().toISOString(),

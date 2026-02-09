@@ -22,17 +22,17 @@ Bypass attempts:
 ---
 
 ## Phase 2 — Non-Autonomy Guarantee
-Status: NOT VERIFIED
+Status: VERIFIED
 Required:
 - No background schedulers
 - No self-triggered actions
 Evidence:
-- Files:
-- Tests:
-- Logs:
+- Files: src/core/execution_gate.ts, src/skills/registry.ts, src/llm/llm_executor.ts, src/conversation/conversation_interpreter.ts, src/dashboard/server.ts, src/cli/index.ts, src/daemon/daemon.ts, src/core/phase7b/locked.ts, src/core/phase16/locked.ts, audit/autonomy_scan.md
+- Tests: tests/execution_gate.test.ts, tests/daemon_idle.test.ts
+- Logs: (none required)
 Bypass attempts:
-- Attempt:
-- Result:
+- Attempt: scan for timers/cron/queues/startup jobs in src/**/*.ts
+- Result: no background schedulers; timers limited to request timeouts/retries (see audit/autonomy_scan.md)
 
 ---
 
