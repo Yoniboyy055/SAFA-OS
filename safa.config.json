@@ -127,5 +127,34 @@
         "cryptoSignature": "owner-signed-safe-local-read-v1"
       }
     ]
+  },
+  "messaging": {
+    "discord": {
+      "enabled": false,
+      "botToken": "",
+      "webhookUrl": "",
+      "channelAllowlist": [],
+      "guildAllowlist": [],
+      "dryRunDefault": true
+    },
+    "slack": {
+      "enabled": false,
+      "botToken": "",
+      "webhookUrl": "",
+      "channelAllowlist": [],
+      "workspaceAllowlist": [],
+      "signingSecret": "",
+      "dryRunDefault": true
+    },
+    "whatsapp": {
+      "enabled": false,
+      "provider": "twilio",
+      "accountSid": "",
+      "authToken": "",
+      "fromNumberAllowlist": [],
+      "toNumberAllowlist": [],
+      "webhookUrl": "",
+      "dryRunDefault": true
+    }
   }
 }
