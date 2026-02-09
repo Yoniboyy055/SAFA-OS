@@ -11,6 +11,7 @@ const { SkillRegistry } = require("../src/skills/registry");
 const { memoryAddSkill } = require("../src/skills/memory/memory_add");
 const { memorySearchSkill } = require("../src/skills/memory/memory_search");
 const { memoryGetSkill } = require("../src/skills/memory/memory_get");
+const { memoryDeleteSkill } = require("../src/skills/memory/memory_delete");
 const { requestVideoEditSkill } = require("../src/skills/requests/request_video_edit");
 const { requestClientIntakeSkill } = require("../src/skills/requests/request_client_intake");
 const { requestNegotiationScriptSkill } = require("../src/skills/requests/request_negotiation_script");
@@ -110,6 +111,7 @@ function buildRegistry() {
   registry.register(memoryAddSkill);
   registry.register(memorySearchSkill);
   registry.register(memoryGetSkill);
+  registry.register(memoryDeleteSkill);
   registry.register(requestVideoEditSkill);
   registry.register(requestClientIntakeSkill);
   registry.register(requestNegotiationScriptSkill);
@@ -185,6 +187,54 @@ test("memory_get returns entry when approved", async () => {
   );
   assert.equal(entry.success, true);
   assert.equal(entry.output.title, "Note");
+});
+
+test("memory_delete requires approval", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase5-"));
+  const registry = buildRegistry();
+  const added = await executeWithContext(
+    registry,
+    "memory_add",
+    { bucket: "notes", title: "Note", content: "hello" },
+    buildContext(rootDir)
+  );
+
+  const denied = await executeWithContext(
+    registry,
+    "memory_delete",
+    { bucket: "notes", id: added.output.id },
+    { ...buildContext(rootDir), approved: false }
+  );
+  assert.equal(denied.success, false);
+  assert.match(denied.error, /approval required/i);
+});
+
+test("memory_delete removes entry when approved", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "safa-phase5-"));
+  const registry = buildRegistry();
+  const added = await executeWithContext(
+    registry,
+    "memory_add",
+    { bucket: "notes", title: "Note", content: "hello" },
+    buildContext(rootDir)
+  );
+
+  const result = await executeWithContext(
+    registry,
+    "memory_delete",
+    { bucket: "notes", id: added.output.id },
+    buildContext(rootDir)
+  );
+  assert.equal(result.success, true);
+
+  const filePath = path.join(
+    rootDir,
+    "data",
+    "memory",
+    "notes",
+    `entry_${added.output.id}.json`
+  );
+  assert.equal(fs.existsSync(filePath), false);
 });
 
 test("request_video_edit creates artifact plan", async () => {

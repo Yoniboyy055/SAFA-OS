@@ -108,6 +108,20 @@ export function readMemoryEntry(
   return parsed;
 }
 
+export function deleteMemoryEntry(
+  rootDir: string,
+  bucket: MemoryBucket,
+  id: string
+): { filePath: string } {
+  const dir = resolveBucketDir(rootDir, bucket);
+  const filePath = path.join(dir, `entry_${id}.json`);
+  if (!fs.existsSync(filePath)) {
+    throw new Error("Memory entry not found.");
+  }
+  fs.unlinkSync(filePath);
+  return { filePath };
+}
+
 export function listMemoryEntries(
   rootDir: string,
   bucket: MemoryBucket

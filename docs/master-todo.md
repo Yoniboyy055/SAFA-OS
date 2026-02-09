@@ -123,7 +123,7 @@ Goal: Intelligence without manipulation.
 - [ ] Pattern reflection (read-only)
 - [ ] No behavior steering
 - [ ] No hidden state
-- [ ] Memory deletion + review flow
+- [x] Memory deletion + review flow
 
 ### DONE WHEN
 - SAFA remembers facts only with approval

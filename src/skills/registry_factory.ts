@@ -13,6 +13,7 @@ import { memoryAddSkill } from "./memory/memory_add";
 import { memorySearchSkill } from "./memory/memory_search";
 import { memoryGetSkill } from "./memory/memory_get";
 import { memoryListSkill } from "./memory/memory_list";
+import { memoryDeleteSkill } from "./memory/memory_delete";
 import { listKnowledgeSkill } from "./knowledge/list_knowledge";
 import { searchKnowledgeSkill } from "./knowledge/search_knowledge";
 import { addKnowledgeDocSkill } from "./knowledge/add_knowledge_doc";
@@ -58,6 +59,7 @@ export function buildRegistry(): SkillRegistry {
   registry.register(memorySearchSkill);
   registry.register(memoryGetSkill);
   registry.register(memoryListSkill);
+  registry.register(memoryDeleteSkill);
   registry.register(listKnowledgeSkill);
   registry.register(searchKnowledgeSkill);
   registry.register(addKnowledgeDocSkill);
