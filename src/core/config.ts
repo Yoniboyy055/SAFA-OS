@@ -128,6 +128,42 @@ export interface ProactivityConfig {
   templates?: ProactivityTemplate[];
 }
 
+export interface DiscordConfig {
+  enabled: boolean;
+  botToken: string;
+  webhookUrl?: string;
+  channelAllowlist: string[];
+  guildAllowlist: string[];
+  dryRunDefault: boolean;
+}
+
+export interface SlackConfig {
+  enabled: boolean;
+  botToken: string;
+  webhookUrl?: string;
+  channelAllowlist: string[];
+  workspaceAllowlist: string[];
+  signingSecret?: string;
+  dryRunDefault: boolean;
+}
+
+export interface WhatsAppConfig {
+  enabled: boolean;
+  provider: "twilio";
+  accountSid: string;
+  authToken: string;
+  fromNumberAllowlist: string[];
+  toNumberAllowlist: string[];
+  webhookUrl?: string;
+  dryRunDefault: boolean;
+}
+
+export interface MessagingConfig {
+  discord?: DiscordConfig;
+  slack?: SlackConfig;
+  whatsapp?: WhatsAppConfig;
+}
+
 export interface LLMConfig {
   enabled: boolean;
   provider: "openai" | "anthropic" | "ollama" | "llamacpp";
@@ -153,6 +189,7 @@ export interface SAFAConfig {
   audit: AuditConfig;
   permissions: PermissionsConfig;
   proactivity?: ProactivityConfig;
+  messaging?: MessagingConfig;
 }
 
 export interface ResolvedConfig extends SAFAConfig {
@@ -428,7 +465,8 @@ function mergeConfig(
       )
     },
     llm: overrides.llm ?? base.llm,
-    proactivity: overrides.proactivity
+    proactivity: overrides.proactivity,
+    messaging: overrides.messaging
   };
 }
 
