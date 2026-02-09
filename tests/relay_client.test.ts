@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
 const { RelayClient } = require("../src/relay/relay_client");
 
-function sign(workerKey, method, path, body, ts) {
+function sign(workerKey: string, method: string, path: string, body: string, ts: string) {
   const bodyHash = crypto.createHash("sha256").update(body).digest("hex");
   const payload = `${ts}.${method}.${path}.${bodyHash}`;
   return crypto.createHmac("sha256", workerKey).update(payload).digest("base64url");

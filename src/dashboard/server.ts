@@ -13,6 +13,7 @@ import { Manager } from "../core/manager";
 import { Operator } from "../core/operator";
 import { buildRegistry } from "../skills/registry_factory";
 import type { SkillDefinition } from "../types/skill";
+import type { PlanOutput } from "../types/plan";
 import { AuthorityLevel } from "../core/authority";
 import type { CostTier, Mode, RiskTier, LlmMessage } from "../core/llm/types";
 import { getModel, listAllModels } from "../core/llm/registry";
@@ -2153,7 +2154,7 @@ export function createDashboardServer(
   const planStore = new Map<
     string,
     {
-      plan: ReturnType<Planner["createPlan"]>;
+      plan: PlanOutput;
       review: ReturnType<Manager["reviewPlan"]>;
       commandText: string;
     }

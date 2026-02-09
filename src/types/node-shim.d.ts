@@ -45,6 +45,8 @@ declare function fetch(
   }
 ): Promise<{
   status: number;
+  ok: boolean;
+  json: () => Promise<any>;
   body?: {
     getReader: () => {
       read: () => Promise<{ done: boolean; value?: Uint8Array }>;
