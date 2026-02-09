@@ -426,7 +426,9 @@ function mergeConfig(
         overrides.permissions?.callTemplateAllowlist ??
           base.permissions.callTemplateAllowlist
       )
-    }
+    },
+    llm: overrides.llm ?? base.llm,
+    proactivity: overrides.proactivity
   };
 }
 

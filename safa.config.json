@@ -23,13 +23,13 @@
     "enabled": true
   },
   "email": {
-    "enabled": true,
+    "enabled": false,
     "provider": "smtp",
     "fromAllowlist": ["jarvis@yourdomain.com", "*@gmail.com"],
     "toAllowlist": ["*@yourdomain.com", "trusted@example.com"],
     "domainAllowlist": ["yourdomain.com"],
     "dryRunDefault": true,
-    "from": "",
+    "from": "jarvis@yourdomain.com",
     "smtp": {
       "host": "smtp.gmail.com",
       "port": 587,
