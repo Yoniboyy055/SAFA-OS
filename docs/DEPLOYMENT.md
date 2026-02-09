@@ -82,7 +82,7 @@ OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 **Cost Considerations**:
-- Default model: `gpt-4o-mini` (~$0.15 per 1M input tokens)
+- Default model: `gpt-4o-mini` (~$0.15 per 1M input tokens, ~$0.60 per 1M output tokens)
 - Set cost guards in `safa.config.json` to limit spending
 - Monitor usage in OpenAI dashboard
 

@@ -346,6 +346,8 @@ export async function sendEmail(
   }
 
   // Real SMTP sending (requires nodemailer)
+  // Note: Dynamic require used here to make nodemailer optional
+  // This allows dry-run mode to work without installing nodemailer
   let transporter;
   
   if (context.transportOverride) {

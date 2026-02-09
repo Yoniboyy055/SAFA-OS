@@ -80,8 +80,13 @@ function checkNetworkWindow(config: ResolvedConfig): void {
   }
 
   // Check if the provider's API domain is allowlisted
+  // Use exact domain matching to prevent substring attacks
   const allowedDomains = config.network.allowlistDomains || [];
-  if (!allowedDomains.includes("api.openai.com") && !allowedDomains.includes("*")) {
+  const hasOpenAI = allowedDomains.some(
+    (domain) => domain === "api.openai.com" || domain === "*.openai.com" || domain === "*"
+  );
+  
+  if (!hasOpenAI) {
     throw new Error(
       "OpenAI API domain (api.openai.com) is not allowlisted. Add it to network.allowlistDomains."
     );
@@ -188,7 +193,8 @@ export async function callLLM(
   );
 
   // Check cost guard
-  const costGuard = (context.config as any).llm?.costGuardUsd ?? 0.10;
+  const llmConfig = context.config.llm;
+  const costGuard = llmConfig?.costGuardUsd ?? 0.10;
   if (estimatedCost > costGuard) {
     const error = `Estimated cost $${estimatedCost.toFixed(4)} exceeds cost guard $${costGuard}`;
     context.audit.log({
@@ -300,7 +306,7 @@ export async function callLLM(
  * Check if LLM is configured and available
  */
 export function isLLMAvailable(config: ResolvedConfig): boolean {
-  const llmConfig = (config as any).llm;
+  const llmConfig = config.llm;
   if (!llmConfig || !llmConfig.enabled) {
     return false;
   }
