@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } | Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await Promise.resolve(params);
 
   if (!id) {
     return NextResponse.json(
