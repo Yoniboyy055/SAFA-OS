@@ -113,8 +113,10 @@ export class Manager {
       }
 
       const derived = deriveRisk(step, skill);
-      let requiresApproval = false;
-      approvalRequired = false;
+      const requiresApproval = derived.requiresApproval;
+      if (requiresApproval) {
+        approvalRequired = true;
+      }
 
       if (errors.length > 0) {
         valid = false;

@@ -5,6 +5,7 @@ import type { AuditLogger } from "./audit";
 import type { AuthorityLevel } from "./authority";
 import type { CommandMode } from "../cli/command_mode";
 import type { ApprovalRequest } from "./approvals";
+import { isExpired } from "./approvals";
 import { validatePayloadSize, validateUrl } from "./network/types";
 import { assertCommandMode } from "../cli/command_mode";
 import { assertOwnerAuthority } from "./authority";
@@ -54,6 +55,46 @@ export class Governor {
     config: ResolvedConfig,
     context: GovernanceContext
   ): { approved: boolean; reason?: string } {
+    if (config.governance?.strictApprovalMode && !context.approved) {
+      return { approved: false, reason: "Strict approval mode requires explicit approval." };
+    }
+
+    if (context.approval) {
+      if (context.approval.status === "DENIED") {
+        return { approved: false, reason: context.approval.reason ?? "Approval denied." };
+      }
+      if (context.approval.status === "EXPIRED" || isExpired(context.approval)) {
+        return { approved: false, reason: "Approval expired." };
+      }
+      if (
+        config.governance?.networkApprovalMode === "plan_hash" &&
+        context.approval.status === "APPROVED"
+      ) {
+        return { approved: true };
+      }
+    }
+
+    if (config.governance?.networkApprovalMode === "plan_hash") {
+      if (!context.approval) {
+        return { approved: false, reason: "Approval record with plan hash required." };
+      }
+    }
+
+    if (action.requiresApproval && !context.approved) {
+      return { approved: false, reason: "Approval required." };
+    }
+
+    if (action.riskLevel === "HIGH" && !context.approved) {
+      return { approved: false, reason: "Approval required for high-risk actions." };
+    }
+
+    if (
+      (action.category === "external_tool" || action.category === "outbound_message") &&
+      !context.approved
+    ) {
+      return { approved: false, reason: "Approval required for external actions." };
+    }
+
     return { approved: true };
   }
 
