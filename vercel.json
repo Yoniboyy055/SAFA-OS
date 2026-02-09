@@ -1,6 +1,5 @@
 {
-  "framework": "nextjs",
-  "installCommand": "cd safa-relay && npm install",
   "buildCommand": "cd safa-relay && npm run build",
+  "installCommand": "cd safa-relay && npm install",
   "outputDirectory": "safa-relay/.next"
 }
