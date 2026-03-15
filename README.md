@@ -226,7 +226,7 @@ mode or skill risk demands it. Network stays OFF by default.
 
 Startup hardening:
 - Requires `SAFA_OWNER_TOKEN` to start.
-- Requires `SAFA_PIN` (defaults to `0512` if unset).
+- Requires `SAFA_PIN` (defaults to `1234` if unset).
 - Requires kill switch **ON** at start (safe mode).
 
 Extra local endpoints:
