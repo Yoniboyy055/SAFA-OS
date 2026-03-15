@@ -9,7 +9,7 @@
     "temperature": 0.2
   },
   "network": {
-    "enabled": true,
+    "enabled": false,
     "allowlist": [],
     "allowlistDomains": ["api.openai.com", "smtp.gmail.com", "api.resend.com"],
     "allowlistUrls": [],
