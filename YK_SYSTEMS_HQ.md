@@ -30,6 +30,25 @@ If private HQ cannot be accessed and the task requires current YK authority/poli
 
 Do not copy HQ secrets, client data, credentials or unrelated confidential information into this repository.
 
+## Shared simulation tool — MiroFish
+
+When work in this repository falls inside the YK Systems governance boundary, MiroFish is a registered **shared YK Systems synthetic-audience and multi-agent scenario-simulation tool**. It is not a dependency to install inside this repository by default.
+
+Automatically consider MiroFish when material YK Systems work depends on likely customer/audience/stakeholder reactions, objections, adoption behavior, pricing or offer response, onboarding/flow response, launch/message response, or second-order multi-actor effects.
+
+If using MiroFish would materially reduce uncertainty or expose failure modes, route the scenario through the shared YK Systems MiroFish capability when available. The owner does not need to remember to request it.
+
+Rules:
+- label MiroFish output as **synthetic evidence**;
+- never present it as proof of demand, willingness to pay, conversion, retention, or statistically representative customer behavior;
+- use real-user/customer/payment evidence for consequential commercial validation;
+- do not copy secrets, credentials, unnecessary PII, or confidential client data into a simulation seed;
+- do not embed/fork MiroFish here without a separate owner-approved technical/licensing decision.
+
+If MiroFish is materially required but unavailable in the active runtime, report `MIROFISH_REQUIRED_BUT_UNAVAILABLE`. Do not silently replace it with one model pretending to be a multi-agent simulation.
+
+This rule applies only to YK Systems work and does not reclassify this repository into the YK Systems company lane.
+
 ## Immediate activation for ongoing YK Systems work
 
 Whenever work in this repository falls inside the YK Systems governance boundary, the current YK Systems HQ rules are **effective immediately**, including YK-related tasks, branches, pull requests, reviews, release candidates, orchestration work and deliverables that began before this bootstrap was installed.
