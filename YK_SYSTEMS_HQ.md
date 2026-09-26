@@ -30,6 +30,25 @@ If private HQ cannot be accessed and the task requires current YK authority/poli
 
 Do not copy HQ secrets, client data, credentials or unrelated confidential information into this repository.
 
+## Immediate activation for ongoing YK Systems work
+
+Whenever work in this repository falls inside the YK Systems governance boundary, the current YK Systems HQ rules are **effective immediately**, including YK-related tasks, branches, pull requests, reviews, release candidates, orchestration work and deliverables that began before this bootstrap was installed.
+
+Before the next material YK-related edit, review, merge, release, orchestration action or completion claim:
+
+1. re-read this `YK_SYSTEMS_HQ.md` and the current repository-local instructions;
+2. re-evaluate the active YK work against the applicable mandatory systems and six-question completion gate;
+3. correct material gaps before proceeding;
+4. record N/A gates, blockers, known debt and owner-authorized exceptions explicitly.
+
+There is no grandfathering for open YK Systems work.
+
+Finally closed historical work does not need to be reopened solely for this policy. If reactivated, modified, re-released or used as the active basis for new YK work, current governance applies.
+
+A running model/agent session does not receive Git updates automatically. It must reload/re-read current instructions before its next material YK-related action. If current YK governance cannot be verified when required, stop/escalate rather than continue from stale instructions.
+
+This rule does **not** reclassify this repository into the YK Systems company lane; it applies only when the work is inside the YK Systems boundary.
+
 ## Six-question completion gate
 
 Before material work is called **done**, **ready**, **approved**, **launch-ready**, or **production-ready**, the executor/reviewer must determine which of the five operating systems apply and provide evidence for the applicable gates.
